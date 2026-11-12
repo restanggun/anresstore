@@ -1,0 +1,106 @@
+- generic [active] [ref=f1e1]:
+  - link "Lewati ke konten" [ref=f1e2] [cursor=pointer]:
+    - /url: "#main"
+  - generic [ref=f1e4]:
+    - banner [ref=f1e5]:
+      - generic [ref=f1e6]:
+        - button "Buka menu" [ref=f1e7] [cursor=pointer]
+        - generic [ref=f1e10]:
+          - text: Ruang kerja /
+          - strong [ref=f1e11]: Ringkasan
+      - button "Status sistem dan notifikasi" [ref=f1e13] [cursor=pointer]
+    - main [ref=f1e16]:
+      - generic [ref=f1e18]:
+        - paragraph [ref=f1e19]: Ruang kerja Anres
+        - heading "Ringkasan toko" [level=1] [ref=f1e20]
+        - paragraph [ref=f1e21]: Pantau aktivitas dan kesiapan operasional Anres Store.
+      - generic [ref=f1e22]:
+        - generic [ref=f1e23]:
+          - generic [ref=f1e24]: Semua dalam satu tempat
+          - heading "Lebih dekat dengan aktivitas tokomu." [level=2] [ref=f1e26]: Lebih dekat denganaktivitas tokomu.
+          - paragraph [ref=f1e27]: Lihat pesanan, pelanggan, dan hal yang membutuhkan perhatian dari satu ruang kerja.
+          - button "Lihat pesanan" [ref=f1e28] [cursor=pointer]
+        - generic [ref=f1e33]: a.
+      - generic [ref=f1e53]:
+        - heading "Aktivitas toko" [level=2] [ref=f1e54]
+        - paragraph [ref=f1e55]: Gambaran singkat operasional toko kamu.
+      - generic [ref=f1e56]:
+        - button "Pesanan — Pesanan dan invoice" [ref=f1e57] [cursor=pointer]:
+          - generic [ref=f1e62]: Pesanan
+          - strong [ref=f1e63]: —
+          - generic [ref=f1e64]: Pesanan dan invoice
+        - button "Pembayaran — Status transaksi" [ref=f1e68] [cursor=pointer]:
+          - generic [ref=f1e73]: Pembayaran
+          - strong [ref=f1e74]: —
+          - generic [ref=f1e75]: Status transaksi
+        - button "Pelanggan — Akun terdaftar" [ref=f1e79] [cursor=pointer]:
+          - generic [ref=f1e84]: Pelanggan
+          - strong [ref=f1e85]: —
+          - generic [ref=f1e86]: Akun terdaftar
+        - button "Bantuan — Permintaan pelanggan" [ref=f1e90] [cursor=pointer]:
+          - generic [ref=f1e95]: Bantuan
+          - strong [ref=f1e96]: —
+          - generic [ref=f1e97]: Permintaan pelanggan
+      - generic [ref=f1e101]:
+        - generic [ref=f1e102]:
+          - generic [ref=f1e103]:
+            - generic [ref=f1e104]:
+              - heading "Tren pesanan" [level=2] [ref=f1e105]
+              - paragraph [ref=f1e106]: Lihat perkembangan pesanan dalam periode pilihan.
+            - generic [ref=f1e107]:
+              - generic [ref=f1e108]: Periode grafik Tren pesanan
+              - combobox "Periode grafik Tren pesanan" [ref=f1e109] [cursor=pointer]:
+                - option "7 hari" [selected]
+                - option "30 hari"
+                - option "90 hari"
+          - 'img "Tren pesanan: data belum terhubung" [ref=f1e110]':
+            - generic [ref=f1e116]:
+              - strong [ref=f1e120]: Grafik belum tersedia
+              - generic [ref=f1e121]: Data akan tampil setelah sumber terhubung.
+          - generic [aria-hidden] [ref=f1e122]:
+            - generic [ref=f1e123]: Awal periode
+            - generic [ref=f1e124]: Akhir periode
+        - generic [ref=f1e125]:
+          - generic [ref=f1e127]:
+            - heading "Perlu perhatian" [level=2] [ref=f1e128]
+            - paragraph [ref=f1e129]: Hal penting untuk operasional toko.
+          - button "Koneksi API Memeriksa koneksi Memeriksa" [ref=f1e132] [cursor=pointer]:
+            - generic [ref=f1e136]:
+              - strong [ref=f1e137]: Koneksi API
+              - generic [ref=f1e138]: Memeriksa koneksi
+            - generic [ref=f1e139]: Memeriksa
+          - button "Akses administrator Autentikasi dan peran belum tersedia" [ref=f1e140] [cursor=pointer]:
+            - generic [ref=f1e145]:
+              - strong [ref=f1e146]: Akses administrator
+              - generic [ref=f1e147]: Autentikasi dan peran belum tersedia
+          - paragraph [ref=f1e150]: Notifikasi pesanan, akun, dan bantuan akan muncul setelah data admin terhubung.
+      - generic [ref=f1e151]:
+        - generic [ref=f1e152]:
+          - generic [ref=f1e153]:
+            - generic [ref=f1e154]:
+              - heading "Pertumbuhan pelanggan" [level=2] [ref=f1e155]
+              - paragraph [ref=f1e156]: Akun baru yang terdaftar di website.
+            - generic [ref=f1e157]:
+              - generic [ref=f1e158]: Periode grafik Pertumbuhan pelanggan
+              - combobox "Periode grafik Pertumbuhan pelanggan" [ref=f1e159] [cursor=pointer]:
+                - option "7 hari" [selected]
+                - option "30 hari"
+                - option "90 hari"
+          - 'img "Pertumbuhan pelanggan: data belum terhubung" [ref=f1e160]':
+            - generic [ref=f1e166]:
+              - strong [ref=f1e170]: Grafik belum tersedia
+              - generic [ref=f1e171]: Data akan tampil setelah sumber terhubung.
+          - generic [aria-hidden] [ref=f1e172]:
+            - generic [ref=f1e173]: Awal periode
+            - generic [ref=f1e174]: Akhir periode
+        - generic [ref=f1e175]:
+          - generic [ref=f1e176]:
+            - generic [ref=f1e177]:
+              - heading "Pesanan terbaru" [level=2] [ref=f1e178]
+              - paragraph [ref=f1e179]: Aktivitas pesanan akan muncul di sini.
+            - button "Lihat semua" [ref=f1e180] [cursor=pointer]
+          - generic [ref=f1e183]:
+            - heading "Data pesanan belum terhubung" [level=3] [ref=f1e188]
+            - paragraph [ref=f1e189]: Pesanan simulasi dan transaksi nyata akan ditampilkan terpisah.
+      - generic [ref=f1e190]: Anres Store · Ruang kerja admin
+  - button "Open Next.js Dev Tools" [ref=f1e197] [cursor=pointer]

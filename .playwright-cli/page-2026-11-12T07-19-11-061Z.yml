@@ -1,0 +1,114 @@
+- generic [active] [ref=e1]:
+  - link "Lewati ke konten" [ref=e2] [cursor=pointer]:
+    - /url: "#main"
+  - generic [ref=e3]:
+    - complementary "Navigasi admin" [ref=e4]:
+      - link "Anres Store admin" [ref=e6] [cursor=pointer]:
+        - /url: /
+        - generic [ref=e7]: a.
+        - generic [ref=e8]:
+          - strong [ref=e9]: anres.
+          - generic [ref=e10]: store admin
+      - generic [ref=e11]:
+        - generic [ref=e12]: a.
+        - generic [ref=e13]:
+          - strong [ref=e14]: Anres Store
+          - generic [ref=e15]: Ruang kerja admin
+      - navigation "Menu utama" [ref=e17]:
+        - generic [ref=e18]:
+          - paragraph [ref=e19]: Menu utama
+          - button "Ringkasan" [ref=e20] [cursor=pointer]
+          - button "Pesanan" [ref=e28] [cursor=pointer]
+          - button "Katalog & harga" [ref=e33] [cursor=pointer]
+          - button "Pembayaran" [ref=e38] [cursor=pointer]
+        - generic [ref=e43]:
+          - paragraph [ref=e44]: Lainnya
+          - button "Bantuan pelanggan" [ref=e45] [cursor=pointer]
+          - button "Pengaturan akses" [ref=e50] [cursor=pointer]
+      - generic [ref=e55]:
+        - generic [ref=e60]:
+          - strong [ref=e61]: Ruang kerja disiapkan
+          - paragraph [ref=e62]: Akses admin akan tersedia setelah autentikasi aktif.
+        - generic [ref=e63]:
+          - generic [ref=e64]: A
+          - generic [ref=e65]:
+            - strong [ref=e66]: Admin Anres
+            - generic [ref=e67]: Mode persiapan
+    - generic [ref=e68]:
+      - banner [ref=e69]:
+        - generic [ref=e71]:
+          - text: Ruang kerja /
+          - strong [ref=e72]: Ringkasan
+        - generic [ref=e73]:
+          - generic [ref=e74]: Mode persiapan
+          - generic [ref=e76]: A
+      - main [ref=e77]:
+        - generic [ref=e78]:
+          - generic [ref=e79]:
+            - paragraph [ref=e80]: Halo, selamat datang 👋
+            - heading "Ringkasan toko" [level=1] [ref=e81]
+            - paragraph [ref=e82]: Pantau aktivitas dan kesiapan operasional Anres Store.
+          - generic [ref=e83]: Dashboard admin
+        - region "Semua yang kamu butuhkan, di satu tempat." [ref=e85]:
+          - generic [ref=e86]:
+            - generic [ref=e87]: Ruang kerja Anres
+            - heading "Semua yang kamu butuhkan, di satu tempat." [level=2] [ref=e89]: Semua yang kamu butuhkan,di satu tempat.
+            - paragraph [ref=e90]: Kelola kegiatan toko dengan lebih rapi, mulai dari pesanan hingga katalog produk.
+            - button "Lihat pesanan" [ref=e91] [cursor=pointer]
+          - generic [aria-hidden] [ref=e94]:
+            - generic [ref=e95]: ✳
+            - generic [ref=e96]: ✳
+            - generic [ref=e98]: a.
+        - generic [ref=e116]:
+          - generic [ref=e117]:
+            - heading "Aktivitas toko" [level=2] [ref=e118]
+            - paragraph [ref=e119]: Gambaran singkat operasional toko kamu.
+          - generic [ref=e120]: Data belum terhubung
+        - generic [ref=e121]:
+          - button "Pesanan — Pesanan masuk" [ref=e122] [cursor=pointer]:
+            - generic [ref=e127]: Pesanan
+            - strong [ref=e128]: —
+            - generic [ref=e129]: Pesanan masuk
+          - button "Pembayaran — Status pembayaran" [ref=e133] [cursor=pointer]:
+            - generic [ref=e138]: Pembayaran
+            - strong [ref=e139]: —
+            - generic [ref=e140]: Status pembayaran
+          - button "Produk — Katalog toko" [ref=e144] [cursor=pointer]:
+            - generic [ref=e149]: Produk
+            - strong [ref=e150]: —
+            - generic [ref=e151]: Katalog toko
+          - button "Bantuan — Pertanyaan pelanggan" [ref=e155] [cursor=pointer]:
+            - generic [ref=e160]: Bantuan
+            - strong [ref=e161]: —
+            - generic [ref=e162]: Pertanyaan pelanggan
+        - generic [ref=e166]:
+          - generic [ref=e167]:
+            - generic [ref=e168]:
+              - generic [ref=e169]:
+                - heading "Pesanan terbaru" [level=2] [ref=e170]
+                - paragraph [ref=e171]: Aktivitas pesanan akan muncul di sini.
+              - button "Lihat semua" [ref=e172] [cursor=pointer]
+            - generic [ref=e175]:
+              - heading "Belum ada data pesanan" [level=3] [ref=e180]
+              - paragraph [ref=e181]: Pesanan akan ditampilkan setelah sistem terhubung.
+          - generic [ref=e182]:
+            - generic [ref=e184]:
+              - heading "Persiapan toko" [level=2] [ref=e185]
+              - paragraph [ref=e186]: Langkah menuju operasional.
+            - generic [ref=e190]:
+              - button "Akses administrator Siapkan autentikasi dan peran" [ref=e191] [cursor=pointer]:
+                - generic [ref=e196]:
+                  - strong [ref=e197]: Akses administrator
+                  - generic [ref=e198]: Siapkan autentikasi dan peran
+              - button "Katalog & harga Hubungkan pengelolaan produk" [ref=e201] [cursor=pointer]:
+                - generic [ref=e206]:
+                  - strong [ref=e207]: Katalog & harga
+                  - generic [ref=e208]: Hubungkan pengelolaan produk
+              - button "Pesanan & pembayaran Hubungkan sistem transaksi" [ref=e211] [cursor=pointer]:
+                - generic [ref=e216]:
+                  - strong [ref=e217]: Pesanan & pembayaran
+                  - generic [ref=e218]: Hubungkan sistem transaksi
+        - generic [ref=e221]:
+          - generic [ref=e222]: © Anres Store · Ruang kerja admin
+          - generic [ref=e223]: Dibuat untuk operasional yang lebih tertata.
+  - button "Open Next.js Dev Tools" [ref=e229] [cursor=pointer]

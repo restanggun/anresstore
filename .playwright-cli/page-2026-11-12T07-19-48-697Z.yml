@@ -1,0 +1,57 @@
+- generic [ref=e1]:
+  - link "Lewati ke konten" [ref=e2] [cursor=pointer]:
+    - /url: "#main"
+  - generic [ref=e3]:
+    - complementary "Navigasi admin" [ref=e4]:
+      - link "Anres Store admin" [ref=e6] [cursor=pointer]:
+        - /url: /
+        - generic [ref=e7]: a.
+        - generic [ref=e8]:
+          - strong [ref=e9]: anres.
+          - generic [ref=e10]: store admin
+      - generic [ref=e11]:
+        - generic [ref=e12]: a.
+        - generic [ref=e13]:
+          - strong [ref=e14]: Anres Store
+          - generic [ref=e15]: Ruang kerja admin
+      - navigation "Menu utama" [ref=e17]:
+        - generic [ref=e18]:
+          - paragraph [ref=e19]: Menu utama
+          - button "Ringkasan" [ref=e20] [cursor=pointer]
+          - button "Pesanan" [active] [ref=e28] [cursor=pointer]
+          - button "Katalog & harga" [ref=e33] [cursor=pointer]
+          - button "Pembayaran" [ref=e38] [cursor=pointer]
+        - generic [ref=e43]:
+          - paragraph [ref=e44]: Lainnya
+          - button "Bantuan pelanggan" [ref=e45] [cursor=pointer]
+          - button "Pengaturan akses" [ref=e50] [cursor=pointer]
+      - generic [ref=e55]:
+        - generic [ref=e60]:
+          - strong [ref=e61]: Ruang kerja disiapkan
+          - paragraph [ref=e62]: Akses admin akan tersedia setelah autentikasi aktif.
+        - generic [ref=e63]:
+          - generic [ref=e64]: A
+          - generic [ref=e65]:
+            - strong [ref=e66]: Admin Anres
+            - generic [ref=e67]: Mode persiapan
+    - generic [ref=e68]:
+      - banner [ref=e69]:
+        - generic [ref=e71]:
+          - text: Ruang kerja /
+          - strong [ref=e72]: Pesanan
+        - generic [ref=e73]:
+          - generic [ref=e74]: Mode persiapan
+          - generic [ref=e76]: A
+      - main [ref=e77]:
+        - generic [ref=e78]:
+          - generic [ref=e79]:
+            - paragraph [ref=e80]: Ruang kerja Anres
+            - heading "Pesanan" [level=1] [ref=e234]
+            - paragraph [ref=e82]: Pantau dan kelola pesanan pelanggan di satu tempat.
+          - generic [ref=e83]: Dalam persiapan
+        - generic [ref=e235]:
+          - heading "Pesanan belum tersedia" [level=2] [ref=e240]
+          - paragraph [ref=e241]: Daftar pesanan akan muncul setelah sistem pesanan dan akses admin terhubung.
+          - button "Kembali ke ringkasan" [ref=e242] [cursor=pointer]
+  - button "Open Next.js Dev Tools" [ref=e229] [cursor=pointer]
+  - alert [ref=e245]

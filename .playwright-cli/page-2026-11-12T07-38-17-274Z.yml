@@ -1,0 +1,70 @@
+- generic [ref=f4e1]:
+  - link "Lewati ke konten" [ref=f4e2] [cursor=pointer]:
+    - /url: "#main"
+  - generic [ref=f4e4]:
+    - banner [ref=f4e5]:
+      - generic [ref=f4e6]:
+        - button "Buka menu" [ref=f4e7] [cursor=pointer]
+        - generic [ref=f4e9]:
+          - text: Ruang kerja /
+          - strong [ref=f4e10]: Status sistem
+      - button "Status sistem dan notifikasi" [active] [ref=f4e12] [cursor=pointer]
+    - main [ref=f4e204]:
+      - generic [ref=f4e206]:
+        - paragraph [ref=f4e207]: Ruang kerja Anres
+        - heading "Status sistem" [level=1] [ref=f4e208]
+        - paragraph [ref=f4e209]: Pantau koneksi layanan dan kesiapan integrasi toko.
+      - generic [ref=f4e210]:
+        - generic [ref=f4e211]:
+          - generic [ref=f4e215]: API
+          - strong [ref=f4e216]: Aktif
+          - generic [ref=f4e217]: Pemeriksaan API
+        - generic [ref=f4e218]:
+          - generic [ref=f4e222]: Database
+          - strong [ref=f4e223]: —
+          - generic [ref=f4e224]: Belum terhubung
+        - generic [ref=f4e225]:
+          - generic [ref=f4e229]: Penyedia katalog
+          - strong [ref=f4e230]: —
+          - generic [ref=f4e231]: Belum terhubung
+        - generic [ref=f4e232]:
+          - generic [ref=f4e236]: Pembayaran
+          - strong [ref=f4e237]: —
+          - generic [ref=f4e238]: Belum terhubung
+      - generic [ref=f4e239]:
+        - generic [ref=f4e240]:
+          - generic [ref=f4e241]:
+            - generic [ref=f4e242]:
+              - heading "Waktu respons API" [level=2] [ref=f4e243]
+              - paragraph [ref=f4e244]: Pengukuran dari browser ini setiap menit selama halaman terbuka.
+            - generic [ref=f4e245]: Milidetik
+          - img "Grafik waktu respons API, 1 pengukuran berhasil. Pengukuran terakhir 16 milidetik." [ref=f4e246]:
+            - application [ref=f4e249]:
+              - generic [ref=f4e256]:
+                - generic [ref=f4e257]: "14.37"
+                - generic [ref=f4e260]:
+                  - generic [ref=f4e261]: "0"
+                  - generic [ref=f4e263]: "4"
+                  - generic [ref=f4e265]: "8"
+                  - generic [ref=f4e267]: "12"
+                  - generic [ref=f4e269]: "16"
+          - paragraph [ref=f4e271]: 1 pemeriksaan · 0 tidak terjangkau. Riwayat tidak disimpan setelah halaman ditutup.
+        - generic [ref=f4e272]:
+          - generic [ref=f4e274]:
+            - heading "Status integrasi" [level=2] [ref=f4e275]
+            - paragraph [ref=f4e276]: Pemeriksaan API hanya menunjukkan proses API dapat dijangkau, bukan kondisi database atau penyedia.
+          - generic [ref=f4e277]:
+            - generic [ref=f4e278]:
+              - generic [ref=f4e279]: API Anres
+              - generic [ref=f4e280]: API terjangkau
+            - paragraph [ref=f4e281]: Terakhir diperiksa 14.37.44. Diperbarui setiap menit.
+            - button "Periksa ulang" [ref=f4e282] [cursor=pointer]
+            - generic [ref=f4e283]:
+              - generic [ref=f4e284]: Database dan penyedia
+              - generic [ref=f4e285]: Belum dipantau
+      - paragraph [ref=f4e290]:
+        - strong [ref=f4e291]: Akses data dalam persiapan.
+        - text: Pemantauan akun dan transaksi memerlukan autentikasi, peran admin, dan endpoint yang berwenang. Angka dan notifikasi belum dapat dihitung sebelum terhubung.
+  - button "Open Next.js Dev Tools" [ref=f4e200] [cursor=pointer]
+  - alert [ref=f4e292]
+  - generic [aria-hidden] [ref=f4e293]: "0"

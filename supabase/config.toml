@@ -47,12 +47,12 @@ enable_confirmations = true
 
 [auth.email.template.confirmation]
 subject = "Konfirmasi email | Anres Store"
-content_path = "./templates/confirm-signup.html"
+content_path = "./supabase/templates/confirm-signup.html"
 
 [auth.email.template.magic_link]
 subject = "Kode login | Anres Store"
-content_path = "./templates/magic-link.html"
+content_path = "./supabase/templates/magic-link.html"
 
 [auth.email.template.recovery]
 subject = "Atur ulang password | Anres Store"
-content_path = "./templates/reset-password.html"
+content_path = "./supabase/templates/reset-password.html"

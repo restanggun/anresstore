@@ -1,0 +1,64 @@
+- generic [active] [ref=f1e1]:
+  - link "Lewati ke konten" [ref=f1e2] [cursor=pointer]:
+    - /url: "#main"
+  - generic [ref=f1e4]:
+    - banner [ref=f1e5]:
+      - generic [ref=f1e6]:
+        - button "Buka menu" [ref=f1e7] [cursor=pointer]
+        - generic [ref=f1e10]:
+          - text: Ruang kerja /
+          - strong [ref=f1e11]: Pelanggan
+      - button "Status sistem dan notifikasi" [ref=f1e13] [cursor=pointer]
+    - main [ref=f1e283]:
+      - generic [ref=f1e285]:
+        - paragraph [ref=f1e286]: Ruang kerja Anres
+        - heading "Pelanggan" [level=1] [ref=f1e287]
+        - paragraph [ref=f1e288]: Pantau pertumbuhan akun dan aktivitas pelanggan dengan akses yang berwenang.
+      - generic [ref=f1e289]:
+        - generic [ref=f1e290]:
+          - generic [ref=f1e295]: Total akun
+          - strong [ref=f1e296]: —
+          - generic [ref=f1e297]: Belum terhubung
+        - generic [ref=f1e298]:
+          - generic [ref=f1e303]: Akun baru
+          - strong [ref=f1e304]: —
+          - generic [ref=f1e305]: Belum terhubung
+        - generic [ref=f1e306]:
+          - generic [ref=f1e311]: Pelanggan berpesanan
+          - strong [ref=f1e312]: —
+          - generic [ref=f1e313]: Belum terhubung
+        - generic [ref=f1e314]:
+          - generic [ref=f1e319]: Aktivitas akun
+          - strong [ref=f1e320]: —
+          - generic [ref=f1e321]: Belum terhubung
+      - generic [ref=f1e322]:
+        - generic [ref=f1e323]:
+          - generic [ref=f1e324]:
+            - generic [ref=f1e325]:
+              - heading "Pertumbuhan akun" [level=2] [ref=f1e326]
+              - paragraph [ref=f1e327]: Jumlah akun baru berdasarkan waktu.
+            - generic [ref=f1e328]:
+              - generic [ref=f1e329]: Periode grafik Pertumbuhan akun
+              - combobox "Periode grafik Pertumbuhan akun" [ref=f1e330] [cursor=pointer]:
+                - option "7 hari" [selected]
+                - option "30 hari"
+                - option "90 hari"
+          - 'img "Pertumbuhan akun: data belum terhubung" [ref=f1e331]':
+            - generic [ref=f1e337]:
+              - strong [ref=f1e341]: Grafik belum tersedia
+              - generic [ref=f1e342]: Data akan tampil setelah sumber terhubung.
+          - generic [aria-hidden] [ref=f1e343]:
+            - generic [ref=f1e344]: Awal periode
+            - generic [ref=f1e345]: Akhir periode
+        - generic [ref=f1e346]:
+          - generic [ref=f1e348]:
+            - heading "Akun terbaru" [level=2] [ref=f1e349]
+            - paragraph [ref=f1e350]: Data profil pelanggan hanya dapat ditampilkan melalui akses admin yang aman.
+          - generic [ref=f1e351]:
+            - heading "Data belum terhubung" [level=3] [ref=f1e356]
+            - paragraph [ref=f1e357]: Informasi akan tersedia setelah integrasi admin yang aman diterapkan.
+      - paragraph [ref=f1e362]:
+        - strong [ref=f1e363]: Akses data dalam persiapan.
+        - text: Pemantauan akun dan transaksi memerlukan autentikasi, peran admin, dan endpoint yang berwenang. Angka dan notifikasi belum dapat dihitung sebelum terhubung.
+  - button "Open Next.js Dev Tools" [ref=f1e197] [cursor=pointer]
+  - alert [ref=f1e202]
