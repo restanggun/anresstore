@@ -1,0 +1,33 @@
+# Scaffold deployment lokal. VPS membutuhkan reverse proxy, TLS, secret,
+# serta peninjauan ukuran image sebelum produksi. Supabase dikelola terpisah.
+services:
+  web:
+    build:
+      context: ..
+      dockerfile: infra/Dockerfile
+      args:
+        APP: web
+    ports:
+      - "127.0.0.1:3000:3000"
+    restart: unless-stopped
+  admin:
+    build:
+      context: ..
+      dockerfile: infra/Dockerfile
+      args:
+        APP: admin
+    ports:
+      - "127.0.0.1:3001:3001"
+    restart: unless-stopped
+  api:
+    build:
+      context: ..
+      dockerfile: infra/Dockerfile
+      args:
+        APP: api
+    environment:
+      PORT: 4000
+      CORS_ORIGINS: http://localhost:3000,http://localhost:3001
+    ports:
+      - "127.0.0.1:4000:4000"
+    restart: unless-stopped

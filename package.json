@@ -1,0 +1,35 @@
+{
+  "name": "anres-store",
+  "version": "0.1.0",
+  "private": true,
+  "packageManager": "npm@11.20.0",
+  "engines": {
+    "node": ">=22.18.0",
+    "npm": ">=10"
+  },
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "concurrently -n web,admin,api -c cyan,magenta,green \"npm run dev:web\" \"npm run dev:admin\" \"npm run dev:api\"",
+    "dev:web": "npm run dev --workspace=@anres/web",
+    "dev:admin": "npm run dev --workspace=@anres/admin",
+    "dev:api": "npm run dev --workspace=@anres/api",
+    "build": "npm run build --workspaces --if-present",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "test": "npm run test --workspaces --if-present",
+    "db:start": "supabase start",
+    "db:stop": "supabase stop",
+    "db:reset": "supabase db reset",
+    "db:test": "supabase test db",
+    "db:types": "node scripts/generate-db-types.mjs"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "concurrently": "^9.0.0",
+    "shadcn": "^4.23.0",
+    "supabase": "^2.0.0",
+    "typescript": "~5.9.0"
+  }
+}

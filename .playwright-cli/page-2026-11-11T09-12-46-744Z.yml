@@ -1,0 +1,84 @@
+- generic [active] [ref=f15e1]:
+  - link "Lewati ke konten" [ref=f15e2] [cursor=pointer]:
+    - /url: "#main"
+  - banner [ref=f15e3]:
+    - generic [ref=f15e4]:
+      - link "Anres Store beranda" [ref=f15e5] [cursor=pointer]:
+        - /url: /
+        - generic [ref=f15e6]:
+          - generic [ref=f15e7]: Anres
+          - generic [ref=f15e8]: Store
+      - button "Buka menu" [ref=f15e10] [cursor=pointer]
+  - main [ref=f15e13]:
+    - generic [ref=f15e14]:
+      - link "Kembali ke katalog" [ref=f15e15] [cursor=pointer]:
+        - /url: /katalog
+      - generic [ref=f15e18]:
+        - heading "Ruang digitalmu, mulai di sini." [level=1] [ref=f15e24]:
+          - generic [ref=f15e25]:
+            - generic [ref=f15e26]: Ruang digitalmu,
+            - generic [aria-hidden] [ref=f15e27]:
+              - generic [ref=f15e28]: Ruang
+              - generic [ref=f15e29]: digitalmu,
+          - generic [ref=f15e30]:
+            - generic [ref=f15e31]: mulai di sini.
+            - generic [aria-hidden] [ref=f15e32]:
+              - generic [ref=f15e33]: mulai
+              - generic [ref=f15e34]: di
+              - generic [ref=f15e35]: sini.
+        - paragraph [ref=f15e36]: Kenali layanan untuk main, berkarya, dan keseharianmu.
+      - generic [ref=f15e37]: Anres Store
+    - region "Daftar akun" [ref=f15e38]:
+      - generic [ref=f15e39]:
+        - heading "Daftar akun" [level=2] [ref=f15e40]:
+          - generic [ref=f15e41]:
+            - generic [ref=f15e42]: Daftar akun
+            - generic [aria-hidden] [ref=f15e43]:
+              - generic [ref=f15e44]: Daftar
+              - generic [ref=f15e45]: akun
+        - paragraph [ref=f15e46]:
+          - text: Sudah punya akun?
+          - link "Login" [ref=f15e47] [cursor=pointer]:
+            - /url: /login
+      - paragraph [ref=f15e51]: Akses akun belum dibuka. Kamu tetap bisa menjelajahi katalog tanpa akun.
+      - generic [ref=f15e52]:
+        - generic [ref=f15e53]:
+          - generic [ref=f15e54]: Nama
+          - textbox "Nama" [ref=f15e56]:
+            - /placeholder: Nama kamu
+        - generic [ref=f15e57]:
+          - generic [ref=f15e58]: Email
+          - textbox "Email" [ref=f15e60]:
+            - /placeholder: nama@email.com
+        - generic [ref=f15e61]:
+          - generic [ref=f15e62]: Password
+          - generic [ref=f15e63]:
+            - textbox "Password" [ref=f15e64]:
+              - /placeholder: Minimal 8 karakter
+            - button "Lihat password" [ref=f15e65] [cursor=pointer]
+        - generic [ref=f15e69]:
+          - generic [ref=f15e70]: Ulangi password
+          - textbox "Ulangi password" [ref=f15e72]:
+            - /placeholder: Ketik ulang password
+        - button "Daftar" [ref=f15e73] [cursor=pointer]
+      - link "Butuh bantuan tentang akun?" [ref=f15e76] [cursor=pointer]:
+        - /url: /bantuan
+  - contentinfo [ref=f15e77]:
+    - generic [ref=f15e78]:
+      - generic [ref=f15e79]:
+        - link "Anres Store beranda footer" [ref=f15e80] [cursor=pointer]:
+          - /url: /
+          - generic [ref=f15e81]:
+            - generic [ref=f15e82]: Anres
+            - generic [ref=f15e83]: Store
+        - paragraph [ref=f15e85]: Kebutuhan digital, dekat denganmu.
+      - navigation "Navigasi footer" [ref=f15e86]:
+        - link "Tentang Anres" [ref=f15e87] [cursor=pointer]:
+          - /url: /about
+        - link "Pusat bantuan" [ref=f15e88] [cursor=pointer]:
+          - /url: /bantuan
+        - link "Jelajahi katalog" [ref=f15e89] [cursor=pointer]:
+          - /url: /katalog
+      - generic [ref=f15e90]:
+        - generic [ref=f15e91]: Game. Karya. Keseharian.
+        - generic [ref=f15e92]: © 2026 Anres Store

@@ -1,0 +1,237 @@
+- generic [active] [ref=f4e1]:
+  - link "Lewati ke konten" [ref=f4e2] [cursor=pointer]:
+    - /url: "#main"
+  - banner [ref=f4e3]:
+    - generic [ref=f4e4]:
+      - link "Anres Store beranda" [ref=f4e5] [cursor=pointer]:
+        - /url: /
+        - generic [ref=f4e6]:
+          - generic [ref=f4e7]: Anres
+          - generic [ref=f4e8]: Store
+      - navigation "Navigasi utama" [ref=f4e12]:
+        - link "Beranda" [ref=f4e13] [cursor=pointer]:
+          - /url: /
+        - link "Katalog" [ref=f4e16] [cursor=pointer]:
+          - /url: /katalog
+        - link "Tentang" [ref=f4e18] [cursor=pointer]:
+          - /url: /about
+        - link "Bantuan" [ref=f4e20] [cursor=pointer]:
+          - /url: /bantuan
+      - generic [ref=f4e22]:
+        - link "Login" [ref=f4e23] [cursor=pointer]:
+          - /url: /login
+        - link "Daftar" [ref=f4e24] [cursor=pointer]:
+          - /url: /daftar
+  - main [ref=f4e26]:
+    - region "Satu tempat, banyak kebutuhan." [ref=f4e27]:
+      - generic [ref=f4e28]:
+        - generic [ref=f4e29]: LAYANAN DIGITAL ANRES
+        - heading "Satu tempat, banyak kebutuhan." [level=1] [ref=f4e31]:
+          - generic [ref=f4e32]:
+            - generic [ref=f4e33]: Satu tempat,
+            - generic [aria-hidden] [ref=f4e34]:
+              - generic [ref=f4e35]: Satu
+              - generic [ref=f4e36]: tempat,
+          - generic [ref=f4e37]:
+            - generic [ref=f4e38]: banyak kebutuhan.
+            - generic [aria-hidden] [ref=f4e39]:
+              - generic [ref=f4e40]: banyak
+              - generic [ref=f4e41]: kebutuhan.
+        - paragraph [ref=f4e42]: Temukan pilihan untuk bermain, berkarya, terhubung, dan memenuhi kebutuhan digital harian.
+        - generic:
+          - link "Jelajahi Top up game" [ref=f4e43] [cursor=pointer]:
+            - /url: /katalog?kategori=Top%20up%20game
+          - link "Kenali Anres" [ref=f4e46] [cursor=pointer]:
+            - /url: /about
+      - tabpanel "Top up game" [ref=f4e47]:
+        - generic [ref=f4e48]: Isi waktu bermain
+        - generic [aria-hidden]:
+          - generic:
+            - generic: ML
+            - generic: FF
+            - generic: Rb
+        - generic [ref=f4e49]:
+          - heading "Saatnya lanjut main." [level=2] [ref=f4e50]:
+            - generic [aria-hidden] [ref=f4e52]:
+              - generic [ref=f4e53]: Saatnya
+              - generic [ref=f4e54]: lanjut
+              - generic [ref=f4e55]: main.
+          - paragraph [ref=f4e56]: Jelajahi Mobile Legends, Free Fire, dan Roblox dari satu katalog.
+        - link "Lihat kategori" [ref=f4e57] [cursor=pointer]:
+          - /url: /katalog?kategori=Top%20up%20game
+    - paragraph [ref=f4e64]:
+      - strong [ref=f4e65]: Katalog pratinjau.
+      - text: Jelajahi layanan terlebih dahulu. Pemesanan dan pembayaran belum dibuka.
+    - region "Cari yang kamu perlukan." [ref=f4e66]:
+      - generic [ref=f4e67]:
+        - generic [ref=f4e68]:
+          - heading "Cari yang kamu perlukan." [level=2] [ref=f4e69]
+          - paragraph [ref=f4e70]: Lima kategori yang mencakup kebutuhan digital sehari-hari.
+        - search [ref=f4e71]:
+          - generic [ref=f4e72]: Cari layanan
+          - searchbox "Cari layanan" [ref=f4e76]
+          - button "Cari layanan" [ref=f4e77] [cursor=pointer]
+      - generic [ref=f4e81]:
+        - link "3 layanan Top up game Isi waktu bermain Mobile Legends Free Fire Roblox Lihat kategori" [ref=f4e82] [cursor=pointer]:
+          - /url: /katalog?kategori=Top%20up%20game
+          - generic [ref=f4e83]:
+            - generic [aria-hidden]:
+              - generic:
+                - generic: ML
+                - generic: FF
+                - generic: Rb
+          - generic [ref=f4e84]: 3 layanan
+          - generic [ref=f4e89]:
+            - generic [ref=f4e90]: Top up game
+            - generic [aria-hidden] [ref=f4e91]:
+              - generic [ref=f4e92]: Top
+              - generic [ref=f4e93]: up
+              - generic [ref=f4e94]: game
+          - generic [ref=f4e95]: Isi waktu bermain
+          - generic [ref=f4e96]:
+            - generic [ref=f4e97]: Mobile Legends
+            - generic [ref=f4e98]: Free Fire
+            - generic [ref=f4e99]: Roblox
+          - generic [ref=f4e100]: Lihat kategori
+        - link "1 layanan Format tugas Dokumen lebih tertata Rapikan tugas Lihat kategori" [ref=f4e104] [cursor=pointer]:
+          - /url: /katalog?kategori=Format%20tugas
+          - generic [ref=f4e105]:
+            - generic [aria-hidden]:
+              - generic:
+                - generic: Aa
+                - generic: Word / PPT / PDF
+          - generic [ref=f4e106]: 1 layanan
+          - generic [ref=f4e112]:
+            - generic [ref=f4e113]: Format tugas
+            - generic [aria-hidden] [ref=f4e114]:
+              - generic [ref=f4e115]: Format
+              - generic [ref=f4e116]: tugas
+          - generic [ref=f4e117]: Dokumen lebih tertata
+          - generic [ref=f4e118]: Rapikan tugas
+          - generic [ref=f4e120]: Lihat kategori
+        - link "1 layanan Booster media sosial Untuk aktivitas sosial Layanan media sosial Lihat kategori" [ref=f4e124] [cursor=pointer]:
+          - /url: /katalog?kategori=Booster%20media%20sosial
+          - generic [ref=f4e125]:
+            - generic [aria-hidden]:
+              - generic:
+                - generic: "@"
+                - generic: social
+          - generic [ref=f4e126]: 1 layanan
+          - generic [ref=f4e134]:
+            - generic [ref=f4e135]: Booster media sosial
+            - generic [aria-hidden] [ref=f4e136]:
+              - generic [ref=f4e137]: Booster
+              - generic [ref=f4e138]: media
+              - generic [ref=f4e139]: sosial
+          - generic [ref=f4e140]: Untuk aktivitas sosial
+          - generic [ref=f4e141]: Layanan media sosial
+          - generic [ref=f4e143]: Lihat kategori
+        - link "1 layanan Aplikasi premium Untuk ide dan karya Canva Lihat kategori" [ref=f4e147] [cursor=pointer]:
+          - /url: /katalog?kategori=Aplikasi%20premium
+          - generic [ref=f4e148]:
+            - generic [aria-hidden]:
+              - generic:
+                - generic: Ca
+                - generic: Canva
+          - generic [ref=f4e149]: 1 layanan
+          - generic [ref=f4e154]:
+            - generic [ref=f4e155]: Aplikasi premium
+            - generic [aria-hidden] [ref=f4e156]:
+              - generic [ref=f4e157]: Aplikasi
+              - generic [ref=f4e158]: premium
+          - generic [ref=f4e159]: Untuk ide dan karya
+          - generic [ref=f4e160]: Canva
+          - generic [ref=f4e162]: Lihat kategori
+        - link "2 layanan PPOB Kebutuhan sehari-hari Pulsa & paket data Token listrik Lihat kategori" [ref=f4e166] [cursor=pointer]:
+          - /url: /katalog?kategori=PPOB
+          - generic [ref=f4e167]:
+            - generic [aria-hidden]:
+              - generic:
+                - generic:
+                  - generic: "08"
+                  - text: Pulsa & paket data
+                - generic:
+                  - generic: PLN
+                  - text: Token listrik
+          - generic [ref=f4e168]: 2 layanan
+          - generic [ref=f4e173]:
+            - generic [ref=f4e174]: PPOB
+            - generic [ref=f4e176]: PPOB
+          - generic [ref=f4e177]: Kebutuhan sehari-hari
+          - generic [ref=f4e178]:
+            - generic [ref=f4e179]: Pulsa & paket data
+            - generic [ref=f4e180]: Token listrik
+          - generic [ref=f4e181]: Lihat kategori
+    - region "Kenali layanannya. Pilih dengan tenang." [ref=f4e185]:
+      - generic [ref=f4e186]:
+        - heading "Kenali layanannya. Pilih dengan tenang." [level=2] [ref=f4e188]: Kenali layanannya.Pilih dengan tenang.
+        - paragraph [ref=f4e189]: Kebutuhan digital tidak selalu sama. Mulai dari informasi yang jelas untuk menemukan pilihan yang tepat.
+        - link "Tentang Anres Store" [ref=f4e190] [cursor=pointer]:
+          - /url: /about
+      - list [ref=f4e193]:
+        - listitem [ref=f4e194]:
+          - generic [ref=f4e199]:
+            - heading "Temukan kategorinya" [level=3] [ref=f4e200]
+            - paragraph [ref=f4e201]: Gunakan pencarian atau pilih salah satu dari lima kategori layanan.
+            - link "Cari layanan" [ref=f4e202] [cursor=pointer]:
+              - /url: /katalog
+        - listitem [ref=f4e206]:
+          - generic [ref=f4e211]:
+            - heading "Baca ringkasan layanan" [level=3] [ref=f4e212]
+            - paragraph [ref=f4e213]: Periksa keterangan produk dan ketentuan yang tersedia sebelum memilih.
+            - link "Lihat katalog" [ref=f4e214] [cursor=pointer]:
+              - /url: /katalog
+        - listitem [ref=f4e218]:
+          - generic [ref=f4e223]:
+            - heading "Ketahui statusnya" [level=3] [ref=f4e224]
+            - paragraph [ref=f4e225]: Harga, pemesanan, dan pembayaran belum tersedia selama katalog masih pratinjau.
+            - link "Baca pusat bantuan" [ref=f4e226] [cursor=pointer]:
+              - /url: /bantuan
+    - region "Sebelum kamu mulai." [ref=f4e230]:
+      - generic [ref=f4e231]:
+        - heading "Sebelum kamu mulai." [level=2] [ref=f4e232]
+        - paragraph [ref=f4e233]: Informasi singkat tentang katalog dan layanan kami.
+        - link "Lihat semua pertanyaan" [ref=f4e234] [cursor=pointer]:
+          - /url: /bantuan
+      - generic [ref=f4e237]:
+        - heading [level=3] [ref=f4e239]:
+          - button "Apakah sudah bisa memesan di website ini?" [ref=f4e240] [cursor=pointer]
+        - heading [level=3] [ref=f4e242]:
+          - button "Perlu akun untuk melihat katalog?" [ref=f4e243] [cursor=pointer]
+        - heading [level=3] [ref=f4e245]:
+          - button "Layanan apa saja yang sedang disiapkan?" [ref=f4e246] [cursor=pointer]
+    - region "Mulai dari kebutuhanmu." [ref=f4e247]:
+      - generic [ref=f4e248]:
+        - heading "Mulai dari kebutuhanmu." [level=2] [ref=f4e249]:
+          - generic [ref=f4e250]:
+            - generic [ref=f4e251]: Mulai dari kebutuhanmu.
+            - generic [aria-hidden] [ref=f4e252]:
+              - generic [ref=f4e253]: Mulai
+              - generic [ref=f4e254]: dari
+              - generic [ref=f4e255]: kebutuhanmu.
+        - paragraph [ref=f4e256]: Temukan layanan digital yang sedang kami siapkan.
+      - generic [ref=f4e257]:
+        - link "Buka katalog" [ref=f4e258] [cursor=pointer]:
+          - /url: /katalog
+        - link "Ada pertanyaan? Kunjungi bantuan" [ref=f4e261] [cursor=pointer]:
+          - /url: /bantuan
+  - contentinfo [ref=f4e262]:
+    - generic [ref=f4e263]:
+      - generic [ref=f4e264]:
+        - link "Anres Store beranda footer" [ref=f4e265] [cursor=pointer]:
+          - /url: /
+          - generic [ref=f4e266]:
+            - generic [ref=f4e267]: Anres
+            - generic [ref=f4e268]: Store
+        - paragraph [ref=f4e272]: Kebutuhan digital, dekat denganmu.
+      - navigation "Navigasi footer" [ref=f4e273]:
+        - link "Tentang Anres" [ref=f4e274] [cursor=pointer]:
+          - /url: /about
+        - link "Pusat bantuan" [ref=f4e275] [cursor=pointer]:
+          - /url: /bantuan
+        - link "Jelajahi katalog" [ref=f4e276] [cursor=pointer]:
+          - /url: /katalog
+      - generic [ref=f4e277]:
+        - generic [ref=f4e278]: Game. Karya. Keseharian.
+        - generic [ref=f4e279]: © 2026 Anres Store
+  - button "Open Next.js Dev Tools" [ref=f4e285] [cursor=pointer]

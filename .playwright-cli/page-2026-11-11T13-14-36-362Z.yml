@@ -1,0 +1,135 @@
+- generic:
+  - link [aria-hidden]:
+    - /url: "#main"
+    - text: Lewati ke konten
+  - banner [ref=f7e3]:
+    - generic [ref=f7e4]:
+      - link [ref=f7e116] [cursor=pointer]:
+        - /url: /
+        - generic [ref=f7e6]:
+          - generic [ref=f7e7]: Anres
+          - generic [ref=f7e8]: Store
+      - generic [ref=f7e12]:
+        - button [ref=f7e117] [cursor=pointer]:
+          - generic [ref=f7e17]: "1"
+        - button [ref=f7e118] [cursor=pointer]
+  - generic [aria-hidden]:
+    - main:
+      - generic:
+        - generic:
+          - generic:
+            - text: Katalog Anres
+            - heading [level=1]:
+              - generic:
+                - generic: Mobile Legends
+                - generic [aria-hidden]:
+                  - generic: Mobile
+                  - generic: Legends
+            - paragraph: Lengkapi pesananmu dengan mudah.
+          - button: Kembali
+        - generic:
+          - generic:
+            - navigation:
+              - generic:
+                - generic: "1"
+                - text: Detail pesanan
+              - generic:
+                - generic: "2"
+                - text: Checkout
+              - generic:
+                - generic: "3"
+                - text: Pembayaran
+              - generic:
+                - generic: "4"
+                - text: Invoice
+            - generic:
+              - generic:
+                - heading [level=2]:
+                  - generic:
+                    - generic: Detail pesanan
+                    - generic [aria-hidden]:
+                      - generic: Detail
+                      - generic: pesanan
+                - paragraph: Isi informasi berikut untuk Mobile Legends.
+                - generic:
+                  - text: ID pemain / ID server
+                  - textbox:
+                    - /placeholder: Masukkan ID pemain dan server
+                    - text: "123456"
+                - generic: Pilih nominal
+                - generic:
+                  - button:
+                    - strong: 50 kredit
+                    - generic: Rp15.000
+                  - button [pressed]:
+                    - strong: 100 kredit
+                    - generic: Rp25.000
+                  - button:
+                    - strong: 250 kredit
+                    - generic: Rp15.000
+                  - button:
+                    - strong: 500 kredit
+                    - generic: Rp15.000
+                - generic:
+                  - text: Nomor WhatsApp atau email
+                  - textbox:
+                    - /placeholder: Untuk informasi pesanan
+                    - text: test@example.com
+                - button: Tambah ke keranjang
+                - button: Lanjut ke checkout
+          - complementary:
+            - text: Ringkasan pesanan
+            - heading [level=3]: Mobile Legends
+            - paragraph: Top up game
+            - separator
+            - generic:
+              - generic: Estimasi total
+              - strong: Rp25.000
+            - generic: Harga dan pilihan di halaman ini masih contoh untuk pratinjau UI.
+  - contentinfo [aria-hidden]:
+    - generic:
+      - generic:
+        - link:
+          - /url: /
+          - generic:
+            - generic: Anres
+            - generic: Store
+        - paragraph: Kebutuhan digital, dekat denganmu.
+      - navigation:
+        - link:
+          - /url: /about
+          - text: Tentang Anres
+        - link:
+          - /url: /bantuan
+          - text: Pusat bantuan
+        - link:
+          - /url: /katalog
+          - text: Jelajahi katalog
+      - generic:
+        - generic: Game. Karya. Keseharian.
+        - generic: © 2026 Anres Store
+  - button "Open Next.js Dev Tools" [ref=f7e104] [cursor=pointer]
+  - alert
+  - dialog "Keranjangmu" [ref=f7e120]:
+    - heading "Keranjangmu" [level=2] [ref=f7e121]:
+      - generic [ref=f7e122]:
+        - generic [ref=f7e123]: Keranjangmu
+        - generic [ref=f7e125]: Keranjangmu
+    - paragraph [ref=f7e126]: Periksa produk pilihanmu.
+    - generic [ref=f7e127]:
+      - generic [ref=f7e129]:
+        - generic [ref=f7e130]:
+          - strong [ref=f7e131]: Mobile Legends
+          - paragraph [ref=f7e132]: Top up game · 100
+          - generic [ref=f7e133]: "Tujuan: 123456 · Kontak: test@example.com"
+          - paragraph [ref=f7e134]: Rp25.000 / item
+        - generic [ref=f7e135]:
+          - button "Kurangi Mobile Legends" [disabled] [ref=f7e136]
+          - generic [ref=f7e138]: "1"
+          - button "Tambah Mobile Legends" [active] [ref=f7e139] [cursor=pointer]
+          - button "Hapus" [ref=f7e141] [cursor=pointer]
+      - generic [ref=f7e145]:
+        - generic [ref=f7e146]: Total estimasi
+        - strong [ref=f7e147]: Rp25.000
+      - button "Lanjut checkout" [ref=f7e148] [cursor=pointer]
+    - button "Tutup" [ref=f7e151] [cursor=pointer]

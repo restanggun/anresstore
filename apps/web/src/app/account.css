@@ -1,0 +1,20 @@
+﻿.account-page { padding-top: 42px; padding-bottom: 80px; }
+.account-hero { display: grid; grid-template-columns: 1.4fr 1fr; gap: 32px; padding: clamp(28px, 5vw, 56px); background: var(--primary); border-radius: 32px; align-items: end; }
+.account-hero h1 { font-size: clamp(32px, 5vw, 56px); line-height: 1.12; overflow-wrap: anywhere; }
+.account-hero p, .account-section p { color: var(--muted); line-height: 1.8; margin-top: 14px; }
+.account-hero aside { background: white; border-radius: 22px; padding: 24px; }
+.account-hero aside p { margin: 8px 0 0; font-size: 13px; }
+.account-section { padding: 42px 4px; }
+.account-links { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-top: 22px; }
+.account-link { display: block; background: var(--primary-soft); border-radius: 22px; padding: 24px; }
+.account-link:nth-child(2) { background: var(--pink-soft); }
+.account-link strong { display: block; font-size: 16px; }
+.account-link p { font-size: 13px; margin-bottom: 0; }
+.account-profile { max-width: 620px; padding: 32px; background: var(--primary-soft); border-radius: 28px; }
+.account-profile h1 { font-size: 36px; margin-bottom: 10px; }
+.account-profile form { margin-top: 28px; }
+.account-profile input { width: 100%; }
+.account-profile button { margin-top: 12px; }
+.account-status { margin-top: 16px; line-height: 1.6; }
+.account-name { max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+@media (max-width: 700px) { .account-page { padding-top: 20px; } .account-hero { grid-template-columns: 1fr; } .account-links { grid-template-columns: 1fr; } .account-profile { padding: 24px; } }

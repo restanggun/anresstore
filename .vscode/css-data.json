@@ -1,0 +1,7 @@
+{
+  "version": 1.1,
+  "atDirectives": [
+    { "name": "@source", "description": "Registers source files for Tailwind CSS class detection." },
+    { "name": "@theme", "description": "Defines Tailwind CSS theme variables." }
+  ]
+}

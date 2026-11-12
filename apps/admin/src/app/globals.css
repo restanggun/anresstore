@@ -1,0 +1,3 @@
+/* Shared typography: locally hosted Manrope Variable. */
+@import "@anres/ui/styles.css";
+@source "../**/*.{ts,tsx}";

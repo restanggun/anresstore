@@ -1,0 +1,70 @@
+- generic [active] [ref=f2e1]:
+  - link "Lewati ke konten" [ref=f2e2] [cursor=pointer]:
+    - /url: "#main"
+  - banner [ref=f2e3]:
+    - generic [ref=f2e4]:
+      - link "Anres Store beranda" [ref=f2e5] [cursor=pointer]:
+        - /url: /
+        - generic [ref=f2e6]:
+          - generic [ref=f2e7]: Anres
+          - generic [ref=f2e8]: Store
+      - navigation "Navigasi utama" [ref=f2e10]:
+        - link "Beranda" [ref=f2e11] [cursor=pointer]:
+          - /url: /
+        - link "Katalog" [ref=f2e13] [cursor=pointer]:
+          - /url: /katalog
+        - link "Tentang" [ref=f2e16] [cursor=pointer]:
+          - /url: /about
+        - link "Bantuan" [ref=f2e18] [cursor=pointer]:
+          - /url: /bantuan
+      - generic [ref=f2e20]:
+        - link "Login" [ref=f2e21] [cursor=pointer]:
+          - /url: /login
+        - link "Daftar" [ref=f2e22] [cursor=pointer]:
+          - /url: /daftar
+  - main [ref=f2e24]:
+    - region "Temukan kebutuhanmu." [ref=f2e25]:
+      - generic [ref=f2e26]:
+        - generic [ref=f2e27]:
+          - heading "Temukan kebutuhanmu." [level=1] [ref=f2e28]
+          - paragraph [ref=f2e29]: Pilih layanan yang pas buat kamu.
+        - generic [ref=f2e30]:
+          - generic [ref=f2e34]: Cari layanan
+          - searchbox "Cari layanan" [ref=f2e35]: Canva
+          - button "Hapus pencarian" [ref=f2e36] [cursor=pointer]
+      - group "Filter kategori" [ref=f2e40]:
+        - button "Semua" [pressed] [ref=f2e41] [cursor=pointer]
+        - button "Top up game" [ref=f2e47] [cursor=pointer]
+        - button "Aplikasi premium" [ref=f2e50] [cursor=pointer]
+        - button "Pulsa & tagihan" [ref=f2e53] [cursor=pointer]
+        - button "Media sosial" [ref=f2e56] [cursor=pointer]
+        - button "Format tugas" [ref=f2e62] [cursor=pointer]
+      - status [ref=f2e66]: 1 layanan untuk dijelajahi
+      - button "Canva Lihat layanan" [ref=f2e68] [cursor=pointer]:
+        - generic [aria-hidden] [ref=f2e69]:
+          - generic [ref=f2e70]: Ca
+          - generic [ref=f2e71]: Aplikasi premium
+        - generic [ref=f2e72]:
+          - generic [ref=f2e73]: Canva
+          - generic [ref=f2e74]: Lihat layanan
+      - paragraph [ref=f2e80]: Pilihan produk, harga, dan ketentuan akan ditampilkan saat katalog resmi dibuka.
+  - contentinfo [ref=f2e81]:
+    - generic [ref=f2e82]:
+      - generic [ref=f2e83]:
+        - link "Anres Store beranda footer" [ref=f2e84] [cursor=pointer]:
+          - /url: /
+          - generic [ref=f2e85]:
+            - generic [ref=f2e86]: Anres
+            - generic [ref=f2e87]: Store
+        - paragraph [ref=f2e89]: Kebutuhan digital, dekat denganmu.
+      - navigation "Navigasi footer" [ref=f2e90]:
+        - link "Tentang Anres" [ref=f2e91] [cursor=pointer]:
+          - /url: /about
+        - link "Pusat bantuan" [ref=f2e92] [cursor=pointer]:
+          - /url: /bantuan
+        - link "Jelajahi katalog" [ref=f2e93] [cursor=pointer]:
+          - /url: /katalog
+      - generic [ref=f2e94]:
+        - generic [ref=f2e95]: Game. Karya. Keseharian.
+        - generic [ref=f2e96]: © 2026 Anres Store
+  - alert [ref=f2e97]

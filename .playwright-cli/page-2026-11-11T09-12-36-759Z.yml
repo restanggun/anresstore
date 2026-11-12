@@ -1,0 +1,124 @@
+- generic [active] [ref=f13e1]:
+  - link "Lewati ke konten" [ref=f13e2] [cursor=pointer]:
+    - /url: "#main"
+  - banner [ref=f13e3]:
+    - generic [ref=f13e4]:
+      - link "Anres Store beranda" [ref=f13e5] [cursor=pointer]:
+        - /url: /
+        - generic [ref=f13e6]:
+          - generic [ref=f13e7]: Anres
+          - generic [ref=f13e8]: Store
+      - button "Buka menu" [ref=f13e10] [cursor=pointer]
+  - main [ref=f13e13]:
+    - generic [ref=f13e14]:
+      - generic [aria-hidden] [ref=f13e15]: "?"
+      - heading "Kita cari jawabannya." [level=1] [ref=f13e16]:
+        - generic [ref=f13e17]:
+          - generic [ref=f13e18]: Kita cari jawabannya.
+          - generic [aria-hidden] [ref=f13e19]:
+            - generic [ref=f13e20]: Kita
+            - generic [ref=f13e21]: cari
+            - generic [ref=f13e22]: jawabannya.
+      - paragraph [ref=f13e23]: Informasi layanan, katalog, dan akun Anres Store.
+      - generic [ref=f13e24]:
+        - generic [ref=f13e28]: Cari pertanyaan
+        - searchbox "Cari pertanyaan" [ref=f13e29]
+    - generic [ref=f13e30]:
+      - complementary [ref=f13e31]:
+        - heading "Pertanyaan umum" [level=2] [ref=f13e32]
+        - paragraph [ref=f13e33]: Mulai dari informasi yang paling sering kamu perlukan.
+        - link "Lihat katalog" [ref=f13e34] [cursor=pointer]:
+          - /url: /katalog
+      - generic [ref=f13e37]:
+        - status [ref=f13e38]: 6 jawaban ditemukan
+        - generic [ref=f13e39]:
+          - heading [level=3] [ref=f13e41]:
+            - button "Sudah bisa transaksi di website ini?" [ref=f13e42] [cursor=pointer]:
+              - generic [ref=f13e43]:
+                - generic [ref=f13e44]: Sudah bisa transaksi di website ini?
+                - generic [aria-hidden] [ref=f13e45]:
+                  - generic [ref=f13e46]: Sudah
+                  - generic [ref=f13e47]: bisa
+                  - generic [ref=f13e48]: transaksi
+                  - generic [ref=f13e49]: di
+                  - generic [ref=f13e50]: website
+                  - generic [ref=f13e51]: ini?
+          - heading [level=3] [ref=f13e53]:
+            - button "Apa saja layanan Anres Store?" [ref=f13e54] [cursor=pointer]:
+              - generic [ref=f13e55]:
+                - generic [ref=f13e56]: Apa saja layanan Anres Store?
+                - generic [aria-hidden] [ref=f13e57]:
+                  - generic [ref=f13e58]: Apa
+                  - generic [ref=f13e59]: saja
+                  - generic [ref=f13e60]: layanan
+                  - generic [ref=f13e61]: Anres
+                  - generic [ref=f13e62]: Store?
+          - heading [level=3] [ref=f13e64]:
+            - button "Di mana harga dan kontak bantuan?" [ref=f13e65] [cursor=pointer]:
+              - generic [ref=f13e66]:
+                - generic [ref=f13e67]: Di mana harga dan kontak bantuan?
+                - generic [aria-hidden] [ref=f13e68]:
+                  - generic [ref=f13e69]: Di
+                  - generic [ref=f13e70]: mana
+                  - generic [ref=f13e71]: harga
+                  - generic [ref=f13e72]: dan
+                  - generic [ref=f13e73]: kontak
+                  - generic [ref=f13e74]: bantuan?
+          - heading [level=3] [ref=f13e76]:
+            - button "Bagaimana cara memilih layanan?" [ref=f13e77] [cursor=pointer]:
+              - generic [ref=f13e78]:
+                - generic [ref=f13e79]: Bagaimana cara memilih layanan?
+                - generic [aria-hidden] [ref=f13e80]:
+                  - generic [ref=f13e81]: Bagaimana
+                  - generic [ref=f13e82]: cara
+                  - generic [ref=f13e83]: memilih
+                  - generic [ref=f13e84]: layanan?
+          - heading [level=3] [ref=f13e86]:
+            - button "Apakah akun sudah bisa digunakan?" [ref=f13e87] [cursor=pointer]:
+              - generic [ref=f13e88]:
+                - generic [ref=f13e89]: Apakah akun sudah bisa digunakan?
+                - generic [aria-hidden] [ref=f13e90]:
+                  - generic [ref=f13e91]: Apakah
+                  - generic [ref=f13e92]: akun
+                  - generic [ref=f13e93]: sudah
+                  - generic [ref=f13e94]: bisa
+                  - generic [ref=f13e95]: digunakan?
+          - heading [level=3] [ref=f13e97]:
+            - button "Apakah harga di katalog sudah final?" [ref=f13e98] [cursor=pointer]:
+              - generic [ref=f13e99]:
+                - generic [ref=f13e100]: Apakah harga di katalog sudah final?
+                - generic [aria-hidden] [ref=f13e101]:
+                  - generic [ref=f13e102]: Apakah
+                  - generic [ref=f13e103]: harga
+                  - generic [ref=f13e104]: di
+                  - generic [ref=f13e105]: katalog
+                  - generic [ref=f13e106]: sudah
+                  - generic [ref=f13e107]: final?
+    - generic [ref=f13e111]:
+      - heading "Butuh bantuan langsung?" [level=2] [ref=f13e112]:
+        - generic [ref=f13e113]:
+          - generic [ref=f13e114]: Butuh bantuan langsung?
+          - generic [aria-hidden] [ref=f13e115]:
+            - generic [ref=f13e116]: Butuh
+            - generic [ref=f13e117]: bantuan
+            - generic [ref=f13e118]: langsung?
+      - paragraph [ref=f13e119]: Kontak bantuan terverifikasi akan tersedia saat layanan resmi dibuka. Untuk saat ini, informasi terbaru tersedia di halaman ini.
+  - contentinfo [ref=f13e120]:
+    - generic [ref=f13e121]:
+      - generic [ref=f13e122]:
+        - link "Anres Store beranda footer" [ref=f13e123] [cursor=pointer]:
+          - /url: /
+          - generic [ref=f13e124]:
+            - generic [ref=f13e125]: Anres
+            - generic [ref=f13e126]: Store
+        - paragraph [ref=f13e128]: Kebutuhan digital, dekat denganmu.
+      - navigation "Navigasi footer" [ref=f13e129]:
+        - link "Tentang Anres" [ref=f13e130] [cursor=pointer]:
+          - /url: /about
+        - link "Pusat bantuan" [ref=f13e131] [cursor=pointer]:
+          - /url: /bantuan
+        - link "Jelajahi katalog" [ref=f13e132] [cursor=pointer]:
+          - /url: /katalog
+      - generic [ref=f13e133]:
+        - generic [ref=f13e134]: Game. Karya. Keseharian.
+        - generic [ref=f13e135]: © 2026 Anres Store

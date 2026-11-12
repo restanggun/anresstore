@@ -1,0 +1,6 @@
+{
+  "name": "@anres/supabase", "version": "0.1.0", "private": true,
+  "exports": { "./browser": "./src/browser.ts", "./server": "./src/server.ts", "./types": "./src/database.types.ts" },
+  "scripts": { "typecheck": "tsc --noEmit" },
+  "dependencies": { "@supabase/supabase-js": "^2.0.0", "server-only": "^0.0.1" }
+}

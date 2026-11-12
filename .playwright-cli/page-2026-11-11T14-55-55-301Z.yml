@@ -1,0 +1,112 @@
+- generic [active] [ref=e1]:
+  - link "Lewati ke konten" [ref=e2] [cursor=pointer]:
+    - /url: "#main"
+  - banner [ref=e3]:
+    - generic [ref=e4]:
+      - link "Anres Store beranda" [ref=e5] [cursor=pointer]:
+        - /url: /
+        - generic [ref=e6]:
+          - generic [ref=e7]: Anres
+          - generic [ref=e8]: Store
+      - navigation "Navigasi utama" [ref=e12]:
+        - link "Beranda" [ref=e13] [cursor=pointer]:
+          - /url: /
+        - link "Katalog" [ref=e15] [cursor=pointer]:
+          - /url: /katalog
+        - link "Tentang" [ref=e17] [cursor=pointer]:
+          - /url: /about
+        - link "Bantuan" [ref=e19] [cursor=pointer]:
+          - /url: /bantuan
+      - generic [ref=e21]:
+        - button "Buka keranjang, 0 produk" [ref=e22] [cursor=pointer]:
+          - generic [ref=e26]: "0"
+        - generic [ref=e27]:
+          - link "Login" [ref=e28] [cursor=pointer]:
+            - /url: /login
+          - link "Daftar" [ref=e29] [cursor=pointer]:
+            - /url: /daftar
+  - main [ref=e31]:
+    - generic [ref=e32]:
+      - generic [ref=e33]:
+        - generic [ref=e34]:
+          - text: Katalog Anres
+          - generic [ref=e37]:
+            - heading "Mobile Legends" [level=1] [ref=e38]
+            - generic [ref=e39]: Moonton
+          - paragraph [ref=e40]: Lengkapi pesananmu dengan mudah.
+        - button "Kembali" [ref=e42] [cursor=pointer]
+      - generic [ref=e45]:
+        - generic [ref=e46]:
+          - navigation "Tahap pesanan" [ref=e47]:
+            - generic [ref=e48]:
+              - generic [ref=e49]: "1"
+              - text: Detail pesanan
+            - generic [ref=e50]:
+              - generic [ref=e51]: "2"
+              - text: Checkout
+            - generic [ref=e52]:
+              - generic [ref=e53]: "3"
+              - text: Pembayaran
+            - generic [ref=e54]:
+              - generic [ref=e55]: "4"
+              - text: Invoice
+          - generic [ref=e57]:
+            - heading "Detail pesanan" [level=2] [ref=e58]:
+              - generic [ref=e59]:
+                - generic [ref=e60]: Detail pesanan
+                - generic [aria-hidden] [ref=e61]:
+                  - generic [ref=e62]: Detail
+                  - generic [ref=e63]: pesanan
+            - paragraph [ref=e64]: Isi informasi berikut untuk Mobile Legends.
+            - generic [ref=e65]:
+              - text: ID pemain / ID server
+              - textbox "ID pemain / ID server" [ref=e66]:
+                - /placeholder: Masukkan ID pemain dan server
+            - paragraph [ref=e67]: Pilih nominal
+            - group "Pilih nominal" [ref=e68]:
+              - button "50 kredit Rp15.000" [ref=e69] [cursor=pointer]:
+                - strong [ref=e70]: 50 kredit
+                - generic [ref=e71]: Rp15.000
+              - button "100 kredit Rp25.000" [ref=e72] [cursor=pointer]:
+                - strong [ref=e73]: 100 kredit
+                - generic [ref=e74]: Rp25.000
+              - button "250 kredit Rp15.000" [ref=e75] [cursor=pointer]:
+                - strong [ref=e76]: 250 kredit
+                - generic [ref=e77]: Rp15.000
+              - button "500 kredit Rp15.000" [ref=e78] [cursor=pointer]:
+                - strong [ref=e79]: 500 kredit
+                - generic [ref=e80]: Rp15.000
+            - generic [ref=e81]:
+              - text: Nomor WhatsApp atau email
+              - textbox "Nomor WhatsApp atau email" [ref=e82]:
+                - /placeholder: Untuk informasi pesanan
+            - button "Tambah ke keranjang" [disabled]
+            - button "Lanjut ke checkout" [disabled]
+        - complementary [ref=e83]:
+          - text: Ringkasan pesanan
+          - heading "Mobile Legends" [level=3] [ref=e84]
+          - paragraph [ref=e85]: Top up game
+          - separator [ref=e86]
+          - generic [ref=e87]:
+            - generic [ref=e88]: Estimasi total
+            - strong [ref=e89]: Rp15.000
+          - generic [ref=e90]: Harga dan pilihan di halaman ini masih contoh untuk pratinjau UI.
+  - contentinfo [ref=e91]:
+    - generic [ref=e92]:
+      - generic [ref=e93]:
+        - link "Anres Store beranda footer" [ref=e94] [cursor=pointer]:
+          - /url: /
+          - generic [ref=e95]:
+            - generic [ref=e96]: Anres
+            - generic [ref=e97]: Store
+        - paragraph [ref=e101]: Kebutuhan digital, dekat denganmu.
+      - navigation "Navigasi footer" [ref=e102]:
+        - link "Tentang Anres" [ref=e103] [cursor=pointer]:
+          - /url: /about
+        - link "Pusat bantuan" [ref=e104] [cursor=pointer]:
+          - /url: /bantuan
+        - link "Jelajahi katalog" [ref=e105] [cursor=pointer]:
+          - /url: /katalog
+      - generic [ref=e106]:
+        - generic [ref=e107]: Game. Karya. Keseharian.
+        - generic [ref=e108]: © 2026 Anres Store

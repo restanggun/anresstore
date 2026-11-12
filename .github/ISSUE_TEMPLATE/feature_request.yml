@@ -1,0 +1,9 @@
+name: Usulan fitur
+description: Usulkan perbaikan untuk Anres Store
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Masalah dan hasil yang diharapkan
+    validations:
+      required: true

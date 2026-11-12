@@ -1,0 +1,154 @@
+- generic [active] [ref=e1]:
+  - link "Lewati ke konten" [ref=e2] [cursor=pointer]:
+    - /url: "#main"
+  - banner [ref=e3]:
+    - generic [ref=e4]:
+      - link "Anres Store beranda" [ref=e5] [cursor=pointer]:
+        - /url: "#main"
+        - generic [ref=e6]: AnresStore
+      - navigation "Navigasi utama" [ref=e7]:
+        - link "Katalog" [ref=e8] [cursor=pointer]:
+          - /url: "#katalog"
+        - link "Cara order" [ref=e9] [cursor=pointer]:
+          - /url: "#cara-order"
+        - link "Bantuan" [ref=e10] [cursor=pointer]:
+          - /url: "#bantuan"
+      - link "Cari layanan" [ref=e11] [cursor=pointer]:
+        - /url: "#katalog"
+  - main [ref=e15]:
+    - region "Isi game-nya. Lanjut mainnya." [ref=e16]:
+      - generic [ref=e17]:
+        - generic [ref=e18]:
+          - generic [ref=e19]: Top up game
+          - heading "Isi game-nya. Lanjut mainnya." [level=1] [ref=e22]: Isi game-nya.Lanjut mainnya.
+          - paragraph [ref=e23]: Mobile Legends, Free Fire, sampai Roblox. Cari kebutuhan mainmu di Anres Store.
+          - link "Pilih game" [ref=e24] [cursor=pointer]:
+            - /url: "#katalog"
+        - generic [ref=e27]: Buat waktu luangmu.
+        - generic [ref=e43]:
+          - generic [ref=e44]: Game & hiburan
+          - generic [ref=e45]: 01 / 02
+      - generic [ref=e46]:
+        - generic [ref=e47]:
+          - heading "Tugas rapi. Pikiran lega." [level=2] [ref=e51]: Tugas rapi.Pikiran lega.
+          - paragraph [ref=e52]: Bantu urusan format dokumen dan presentasimu.
+        - generic [aria-hidden] [ref=e53]:
+          - generic [ref=e55]: Aa
+          - generic [ref=e63]: Word / PPT / PDF
+        - link "Lihat jasa tugas" [ref=e64] [cursor=pointer]:
+          - /url: "#katalog"
+    - paragraph [ref=e71]: Kamu sedang melihat pratinjau katalog. Pemesanan dan pembayaran belum dibuka.
+    - region "Ada yang kamu butuhkan?" [ref=e72]:
+      - generic [ref=e73]:
+        - generic [ref=e74]:
+          - heading "Ada yang kamu butuhkan?" [level=2] [ref=e75]
+          - paragraph [ref=e76]: Pilih layanan yang pas buat kamu.
+        - generic [ref=e77]:
+          - generic [ref=e81]: Cari layanan
+          - searchbox "Cari layanan" [ref=e82]
+      - group "Filter kategori" [ref=e83]:
+        - button "Semua" [pressed] [ref=e84] [cursor=pointer]
+        - button "Top up game" [ref=e90] [cursor=pointer]
+        - button "Aplikasi premium" [ref=e93] [cursor=pointer]
+        - button "Pulsa & tagihan" [ref=e96] [cursor=pointer]
+        - button "Media sosial" [ref=e99] [cursor=pointer]
+        - button "Format tugas" [ref=e105] [cursor=pointer]
+      - status [ref=e109]: 8 layanan untuk dijelajahi
+      - generic [ref=e110]:
+        - button "Mobile Legends Lihat layanan" [ref=e111] [cursor=pointer]:
+          - generic [aria-hidden] [ref=e112]:
+            - generic [ref=e113]: ML
+            - generic [ref=e114]: Top up game
+          - generic [ref=e115]:
+            - generic [ref=e116]: Mobile Legends
+            - generic [ref=e117]: Lihat layanan
+        - button "Free Fire Lihat layanan" [ref=e123] [cursor=pointer]:
+          - generic [aria-hidden] [ref=e124]:
+            - generic [ref=e125]: FF
+            - generic [ref=e126]: Top up game
+          - generic [ref=e127]:
+            - generic [ref=e128]: Free Fire
+            - generic [ref=e129]: Lihat layanan
+        - button "Roblox Lihat layanan" [ref=e135] [cursor=pointer]:
+          - generic [aria-hidden] [ref=e136]:
+            - generic [ref=e137]: Rb
+            - generic [ref=e138]: Top up game
+          - generic [ref=e139]:
+            - generic [ref=e140]: Roblox
+            - generic [ref=e141]: Lihat layanan
+        - button "Canva Lihat layanan" [ref=e147] [cursor=pointer]:
+          - generic [aria-hidden] [ref=e148]:
+            - generic [ref=e149]: Ca
+            - generic [ref=e150]: Aplikasi premium
+          - generic [ref=e151]:
+            - generic [ref=e152]: Canva
+            - generic [ref=e153]: Lihat layanan
+        - button "Pulsa & paket data Lihat layanan" [ref=e159] [cursor=pointer]:
+          - generic [aria-hidden] [ref=e160]:
+            - generic [ref=e161]: "08"
+            - generic [ref=e162]: Pulsa & tagihan
+          - generic [ref=e163]:
+            - generic [ref=e164]: Pulsa & paket data
+            - generic [ref=e165]: Lihat layanan
+        - button "Token listrik Lihat layanan" [ref=e171] [cursor=pointer]:
+          - generic [aria-hidden] [ref=e172]:
+            - generic [ref=e173]: PLN
+            - generic [ref=e174]: Pulsa & tagihan
+          - generic [ref=e175]:
+            - generic [ref=e176]: Token listrik
+            - generic [ref=e177]: Lihat layanan
+        - button "Layanan media sosial Lihat layanan" [ref=e183] [cursor=pointer]:
+          - generic [aria-hidden] [ref=e184]:
+            - generic [ref=e185]: "@"
+            - generic [ref=e186]: Media sosial
+          - generic [ref=e187]:
+            - generic [ref=e188]: Layanan media sosial
+            - generic [ref=e189]: Lihat layanan
+        - button "Rapikan tugas Lihat layanan" [ref=e195] [cursor=pointer]:
+          - generic [aria-hidden] [ref=e196]:
+            - generic [ref=e197]: Aa
+            - generic [ref=e198]: Format tugas
+          - generic [ref=e199]:
+            - generic [ref=e200]: Rapikan tugas
+            - generic [ref=e201]: Lihat layanan
+      - paragraph [ref=e207]: Pilihan produk, harga, dan ketentuan akan ditampilkan saat katalog resmi dibuka.
+    - region "Dari pilih sampai selesai." [ref=e208]:
+      - generic [ref=e209]:
+        - heading "Dari pilih sampai selesai." [level=2] [ref=e210]
+        - paragraph [ref=e211]: Alur belanja yang sedang kami siapkan.
+      - list [ref=e212]:
+        - listitem [ref=e213]:
+          - generic [ref=e214]: "1"
+          - heading "Pilih layanan" [level=3] [ref=e215]
+          - paragraph [ref=e216]: Temukan kebutuhanmu dan baca detail produknya.
+        - listitem [ref=e217]:
+          - generic [ref=e218]: "2"
+          - heading "Cek, lalu bayar" [level=3] [ref=e219]
+          - paragraph [ref=e220]: Periksa data tujuan, pilihan produk, dan total biaya.
+        - listitem [ref=e221]:
+          - generic [ref=e222]: "3"
+          - heading "Pantau pesanan" [level=3] [ref=e223]
+          - paragraph [ref=e224]: Ikuti status proses dan akses bantuan dari satu tempat.
+    - region "Mau tahu lebih lanjut?" [ref=e225]:
+      - generic [ref=e226]:
+        - generic [aria-hidden] [ref=e228]: "?"
+        - heading "Mau tahu lebih lanjut?" [level=2] [ref=e229]: Mau tahulebih lanjut?
+        - paragraph [ref=e230]: Beberapa hal sebelum kamu mulai.
+      - generic [ref=e231]:
+        - heading [level=3] [ref=e233]:
+          - button "Sudah bisa transaksi di website ini?" [ref=e234] [cursor=pointer]
+        - heading [level=3] [ref=e236]:
+          - button "Apa saja layanan Anres Store?" [ref=e237] [cursor=pointer]
+        - heading [level=3] [ref=e239]:
+          - button "Di mana harga dan kontak bantuan?" [ref=e240] [cursor=pointer]
+  - contentinfo [ref=e241]:
+    - generic [ref=e242]:
+      - generic [ref=e243]:
+        - link "Anres Store kembali ke atas" [ref=e244] [cursor=pointer]:
+          - /url: "#main"
+          - generic [ref=e245]: AnresStore
+        - paragraph [ref=e246]: Kebutuhan digital, dekat denganmu.
+      - generic [ref=e247]:
+        - generic [ref=e248]: Game. Karya. Keseharian.
+        - generic [ref=e249]: © 2026 Anres Store
+  - alert [ref=e250]

@@ -1,0 +1,107 @@
+- generic [active] [ref=f12e1]:
+  - link "Lewati ke konten" [ref=f12e2] [cursor=pointer]:
+    - /url: "#main"
+  - banner [ref=f12e3]:
+    - generic [ref=f12e4]:
+      - link "Anres Store beranda" [ref=f12e5] [cursor=pointer]:
+        - /url: /
+        - generic [ref=f12e6]:
+          - generic [ref=f12e7]: Anres
+          - generic [ref=f12e8]: Store
+      - button "Buka menu" [ref=f12e10] [cursor=pointer]
+  - main [ref=f12e13]:
+    - generic [ref=f12e14]:
+      - generic [ref=f12e15]:
+        - paragraph [ref=f12e16]: Tentang Anres Store
+        - heading "Digital buat keseharianmu." [level=1] [ref=f12e17]:
+          - generic [ref=f12e18]:
+            - generic [ref=f12e19]: Digital buat
+            - generic [aria-hidden] [ref=f12e20]:
+              - generic [ref=f12e21]: Digital
+              - generic [ref=f12e22]: buat
+          - generic [ref=f12e23]:
+            - generic [ref=f12e24]: keseharianmu.
+            - generic [ref=f12e26]: keseharianmu.
+        - paragraph [ref=f12e27]: Ada waktu buat main, ada waktu buat berkarya. Kami ingin kebutuhan digitalmu lebih mudah ditemukan, di satu tempat.
+        - link "Jelajahi layanan" [ref=f12e28] [cursor=pointer]:
+          - /url: /katalog
+      - generic [aria-hidden] [ref=f12e31]:
+        - generic [ref=f12e32]: anres.
+        - generic [ref=f12e44]: Game. Karya. Keseharian.
+    - generic [ref=f12e45]:
+      - heading "Berangkat dari kebutuhan yang dekat." [level=2] [ref=f12e46]
+      - generic [ref=f12e47]:
+        - paragraph [ref=f12e48]: Top up game, cari aplikasi untuk tugas, atau isi paket data. Hal-hal kecil yang jadi bagian dari keseharian digital kita.
+        - paragraph [ref=f12e49]: "Anres Store sedang menyiapkan layanan untuk kebutuhan itu. Fokus kami: pilihan yang mudah dijelajahi dan informasi produk yang jelas sebelum kamu memutuskan."
+        - paragraph [ref=f12e50]: Saat ini website masih dalam tahap pratinjau. Produk, harga, dan ketentuan akan ditampilkan setelah siap.
+    - generic [ref=f12e51]:
+      - generic [ref=f12e52]:
+        - heading "Apa yang kami siapkan?" [level=2] [ref=f12e53]
+        - paragraph [ref=f12e54]: Lima bagian dari hari digitalmu.
+      - generic [ref=f12e55]:
+        - generic [ref=f12e60]:
+          - heading "Waktu main" [level=3] [ref=f12e61]:
+            - generic [ref=f12e62]:
+              - generic [ref=f12e63]: Waktu main
+              - generic [aria-hidden] [ref=f12e64]:
+                - generic [ref=f12e65]: Waktu
+                - generic [ref=f12e66]: main
+          - paragraph [ref=f12e67]: Kebutuhan top up Mobile Legends, Free Fire, dan Roblox.
+        - generic [ref=f12e72]:
+          - heading "Ruang berkarya" [level=3] [ref=f12e73]:
+            - generic [ref=f12e74]:
+              - generic [ref=f12e75]: Ruang berkarya
+              - generic [aria-hidden] [ref=f12e76]:
+                - generic [ref=f12e77]: Ruang
+                - generic [ref=f12e78]: berkarya
+          - paragraph [ref=f12e79]: Aplikasi premium untuk kebutuhan desain dan produktivitas.
+        - generic [ref=f12e84]:
+          - heading "Urusan sehari-hari" [level=3] [ref=f12e85]:
+            - generic [ref=f12e86]:
+              - generic [ref=f12e87]: Urusan sehari-hari
+              - generic [aria-hidden] [ref=f12e88]:
+                - generic [ref=f12e89]: Urusan
+                - generic [ref=f12e90]: sehari-hari
+          - paragraph [ref=f12e91]: Pilihan pulsa, paket data, dan token listrik.
+        - generic [ref=f12e99]:
+          - heading "Kehidupan sosial" [level=3] [ref=f12e100]:
+            - generic [ref=f12e101]:
+              - generic [ref=f12e102]: Kehidupan sosial
+              - generic [aria-hidden] [ref=f12e103]:
+                - generic [ref=f12e104]: Kehidupan
+                - generic [ref=f12e105]: sosial
+          - paragraph [ref=f12e106]: Informasi layanan untuk kebutuhan akun media sosial.
+        - generic [ref=f12e112]:
+          - heading "Tugas dan presentasi" [level=3] [ref=f12e113]:
+            - generic [ref=f12e114]:
+              - generic [ref=f12e115]: Tugas dan presentasi
+              - generic [aria-hidden] [ref=f12e116]:
+                - generic [ref=f12e117]: Tugas
+                - generic [ref=f12e118]: dan
+                - generic [ref=f12e119]: presentasi
+          - paragraph [ref=f12e120]: Bantuan format dokumen agar lebih tertata dan mudah dibaca.
+    - generic [ref=f12e121]:
+      - generic [ref=f12e122]:
+        - heading "Kenali layanannya dulu." [level=2] [ref=f12e123]
+        - paragraph [ref=f12e124]: Detail yang kamu butuhkan ada di katalog dan pusat bantuan.
+      - link "Buka pusat bantuan" [ref=f12e125] [cursor=pointer]:
+        - /url: /bantuan
+  - contentinfo [ref=f12e128]:
+    - generic [ref=f12e129]:
+      - generic [ref=f12e130]:
+        - link "Anres Store beranda footer" [ref=f12e131] [cursor=pointer]:
+          - /url: /
+          - generic [ref=f12e132]:
+            - generic [ref=f12e133]: Anres
+            - generic [ref=f12e134]: Store
+        - paragraph [ref=f12e136]: Kebutuhan digital, dekat denganmu.
+      - navigation "Navigasi footer" [ref=f12e137]:
+        - link "Tentang Anres" [ref=f12e138] [cursor=pointer]:
+          - /url: /about
+        - link "Pusat bantuan" [ref=f12e139] [cursor=pointer]:
+          - /url: /bantuan
+        - link "Jelajahi katalog" [ref=f12e140] [cursor=pointer]:
+          - /url: /katalog
+      - generic [ref=f12e141]:
+        - generic [ref=f12e142]: Game. Karya. Keseharian.
+        - generic [ref=f12e143]: © 2026 Anres Store
