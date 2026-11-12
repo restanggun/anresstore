@@ -63,7 +63,9 @@
 /* Help: pink search stage, simple readable answers, one clear support note. */
 .help-page { padding-top: 22px; }
 .help-intro { padding: 48px 54px; border-radius: 32px; background: var(--pink); text-align: left; }
-.help-intro .help-mark { margin: 0 0 19px; background: white; color: var(--pink-ink); }
+.help-title { display: flex; align-items: center; gap: 16px; }
+.help-intro .help-mark { flex: 0 0 auto; margin: 0; background: white; color: var(--pink-ink); }
+.help-title h1 { min-width: 0; }
 .help-intro h1 { margin: 0; max-width: none; font-size: clamp(42px,5vw,58px); line-height: 1.1; letter-spacing: -2.2px; }
 .help-intro > p { margin: 13px 0 23px; color: var(--pink-ink); font-size: 14px; }
 .help-intro .search { width: min(100%,490px); height: 54px; margin: 0; border: 0; border-radius: 16px; background: white; }
