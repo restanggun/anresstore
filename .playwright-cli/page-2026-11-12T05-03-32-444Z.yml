@@ -1,0 +1,54 @@
+- generic [active] [ref=f2e1]:
+  - link "Lewati ke konten" [ref=f2e2] [cursor=pointer]:
+    - /url: "#main"
+  - main [ref=f2e4]:
+    - generic [ref=f2e5]:
+      - link "Kembali ke katalog" [ref=f2e6] [cursor=pointer]:
+        - /url: /katalog
+      - generic [ref=f2e9]:
+        - heading "Semua kebutuhan, satu akun." [level=1] [ref=f2e15]:
+          - generic [ref=f2e16]:
+            - generic [ref=f2e17]: Semua kebutuhan,
+            - generic [aria-hidden] [ref=f2e18]:
+              - generic [ref=f2e19]: Semua
+              - generic [ref=f2e20]: kebutuhan,
+          - generic [ref=f2e21]:
+            - generic [ref=f2e22]: satu akun.
+            - generic [aria-hidden] [ref=f2e23]:
+              - generic [ref=f2e24]: satu
+              - generic [ref=f2e25]: akun.
+        - paragraph [ref=f2e26]: Untuk waktu bermain, ide baru, dan hal-hal kecil yang menemani harimu.
+      - generic [ref=f2e27]: Anres Store
+    - region "Buat akunmu" [ref=f2e63]:
+      - generic [ref=f2e29]:
+        - heading "Buat akunmu" [level=2] [ref=f2e64]
+        - paragraph [ref=f2e31]: Sedikit lagi untuk membuat akun.
+      - generic [ref=f2e65]:
+        - strong [ref=f2e70]: anres-check@example.invalid
+        - button "Ubah" [ref=f2e71] [cursor=pointer]
+      - generic [ref=f2e73]:
+        - generic [ref=f2e74]:
+          - generic [ref=f2e75]: Nama
+          - textbox "Nama" [ref=f2e77]:
+            - /placeholder: Nama kamu
+        - generic [ref=f2e78]:
+          - generic [ref=f2e79]: Password
+          - generic [ref=f2e80]:
+            - textbox "Password" [ref=f2e81]:
+              - /placeholder: Minimal 8 karakter
+            - button "Lihat password" [ref=f2e82] [cursor=pointer]
+        - generic [ref=f2e86]:
+          - generic [ref=f2e87]: Ulangi password
+          - textbox "Ulangi password" [ref=f2e89]:
+            - /placeholder: Ketik ulang password
+        - button "Buat akun" [ref=f2e90] [cursor=pointer]
+      - generic [ref=f2e49]:
+        - button "Kembali" [ref=f2e93] [cursor=pointer]
+        - paragraph [ref=f2e50]:
+          - text: Belum punya akun?
+          - link "Daftar" [ref=f2e51] [cursor=pointer]:
+            - /url: /daftar
+        - link "Butuh bantuan tentang akun?" [ref=f2e52] [cursor=pointer]:
+          - /url: /bantuan
+  - button "Open Next.js Dev Tools" [ref=f2e58] [cursor=pointer]
+  - alert [ref=f2e62]

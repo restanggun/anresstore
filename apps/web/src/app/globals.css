@@ -63,8 +63,6 @@ h2 { font-size: 30px; line-height: 1.25; font-weight: 750; letter-spacing: -1.2p
  .faq [data-slot="accordion-trigger"] { font-size: 13px; }
 }
 
-.category-list { scrollbar-width: none; }
-.category-list::-webkit-scrollbar { display: none; }
 @media (max-width: 600px) { .controller-scene { width: 200px; height: 170px; right: -5px; bottom: 5px; } }
 
 /* Multi-page navigation and interaction system. */
@@ -127,3 +125,27 @@ html { scrollbar-gutter: stable; }
 .form-field input, .search input { font-size: 14px; }
 @media(max-width:600px) { .form-field input, .search input { font-size: 16px; } }
 
+/* Scrollbars share the storefront palette in page and nested scroll areas. */
+* { scrollbar-width: thin; scrollbar-color: #8dcef0 #fff0f6; }
+*::-webkit-scrollbar { width: 10px; height: 10px; }
+*::-webkit-scrollbar-track { background: var(--pink-soft); border-radius: 10px; }
+*::-webkit-scrollbar-thumb { background: var(--primary-hover); border: 2px solid var(--pink-soft); border-radius: 10px; }
+*::-webkit-scrollbar-thumb:hover { background: var(--pink); }
+*::-webkit-scrollbar-corner { background: var(--pink-soft); }
+
+.not-found-page { padding-top: 22px; padding-bottom: 55px; }
+.not-found-panel { min-height: 490px; display: grid; grid-template-columns: 1fr 1fr; align-items: center; gap: 36px; padding: 56px; border-radius: 32px; background: var(--primary-soft); }
+.not-found-copy h1 { max-width: 480px; }
+.not-found-copy > p:not(.section-kicker) { max-width: 430px; margin: 22px 0 28px; color: var(--muted); font-size: 15px; line-height: 1.9; }
+.not-found-actions { display: flex; flex-wrap: wrap; gap: 12px; }
+.not-found-art { display: flex; justify-content: center; align-items: center; color: var(--foreground); font-size: clamp(100px, 13vw, 180px); font-weight: 800; letter-spacing: -.08em; line-height: 1; }
+.not-found-zero { display: grid; place-items: center; width: .95em; height: 1.1em; margin-inline: .06em; border-radius: .45em; background: var(--pink); font-size: .8em; letter-spacing: 0; transform: rotate(8deg); }
+@media (max-width: 700px) {
+ .not-found-page { padding-top: 10px; padding-bottom: 35px; }
+ .not-found-panel { min-height: 0; grid-template-columns: 1fr; gap: 30px; padding: 30px 24px; border-radius: 27px; }
+ .not-found-art { grid-row: 1; font-size: clamp(85px, 23vw, 130px); }
+ .not-found-copy > p:not(.section-kicker) { font-size: 14px; margin: 18px 0 23px; }
+}
+
+
+.form-notice-success { background: var(--success-soft); color: var(--success-ink); }

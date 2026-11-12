@@ -1,0 +1,93 @@
+- generic [active] [ref=f6e1]:
+  - link "Lewati ke konten" [ref=f6e2] [cursor=pointer]:
+    - /url: "#main"
+  - banner [ref=f6e3]:
+    - generic [ref=f6e4]:
+      - link "Anres Store beranda" [ref=f6e5] [cursor=pointer]:
+        - /url: /
+        - generic [ref=f6e6]:
+          - generic [ref=f6e7]: Anres
+          - generic [ref=f6e8]: Store
+      - generic [ref=f6e12]:
+        - button "Buka keranjang, 0 produk" [ref=f6e13] [cursor=pointer]:
+          - generic [ref=f6e19]: "0"
+        - button "Buka menu" [ref=f6e20] [cursor=pointer]
+  - main [ref=f6e23]:
+    - generic [ref=f6e24]:
+      - generic [ref=f6e25]:
+        - generic [ref=f6e26]:
+          - text: Katalog Anres
+          - generic [ref=f6e29]:
+            - heading "Mobile Legends" [level=1] [ref=f6e30]:
+              - generic [ref=f6e31]:
+                - generic [ref=f6e32]: Mobile Legends
+                - generic [aria-hidden] [ref=f6e33]:
+                  - generic [ref=f6e34]: Mobile
+                  - generic [ref=f6e35]: Legends
+            - generic [ref=f6e36]: Moonton
+          - paragraph [ref=f6e37]: Lengkapi pesananmu dengan mudah.
+        - button "Kembali" [ref=f6e39] [cursor=pointer]
+      - generic [ref=f6e42]:
+        - generic [ref=f6e43]:
+          - navigation "Tahap pesanan" [ref=f6e44]:
+            - generic [ref=f6e45]:
+              - generic [ref=f6e46]: "1"
+              - text: Detail pesanan
+            - generic [ref=f6e47]:
+              - generic [ref=f6e48]: "2"
+              - text: Checkout
+            - generic [ref=f6e49]:
+              - generic [ref=f6e50]: "3"
+              - text: Pembayaran
+          - generic [ref=f6e149]:
+            - heading "Pilih pembayaran" [level=2] [ref=f6e150]:
+              - generic [ref=f6e151]:
+                - generic [ref=f6e152]: Pilih pembayaran
+                - generic [aria-hidden] [ref=f6e153]:
+                  - generic [ref=f6e154]: Pilih
+                  - generic [ref=f6e155]: pembayaran
+            - paragraph [ref=f6e156]: Pilih metode pembayaran simulasi. Tidak ada pembayaran yang diproses.
+            - generic [ref=f6e157]:
+              - button [pressed] [ref=f6e158] [cursor=pointer]:
+                - strong [ref=f6e159]: QRIS
+              - button [ref=f6e160] [cursor=pointer]:
+                - strong [ref=f6e161]: Transfer bank
+              - button [ref=f6e162] [cursor=pointer]:
+                - strong [ref=f6e163]: E-wallet
+            - button "Simpan pesanan simulasi" [ref=f6e164] [cursor=pointer]
+        - complementary [ref=f6e78]:
+          - text: Ringkasan pesanan
+          - heading "Mobile Legends" [level=3] [ref=f6e79]
+          - paragraph [ref=f6e80]: Top up game
+          - separator [ref=f6e81]
+          - generic [ref=f6e82]:
+            - generic [ref=f6e83]: Estimasi total
+            - strong [ref=f6e84]: Rp15.000
+          - generic [ref=f6e85]: Harga dan pilihan di halaman ini masih contoh untuk pratinjau UI.
+  - contentinfo [ref=f6e86]:
+    - generic [ref=f6e87]:
+      - generic [ref=f6e88]:
+        - link "Anres Store beranda footer" [ref=f6e89] [cursor=pointer]:
+          - /url: /
+          - generic [ref=f6e90]:
+            - generic [ref=f6e91]: Anres
+            - generic [ref=f6e92]: Store
+        - paragraph [ref=f6e96]: Kebutuhan digital, dekat denganmu.
+      - navigation "Navigasi footer" [ref=f6e97]:
+        - link "Tentang Anres" [ref=f6e98] [cursor=pointer]:
+          - /url: /about
+        - link "Pusat bantuan" [ref=f6e99] [cursor=pointer]:
+          - /url: /bantuan
+        - link "Jelajahi katalog" [ref=f6e100] [cursor=pointer]:
+          - /url: /katalog
+      - generic [ref=f6e101]:
+        - generic [ref=f6e102]: Game. Karya. Keseharian.
+        - generic [ref=f6e103]: © 2026 Anres Store
+  - button "Open Next.js Dev Tools" [ref=f6e167] [cursor=pointer]:
+    - generic [ref=f6e170]:
+      - text: Compiling
+      - generic [ref=f6e171]:
+        - generic [ref=f6e172]: .
+        - generic [ref=f6e173]: .
+        - generic [ref=f6e174]: .
+  - alert [ref=f6e122]

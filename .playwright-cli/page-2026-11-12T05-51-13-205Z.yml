@@ -1,0 +1,26 @@
+- generic [active] [ref=e1]:
+  - link "Lewati ke konten" [ref=e2] [cursor=pointer]:
+    - /url: "#main"
+  - main [ref=e4]:
+    - generic [ref=e5]:
+      - link "Kembali ke login" [ref=e6] [cursor=pointer]:
+        - /url: /login
+      - generic [ref=e9]:
+        - heading "Selangkah lagi, akunmu siap." [level=1] [ref=e15]: Selangkah lagi,akunmu siap.
+        - paragraph [ref=e16]: Masukkan kode yang kami kirim ke email untuk mengonfirmasi akunmu.
+      - generic [ref=e17]: Anres Store
+    - generic [ref=e18]:
+      - generic [ref=e19]:
+        - heading "Konfirmasi email" [level=2] [ref=e20]
+        - paragraph [ref=e21]: Periksa kotak masuk atau folder spam, lalu masukkan kode konfirmasi.
+      - generic [ref=e22]:
+        - generic [ref=e23]:
+          - generic [ref=e24]: Email
+          - textbox "Email" [ref=e25]
+        - generic [ref=e26]:
+          - generic [ref=e27]: Kode konfirmasi
+          - textbox "Kode konfirmasi" [ref=e28]
+        - button "Konfirmasi email" [ref=e29] [cursor=pointer]
+      - button "Kirim ulang kode" [ref=e32] [cursor=pointer]
+  - button "Open Next.js Dev Tools" [ref=e38] [cursor=pointer]
+  - alert [ref=e42]

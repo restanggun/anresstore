@@ -12,9 +12,9 @@
 .account-link p { font-size: 13px; margin-bottom: 0; }
 .account-profile { max-width: 620px; padding: 32px; background: var(--primary-soft); border-radius: 28px; }
 .account-profile h1 { font-size: 36px; margin-bottom: 10px; }
-.account-profile form { margin-top: 28px; }
-.account-profile input { width: 100%; }
-.account-profile button { margin-top: 12px; }
+.account-profile-details { display:grid;gap:18px;margin:28px 0 0; }
+.account-profile-details dt { margin-bottom:7px;font-size:12px;font-weight:700; }
+.account-profile-details dd { margin:0;padding:14px 16px;border-radius:14px;background:var(--surface);font-size:14px;overflow-wrap:anywhere; }
 .account-status { margin-top: 16px; line-height: 1.6; }
 .account-name { max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 @media (max-width: 700px) { .account-page { padding-top: 20px; } .account-hero { grid-template-columns: 1fr; } .account-links { grid-template-columns: 1fr; } .account-profile { padding: 24px; } }

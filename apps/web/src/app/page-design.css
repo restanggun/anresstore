@@ -264,6 +264,10 @@ body:has(.auth-page) .header-space, body:has(.auth-page) .site-footer { display:
 .auth-options button > span:nth-child(2) { display:grid;flex:1;gap:4px; }.auth-options strong { font-size:13px; }.auth-options small { color:#61747e;font-size:11px;line-height:1.5; }
 .auth-option-icon { display:grid;place-items:center;width:42px;height:42px;flex-shrink:0;border-radius:13px;background:#fff;color:#286589; }.auth-option-pink { color:#a34470; }
 .auth-step-back { margin-top:20px;margin-right:20px; }.auth-otp-note { margin:0 0 15px;color:#61747e;font-size:12px;line-height:1.7; }.auth-send-code { margin-bottom:22px; }
+.auth-footer { display:flex;flex-direction:column;align-items:flex-start;gap:14px;margin-top:24px; }
+.auth-footer .auth-step-back,.auth-footer .auth-help { margin:0; }
+.auth-footer .auth-help { font-size:12px;line-height:1.7;text-decoration:none; }
+.auth-footer a.auth-help,.auth-footer .auth-help a { color:#236c94;font-weight:750;text-decoration:underline;text-underline-offset:3px; }
 .auth-form-panel .auth-reset-link { width:100%;justify-content:flex-end;border:0;background:none;cursor:pointer; }
 /* One border and focus treatment for form fields and search boxes. */
 .form-field input { border:1px solid var(--field-border);box-shadow:none; }

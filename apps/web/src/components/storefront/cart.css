@@ -31,3 +31,11 @@
 .cart-dialog :is(button,input,select):focus-visible, .cart-nav:focus-visible { outline:2px solid var(--focus); outline-offset:2px; }
 @media(max-width:600px) { .cart-dialog { padding:22px; } .cart-item-head { flex-wrap:wrap; } .cart-dialog .cart-row { padding:15px; } .cart-edit input { font-size:16px; } }
 @media(prefers-reduced-motion:reduce) { .cart-dialog *, .cart-nav { animation-duration:0.01ms!important; transition-duration:0.01ms!important; } }
+
+.cart-dialog .cart-details-toggle { display:inline-flex; align-items:center; gap:5px; align-self:start; padding:4px 0; border:0; background:transparent; color:var(--focus); font-size:12px; font-weight:700; cursor:pointer; }
+.cart-details-toggle svg { transition:transform 160ms ease; }
+.cart-details-toggle svg.is-expanded { transform:rotate(180deg); }
+.cart-details-toggle:disabled { opacity:.65; cursor:default; }
+
+.cart-dialog .cart-row { gap:8px; }
+.cart-dialog .cart-row:has(.cart-item-details), .cart-dialog .cart-row:has(.cart-edit) { gap:12px; }

@@ -7,7 +7,7 @@ import { Menu, X, ChevronRight } from "lucide-react";
 import { authRequest } from "@/lib/auth-api";
 import { CartPopup } from "./cart-popup";
 import { Brand } from "./brand";
-const navigation = [["Beranda", "/"], ["Katalog", "/katalog"], ["Tentang", "/about"], ["Bantuan", "/bantuan"]] as const;
+const navigation = [["Beranda", "/"], ["Katalog", "/katalog"], ["Invoice", "/invoice"], ["Tentang", "/about"], ["Bantuan", "/bantuan"]] as const;
 export function SiteShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const headerRef = useRef<HTMLElement>(null);

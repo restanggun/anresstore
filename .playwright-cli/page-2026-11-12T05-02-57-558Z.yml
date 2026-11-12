@@ -1,0 +1,222 @@
+- generic [active] [ref=f3e1]:
+  - link "Lewati ke konten" [ref=f3e2] [cursor=pointer]:
+    - /url: "#main"
+  - banner [ref=f3e3]:
+    - generic [ref=f3e4]:
+      - link "Anres Store beranda" [ref=f3e5] [cursor=pointer]:
+        - /url: /
+        - generic [ref=f3e6]:
+          - generic [ref=f3e7]: Anres
+          - generic [ref=f3e8]: Store
+      - generic [ref=f3e12]:
+        - button "Buka keranjang, 0 produk" [ref=f3e13] [cursor=pointer]:
+          - generic [ref=f3e19]: "0"
+        - button "Buka menu" [ref=f3e20] [cursor=pointer]
+  - main [ref=f3e23]:
+    - generic [ref=f3e24]:
+      - generic [ref=f3e25]:
+        - generic [ref=f3e26]:
+          - text: Katalog Anres
+          - heading "Semua kebutuhan digitalmu." [level=1] [ref=f3e27]:
+            - generic [ref=f3e28]:
+              - generic [ref=f3e29]: Semua kebutuhan digitalmu.
+              - generic [aria-hidden] [ref=f3e30]:
+                - generic [ref=f3e31]: Semua
+                - generic [ref=f3e32]: kebutuhan
+                - generic [ref=f3e33]: digitalmu.
+          - paragraph [ref=f3e34]: Pilih layanan, temukan produk, dan lanjutkan harimu.
+        - search [ref=f3e35]:
+          - searchbox "Cari produk" [ref=f3e39]
+          - button "Cari" [ref=f3e40] [cursor=pointer]
+      - generic [ref=f3e43]:
+        - button "Top up game Isi waktu bermain Mobile Legends Free Fire Roblox Lihat kategori" [ref=f3e44] [cursor=pointer]:
+          - generic:
+            - generic [aria-hidden]:
+              - generic:
+                - generic: MLBB
+                - generic: Free Fire
+                - generic: Roblox
+          - generic [ref=f3e49]:
+            - generic [ref=f3e50]: Top up game
+            - generic [aria-hidden] [ref=f3e51]:
+              - generic [ref=f3e52]: Top
+              - generic [ref=f3e53]: up
+              - generic [ref=f3e54]: game
+          - generic [ref=f3e55]: Isi waktu bermain
+          - generic [ref=f3e56]:
+            - generic [ref=f3e57]: Mobile Legends
+            - generic [ref=f3e58]: Free Fire
+            - generic [ref=f3e59]: Roblox
+          - generic [ref=f3e60]: Lihat kategori
+        - button "Format tugas Dokumen lebih tertata Rapikan tugas Lihat kategori" [ref=f3e64] [cursor=pointer]:
+          - generic:
+            - generic [aria-hidden]:
+              - generic:
+                - generic: Aa
+                - generic: Word / PPT / PDF
+          - generic [ref=f3e70]:
+            - generic [ref=f3e71]: Format tugas
+            - generic [aria-hidden] [ref=f3e72]:
+              - generic [ref=f3e73]: Format
+              - generic [ref=f3e74]: tugas
+          - generic [ref=f3e75]: Dokumen lebih tertata
+          - generic [ref=f3e76]: Rapikan tugas
+          - generic [ref=f3e78]: Lihat kategori
+        - button "Booster media sosial Untuk aktivitas sosial Layanan media sosial Lihat kategori" [ref=f3e82] [cursor=pointer]:
+          - generic:
+            - generic [aria-hidden]:
+              - generic:
+                - generic: Instagram
+                - generic: TikTok
+                - generic: YouTube
+                - generic: Facebook
+                - generic: X
+                - generic: Telegram
+                - generic: WhatsApp
+                - generic: Threads
+          - generic [ref=f3e90]:
+            - generic [ref=f3e91]: Booster media sosial
+            - generic [aria-hidden] [ref=f3e92]:
+              - generic [ref=f3e93]: Booster
+              - generic [ref=f3e94]: media
+              - generic [ref=f3e95]: sosial
+          - generic [ref=f3e96]: Untuk aktivitas sosial
+          - generic [ref=f3e97]: Layanan media sosial
+          - generic [ref=f3e99]: Lihat kategori
+        - button "Aplikasi premium Untuk ide dan karya Canva Lihat kategori" [ref=f3e103] [cursor=pointer]:
+          - generic:
+            - generic [aria-hidden]:
+              - generic:
+                - generic: Ca
+                - generic: Canva
+          - generic [ref=f3e108]:
+            - generic [ref=f3e109]: Aplikasi premium
+            - generic [aria-hidden] [ref=f3e110]:
+              - generic [ref=f3e111]: Aplikasi
+              - generic [ref=f3e112]: premium
+          - generic [ref=f3e113]: Untuk ide dan karya
+          - generic [ref=f3e114]: Canva
+          - generic [ref=f3e116]: Lihat kategori
+        - button "PPOB Kebutuhan sehari-hari Pulsa & paket data Token listrik Lihat kategori" [ref=f3e120] [cursor=pointer]:
+          - generic:
+            - generic [aria-hidden]:
+              - generic:
+                - generic:
+                  - generic: "08"
+                  - text: Pulsa & paket data
+                - generic:
+                  - generic: PLN
+                  - text: Token listrik
+          - generic [ref=f3e125]:
+            - generic [ref=f3e126]: PPOB
+            - generic [ref=f3e128]: PPOB
+          - generic [ref=f3e129]: Kebutuhan sehari-hari
+          - generic [ref=f3e130]:
+            - generic [ref=f3e131]: Pulsa & paket data
+            - generic [ref=f3e132]: Token listrik
+          - generic [ref=f3e133]: Lihat kategori
+      - generic [ref=f3e137]:
+        - generic [ref=f3e138]:
+          - generic [ref=f3e139]:
+            - generic [ref=f3e140]: Penawaran spesial
+            - heading "Flash sale" [level=2] [ref=f3e144]:
+              - generic [ref=f3e145]:
+                - generic [ref=f3e146]: Flash sale
+                - generic [aria-hidden] [ref=f3e147]:
+                  - generic [ref=f3e148]: Flash
+                  - generic [ref=f3e149]: sale
+            - paragraph [ref=f3e150]: Penawaran pilihan untuk kebutuhan digitalmu.
+          - generic [ref=f3e151]: Contoh penawaran
+        - generic [ref=f3e152]:
+          - button "Harga spesial Mobile Legends Top up game Mulai Rp15.000" [ref=f3e153] [cursor=pointer]:
+            - generic [ref=f3e154]: Harga spesial
+            - strong [ref=f3e155]:
+              - generic [ref=f3e156]:
+                - generic [ref=f3e157]: Mobile Legends
+                - generic [aria-hidden] [ref=f3e158]:
+                  - generic [ref=f3e159]: Mobile
+                  - generic [ref=f3e160]: Legends
+            - generic [ref=f3e161]: Top up game
+            - generic [ref=f3e162]: Mulai Rp15.000
+          - button "Harga spesial Pulsa PPOB Mulai Rp15.000" [ref=f3e166] [cursor=pointer]:
+            - generic [ref=f3e167]: Harga spesial
+            - strong [ref=f3e168]:
+              - generic [ref=f3e169]:
+                - generic [ref=f3e170]: Pulsa
+                - generic [ref=f3e172]: Pulsa
+            - generic [ref=f3e173]: PPOB
+            - generic [ref=f3e174]: Mulai Rp15.000
+          - button "Harga spesial Canva Aplikasi premium Mulai Rp15.000" [ref=f3e178] [cursor=pointer]:
+            - generic [ref=f3e179]: Harga spesial
+            - strong [ref=f3e180]:
+              - generic [ref=f3e181]:
+                - generic [ref=f3e182]: Canva
+                - generic [ref=f3e184]: Canva
+            - generic [ref=f3e185]: Aplikasi premium
+            - generic [ref=f3e186]: Mulai Rp15.000
+      - generic [ref=f3e190]:
+        - generic [ref=f3e192]:
+          - heading "Produk populer" [level=2] [ref=f3e193]:
+            - generic [ref=f3e194]:
+              - generic [ref=f3e195]: Produk populer
+              - generic [aria-hidden] [ref=f3e196]:
+                - generic [ref=f3e197]: Produk
+                - generic [ref=f3e198]: populer
+          - paragraph [ref=f3e199]: Yang sering dicari, siap untuk dijelajahi.
+        - generic [ref=f3e200]:
+          - button "Mobile Legends Moonton Lihat produk" [ref=f3e201] [cursor=pointer]:
+            - generic [ref=f3e203]:
+              - generic [ref=f3e206]:
+                - strong [ref=f3e207]:
+                  - generic [ref=f3e208]: Mobile Legends
+                  - generic [aria-hidden] [ref=f3e209]:
+                    - generic [ref=f3e210]: Mobile
+                    - generic [ref=f3e211]: Legends
+                - generic [ref=f3e212]: Moonton
+              - generic [ref=f3e213]: Lihat produk
+          - button "Free Fire Garena Lihat produk" [ref=f3e217] [cursor=pointer]:
+            - generic [ref=f3e219]:
+              - generic [ref=f3e222]:
+                - strong [ref=f3e223]:
+                  - generic [ref=f3e224]: Free Fire
+                  - generic [aria-hidden] [ref=f3e225]:
+                    - generic [ref=f3e226]: Free
+                    - generic [ref=f3e227]: Fire
+                - generic [ref=f3e228]: Garena
+              - generic [ref=f3e229]: Lihat produk
+          - button "Netflix Aplikasi premium Lihat produk" [ref=f3e233] [cursor=pointer]:
+            - generic [ref=f3e235]:
+              - strong [ref=f3e236]:
+                - generic [ref=f3e237]: Netflix
+                - generic [ref=f3e239]: Netflix
+              - generic [ref=f3e240]: Aplikasi premium
+              - generic [ref=f3e241]: Lihat produk
+          - button "Token listrik PPOB Lihat produk" [ref=f3e245] [cursor=pointer]:
+            - generic [ref=f3e249]:
+              - strong [ref=f3e250]:
+                - generic [ref=f3e251]: Token listrik
+                - generic [aria-hidden] [ref=f3e252]:
+                  - generic [ref=f3e253]: Token
+                  - generic [ref=f3e254]: listrik
+              - generic [ref=f3e255]: PPOB
+              - generic [ref=f3e256]: Lihat produk
+  - contentinfo [ref=f3e260]:
+    - generic [ref=f3e261]:
+      - generic [ref=f3e262]:
+        - link "Anres Store beranda footer" [ref=f3e263] [cursor=pointer]:
+          - /url: /
+          - generic [ref=f3e264]:
+            - generic [ref=f3e265]: Anres
+            - generic [ref=f3e266]: Store
+        - paragraph [ref=f3e270]: Kebutuhan digital, dekat denganmu.
+      - navigation "Navigasi footer" [ref=f3e271]:
+        - link "Tentang Anres" [ref=f3e272] [cursor=pointer]:
+          - /url: /about
+        - link "Pusat bantuan" [ref=f3e273] [cursor=pointer]:
+          - /url: /bantuan
+        - link "Jelajahi katalog" [ref=f3e274] [cursor=pointer]:
+          - /url: /katalog
+      - generic [ref=f3e275]:
+        - generic [ref=f3e276]: Game. Karya. Keseharian.
+        - generic [ref=f3e277]: © 2026 Anres Store
+  - button "Open Next.js Dev Tools" [ref=f3e283] [cursor=pointer]

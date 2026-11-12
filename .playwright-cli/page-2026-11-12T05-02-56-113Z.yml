@@ -1,0 +1,43 @@
+- generic [active] [ref=f2e1]:
+  - link "Lewati ke konten" [ref=f2e2] [cursor=pointer]:
+    - /url: "#main"
+  - main [ref=f2e4]:
+    - generic [ref=f2e5]:
+      - link "Kembali ke katalog" [ref=f2e6] [cursor=pointer]:
+        - /url: /katalog
+      - generic [ref=f2e9]:
+        - heading "Semua kebutuhan, satu akun." [level=1] [ref=f2e15]:
+          - generic [ref=f2e16]:
+            - generic [ref=f2e17]: Semua kebutuhan,
+            - generic [aria-hidden] [ref=f2e18]:
+              - generic [ref=f2e19]: Semua
+              - generic [ref=f2e20]: kebutuhan,
+          - generic [ref=f2e21]:
+            - generic [ref=f2e22]: satu akun.
+            - generic [aria-hidden] [ref=f2e23]:
+              - generic [ref=f2e24]: satu
+              - generic [ref=f2e25]: akun.
+        - paragraph [ref=f2e26]: Untuk waktu bermain, ide baru, dan hal-hal kecil yang menemani harimu.
+      - generic [ref=f2e27]: Anres Store
+    - region "Selamat datang" [ref=f2e28]:
+      - generic [ref=f2e29]:
+        - heading "Selamat datang" [level=2] [ref=f2e30]
+        - paragraph [ref=f2e31]: Masuk atau buat akun untuk melanjutkan.
+      - generic [ref=f2e32]:
+        - generic [ref=f2e33]:
+          - generic [ref=f2e34]:
+            - generic [ref=f2e35]: Email
+            - textbox "Email" [ref=f2e36]:
+              - /placeholder: nama@email.com
+          - button "Lanjutkan" [ref=f2e37] [cursor=pointer]
+        - generic [ref=f2e40]: atau
+        - button "Lanjutkan dengan Google" [ref=f2e43] [cursor=pointer]
+      - generic [ref=f2e49]:
+        - paragraph [ref=f2e50]:
+          - text: Belum punya akun?
+          - link "Daftar" [ref=f2e51] [cursor=pointer]:
+            - /url: /daftar
+        - link "Butuh bantuan tentang akun?" [ref=f2e52] [cursor=pointer]:
+          - /url: /bantuan
+  - button "Open Next.js Dev Tools" [ref=f2e58] [cursor=pointer]
+  - alert [ref=f2e62]

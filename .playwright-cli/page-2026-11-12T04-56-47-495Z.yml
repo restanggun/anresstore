@@ -1,0 +1,31 @@
+- generic [active] [ref=e1]:
+  - link "Lewati ke konten" [ref=e2] [cursor=pointer]:
+    - /url: "#main"
+  - main [ref=e4]:
+    - generic [ref=e5]:
+      - link "Kembali ke login" [ref=e6] [cursor=pointer]:
+        - /url: /login
+      - generic [ref=e9]:
+        - heading "Atur ulang passwordmu." [level=1] [ref=e15]: Atur ulangpasswordmu.
+        - paragraph [ref=e16]: Gunakan kode yang dikirim ke email untuk membuat password baru.
+      - generic [ref=e17]: Anres Store
+    - generic [ref=e18]:
+      - generic [ref=e19]:
+        - heading "Atur password baru" [level=2] [ref=e20]
+        - paragraph [ref=e21]: Masukkan email, kode pemulihan, dan password baru.
+      - generic [ref=e22]:
+        - generic [ref=e23]:
+          - generic [ref=e24]: Email
+          - textbox "Email" [ref=e25]
+        - generic [ref=e26]:
+          - generic [ref=e27]: Kode pemulihan
+          - textbox "Kode pemulihan" [ref=e28]
+        - generic [ref=e29]:
+          - generic [ref=e30]: Password baru
+          - textbox "Password baru" [ref=e31]
+        - generic [ref=e32]:
+          - generic [ref=e33]: Ulangi password
+          - textbox "Ulangi password" [ref=e34]
+        - button "Simpan password" [ref=e35] [cursor=pointer]
+      - button "Kirim ulang kode" [ref=e38] [cursor=pointer]
+  - button "Open Next.js Dev Tools" [ref=e44] [cursor=pointer]

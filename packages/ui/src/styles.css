@@ -18,6 +18,7 @@
   --background: #ffffff; --foreground: #17191c;
   --surface: #ffffff; --muted: #5b626b; --border: #e3e7eb;
   --primary: #a9ddf7; --primary-hover: #8dcef0; --primary-soft: #eaf6fd; --focus: #24658a;
+  --success-soft: #e8f7ee; --success-ink: #205b39;
   --pink: #ffb5d5; --pink-soft: #fff0f6; --pink-ink: #7b3455;
   --field-border: #cfd8df; --field-focus: var(--focus); --field-focus-width: 2px;
   --radius: 18px;

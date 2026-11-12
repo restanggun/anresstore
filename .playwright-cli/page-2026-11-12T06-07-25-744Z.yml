@@ -1,0 +1,52 @@
+- generic [active] [ref=f5e1]:
+  - link "Lewati ke konten" [ref=f5e2] [cursor=pointer]:
+    - /url: "#main"
+  - banner [ref=f5e3]:
+    - generic [ref=f5e4]:
+      - link "Anres Store beranda" [ref=f5e5] [cursor=pointer]:
+        - /url: /
+        - generic [ref=f5e6]:
+          - generic [ref=f5e7]: Anres
+          - generic [ref=f5e8]: Store
+      - generic [ref=f5e12]:
+        - button "Buka keranjang, 0 produk" [ref=f5e13] [cursor=pointer]:
+          - generic [ref=f5e19]: "0"
+        - button "Buka menu" [ref=f5e20] [cursor=pointer]
+  - main [ref=f5e23]:
+    - generic [ref=f5e30]:
+      - heading "Invoice" [level=1] [ref=f5e31]
+      - paragraph [ref=f5e32]: Riwayat, status, dan detail pesananmu dalam satu tempat.
+    - generic [ref=f5e33]:
+      - strong [ref=f5e34]: Pesanan simulasi
+      - generic [ref=f5e35]: Harga dan pembayaran masih contoh. Tidak ada transaksi atau pembayaran yang diproses.
+    - paragraph [ref=f5e36]: Riwayat tamu tersimpan hanya di browser ini dan terpisah dari riwayat akun.
+    - search [ref=f5e37]:
+      - generic [ref=f5e41]: Cari nomor invoice
+      - searchbox "Cari nomor invoice" [ref=f5e42]
+      - button "Cari" [ref=f5e43] [cursor=pointer]
+    - generic [ref=f5e44]:
+      - heading "Belum ada invoice" [level=2] [ref=f5e49]
+      - paragraph [ref=f5e50]: Pesanan simulasimu akan muncul di sini setelah dibuat.
+      - link "Jelajahi katalog" [ref=f5e51] [cursor=pointer]:
+        - /url: /katalog
+  - contentinfo [ref=f5e54]:
+    - generic [ref=f5e55]:
+      - generic [ref=f5e56]:
+        - link "Anres Store beranda footer" [ref=f5e57] [cursor=pointer]:
+          - /url: /
+          - generic [ref=f5e58]:
+            - generic [ref=f5e59]: Anres
+            - generic [ref=f5e60]: Store
+        - paragraph [ref=f5e64]: Kebutuhan digital, dekat denganmu.
+      - navigation "Navigasi footer" [ref=f5e65]:
+        - link "Tentang Anres" [ref=f5e66] [cursor=pointer]:
+          - /url: /about
+        - link "Pusat bantuan" [ref=f5e67] [cursor=pointer]:
+          - /url: /bantuan
+        - link "Jelajahi katalog" [ref=f5e68] [cursor=pointer]:
+          - /url: /katalog
+      - generic [ref=f5e69]:
+        - generic [ref=f5e70]: Game. Karya. Keseharian.
+        - generic [ref=f5e71]: © 2026 Anres Store
+  - button "Open Next.js Dev Tools" [ref=f5e77] [cursor=pointer]
+  - alert [ref=f5e81]
