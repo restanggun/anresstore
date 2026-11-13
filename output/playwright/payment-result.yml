@@ -1,0 +1,67 @@
+- generic [active] [ref=f5e1]:
+  - link "Lewati ke konten" [ref=f5e2] [cursor=pointer]:
+    - /url: "#main"
+  - banner [ref=f5e3]:
+    - generic [ref=f5e4]:
+      - link "Anres Store beranda" [ref=f5e5] [cursor=pointer]:
+        - /url: /
+        - generic [ref=f5e6]:
+          - generic [ref=f5e7]: Anres
+          - generic [ref=f5e8]: Store
+      - generic [ref=f5e12]:
+        - button "Buka keranjang, 0 produk" [ref=f5e13] [cursor=pointer]:
+          - generic [ref=f5e19]: "0"
+        - button "Buka menu" [ref=f5e20] [cursor=pointer]
+  - main [ref=f5e246]:
+    - generic [ref=f5e247]:
+      - generic [ref=f5e249]:
+        - heading "Pembayaran sandbox" [level=1] [ref=f5e250]
+        - paragraph [ref=f5e251]: Pengujian Tripay. Produk tidak dikirim dan dana sungguhan tidak diproses.
+      - generic [ref=f5e252]:
+        - heading "Menunggu pembayaran" [level=2] [ref=f5e253]
+        - generic [ref=f5e254]:
+          - generic [ref=f5e255]:
+            - term [ref=f5e256]: Nomor invoice
+            - definition [ref=f5e257]: f82601a8-3109-4144-aadb-0e4e739d153f
+          - generic [ref=f5e258]:
+            - term [ref=f5e259]: Produk
+            - definition [ref=f5e260]: Mobile Legends - 10 Diamonds ( 10 + 0 Bonus )
+          - generic [ref=f5e261]:
+            - term [ref=f5e262]: Metode
+            - definition [ref=f5e263]: QRIS
+          - generic [ref=f5e264]:
+            - term [ref=f5e265]: Harga produk
+            - definition [ref=f5e266]: Rp4.000
+          - generic [ref=f5e267]:
+            - term [ref=f5e268]: Biaya admin
+            - definition [ref=f5e269]: Rp778
+          - generic [ref=f5e270]:
+            - term [ref=f5e271]: Total pembayaran
+            - definition [ref=f5e272]: Rp4.778
+          - generic [ref=f5e273]:
+            - term [ref=f5e274]: Batas pembayaran
+            - definition [ref=f5e275]: 14/11/2026, 17.29.41
+        - link "Buka pembayaran Tripay sandbox" [ref=f5e276] [cursor=pointer]:
+          - /url: https://tripay.co.id/checkout/DEV-T35017419400VPGAV
+        - button "Periksa status" [ref=f5e277] [cursor=pointer]
+  - contentinfo [ref=f5e185]:
+    - generic [ref=f5e186]:
+      - generic [ref=f5e187]:
+        - link "Anres Store beranda footer" [ref=f5e188] [cursor=pointer]:
+          - /url: /
+          - generic [ref=f5e189]:
+            - generic [ref=f5e190]: Anres
+            - generic [ref=f5e191]: Store
+        - paragraph [ref=f5e195]: Kebutuhan digital, dekat denganmu.
+      - navigation "Navigasi footer" [ref=f5e196]:
+        - link "Tentang Anres" [ref=f5e197] [cursor=pointer]:
+          - /url: /about
+        - link "Pusat bantuan" [ref=f5e198] [cursor=pointer]:
+          - /url: /bantuan
+        - link "Jelajahi katalog" [ref=f5e199] [cursor=pointer]:
+          - /url: /katalog
+      - generic [ref=f5e200]:
+        - generic [ref=f5e201]: Game. Karya. Keseharian.
+        - generic [ref=f5e202]: © 2026 Anres Store
+  - button "Open Next.js Dev Tools" [ref=f5e208] [cursor=pointer]
+  - alert [ref=f5e212]: Pembayaran sandbox

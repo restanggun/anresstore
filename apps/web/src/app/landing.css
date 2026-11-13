@@ -24,7 +24,7 @@
 .service-category-1, .service-category-2 { grid-column: span 6; min-height: 248px; padding: 27px 29px 22px; }
 .service-category-1 { background: #eaf6fd; }
 .service-category-2 { background: var(--pink); color: var(--pink-ink); }
-.service-category-3 { background: #f2f7fa; }
+.service-category-3 { background: var(--primary); }
 .service-category-4 { background: #fff0f6; }
 .service-category-5 { background: var(--pink); color: var(--pink-ink); }
 .service-category-2 .service-category-count, .service-category-2 .service-category-detail { color: var(--pink-ink); }

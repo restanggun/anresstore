@@ -1,0 +1,63 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e5]:
+    - generic [ref=e10]:
+      - heading "Pembayaran dengan QRIS" [level=5] [ref=e11]
+      - text: Pastikan anda melakukan pembayaran sebelum melewati batas pembayaran dan dengan nominal yang tepat
+      - alert [ref=e12]:
+        - text: PERHATIAN! Ini adalah mode sandbox. Transaksi pada mode ini tidak dapat dibayar secara ril. Untuk mengubah status transaksi silahkan gunakan Simulator
+        - link "https://tripay.co.id/simulator" [ref=e13] [cursor=pointer]:
+          - /url: https://tripay.co.id/simulator
+    - generic [ref=e14]:
+      - generic [ref=e15]:
+        - generic [ref=e16]:
+          - generic [ref=e17]: Merchant
+          - generic [ref=e18]: Merchant Sandbox
+        - generic [ref=e19]:
+          - generic [ref=e20]: No. Invoice
+          - generic [ref=e21]: f82601a8-3109-4144-aadb-0e4e739d153f
+        - generic [ref=e22]:
+          - generic [ref=e23]: Nama Pelanggan
+          - generic [ref=e24]: Sandbox Integration Test
+        - generic [ref=e25]:
+          - generic [ref=e26]: No. HP
+          - generic [ref=e27]: "081234567890"
+        - generic [ref=e28]:
+          - generic [ref=e29]: Email
+          - generic [ref=e30]: sandbox@example.com
+        - generic [ref=e31]:
+          - generic [ref=e32]: Rincian Transaksi
+          - generic [ref=e33]:
+            - generic [ref=e34]:
+              - generic [ref=e35]:
+                - text: +
+                - link "[ML10_0-S1A] - Mobile Legends - 10 Diamonds ( 10 + 0 Bonus )" [ref=e36] [cursor=pointer]:
+                  - /url: "#!"
+                - text: Rp 4.000 x 1
+              - generic [ref=e37]: "4.000"
+            - generic [ref=e38]:
+              - generic [ref=e39]: + Biaya Administrasi
+              - generic [ref=e40]: "778"
+      - generic [ref=e41]:
+        - generic [ref=e42]:
+          - generic [ref=e43]: Nomor Referensi
+          - generic [ref=e45]:
+            - textbox [disabled] [ref=e46]: DEV-T35017419400VPGAV
+            - generic [ref=e47]: 
+        - generic [ref=e50]:
+          - generic [ref=e51]: Jumlah Tagihan
+          - generic [ref=e53]:
+            - textbox [disabled] [ref=e54]: Rp 4.778
+            - generic [ref=e55]: 
+        - generic [ref=e58]:
+          - generic [ref=e59]: Batas Pembayaran
+          - generic [ref=e60]: 14 November 2026 17:29 WIB
+        - generic [ref=e62]:
+          - text: "* Klik untuk memperbesar kode QR"
+          - link [ref=e63] [cursor=pointer]:
+            - /url: data:image/png;base64,…
+    - generic [ref=e66]:
+      - button " Kembali ke Merchant" [ref=e67] [cursor=pointer]:
+        - generic [ref=e68]: 
+        - generic [ref=e69]: Kembali ke Merchant
+      - button "Cara Pembayaran" [ref=e70] [cursor=pointer]
+  - text:  

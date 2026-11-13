@@ -1,0 +1,103 @@
+- generic [active] [ref=f5e1]:
+  - link "Lewati ke konten" [ref=f5e2] [cursor=pointer]:
+    - /url: "#main"
+  - banner [ref=f5e3]:
+    - generic [ref=f5e4]:
+      - link "Anres Store beranda" [ref=f5e5] [cursor=pointer]:
+        - /url: /
+        - generic [ref=f5e6]:
+          - generic [ref=f5e7]: Anres
+          - generic [ref=f5e8]: Store
+      - generic [ref=f5e12]:
+        - button "Buka keranjang, 0 produk" [ref=f5e13] [cursor=pointer]:
+          - generic [ref=f5e19]: "0"
+        - button "Buka menu" [ref=f5e20] [cursor=pointer]
+  - main [ref=f5e23]:
+    - generic [ref=f5e24]:
+      - generic [ref=f5e25]:
+        - generic [ref=f5e26]:
+          - text: Katalog Anres
+          - generic [ref=f5e29]:
+            - heading "Mobile Legends" [level=1] [ref=f5e30]:
+              - generic [ref=f5e31]:
+                - generic [ref=f5e32]: Mobile Legends
+                - generic [aria-hidden] [ref=f5e33]:
+                  - generic [ref=f5e34]: Mobile
+                  - generic [ref=f5e35]: Legends
+            - generic [ref=f5e36]: Moonton
+          - paragraph [ref=f5e37]: Lengkapi pesananmu dengan mudah.
+        - button "Kembali" [ref=f5e39] [cursor=pointer]
+      - generic [ref=f5e42]:
+        - generic [ref=f5e43]:
+          - navigation "Tahap pesanan" [ref=f5e44]:
+            - generic [ref=f5e45]:
+              - generic [ref=f5e46]: "1"
+              - text: Detail pesanan
+            - generic [ref=f5e47]:
+              - generic [ref=f5e48]: "2"
+              - text: Checkout
+            - generic [ref=f5e49]:
+              - generic [ref=f5e50]: "3"
+              - text: Pembayaran
+          - generic [ref=f5e214]:
+            - heading "Pilih pembayaran" [level=2] [ref=f5e215]
+            - generic [ref=f5e216]:
+              - paragraph [ref=f5e217]:
+                - strong [ref=f5e218]: Pembayaran sandbox Tripay
+                - text: Untuk pengujian. Tidak ada dana atau produk sungguhan yang diproses.
+              - generic [ref=f5e219]:
+                - text: Metode pembayaran
+                - combobox "Metode pembayaran" [ref=f5e220]:
+                  - option "Pilih metode" [disabled]
+                  - option "OVO"
+                  - option "QRIS (Customizable)"
+                  - option "QRIS" [selected]
+                  - option "DANA"
+                  - option "ShopeePay"
+              - generic [ref=f5e221]:
+                - text: Nama pelanggan
+                - textbox "Nama pelanggan" [ref=f5e222]: Sandbox Integration Test
+              - generic [ref=f5e223]:
+                - text: Email
+                - textbox "Email" [ref=f5e224]: sandbox@example.com
+              - generic [ref=f5e225]:
+                - text: Nomor WhatsApp
+                - textbox "Nomor WhatsApp" [ref=f5e226]:
+                  - /placeholder: "081234567890"
+                  - text: "081234567890"
+              - paragraph [ref=f5e227]: Nominal produk Rp4.000. Biaya admin dan total akhir ditampilkan setelah kode bayar dibuat.
+              - alert [ref=f5e228]: Katalog penyedia tidak tersedia. Coba lagi nanti.
+              - button "Buat pembayaran sandbox" [ref=f5e229] [cursor=pointer]
+        - complementary [ref=f5e177]:
+          - text: Ringkasan pesanan
+          - heading "Mobile Legends" [level=3] [ref=f5e178]
+          - paragraph [ref=f5e179]: Top up game
+          - separator [ref=f5e180]
+          - generic [ref=f5e181]:
+            - generic [ref=f5e182]: Total
+            - strong [ref=f5e183]: Rp4.000
+          - generic [ref=f5e230]:
+            - generic [ref=f5e231]: Harga flash sale
+            - time [ref=f5e236]: 7 hari 06:42:47
+          - generic [ref=f5e184]: Periksa kembali pilihan dan tujuan sebelum melanjutkan.
+  - contentinfo [ref=f5e185]:
+    - generic [ref=f5e186]:
+      - generic [ref=f5e187]:
+        - link "Anres Store beranda footer" [ref=f5e188] [cursor=pointer]:
+          - /url: /
+          - generic [ref=f5e189]:
+            - generic [ref=f5e190]: Anres
+            - generic [ref=f5e191]: Store
+        - paragraph [ref=f5e195]: Kebutuhan digital, dekat denganmu.
+      - navigation "Navigasi footer" [ref=f5e196]:
+        - link "Tentang Anres" [ref=f5e197] [cursor=pointer]:
+          - /url: /about
+        - link "Pusat bantuan" [ref=f5e198] [cursor=pointer]:
+          - /url: /bantuan
+        - link "Jelajahi katalog" [ref=f5e199] [cursor=pointer]:
+          - /url: /katalog
+      - generic [ref=f5e200]:
+        - generic [ref=f5e201]: Game. Karya. Keseharian.
+        - generic [ref=f5e202]: © 2026 Anres Store
+  - button "Open Next.js Dev Tools" [ref=f5e208] [cursor=pointer]
+  - alert [ref=f5e212]

@@ -1,0 +1,134 @@
+- generic [active] [ref=e1]:
+  - link "Lewati ke konten" [ref=e2] [cursor=pointer]:
+    - /url: "#main"
+  - generic [ref=e3]:
+    - complementary "Navigasi admin" [ref=e4]:
+      - link "Anres Store admin" [ref=e6] [cursor=pointer]:
+        - /url: /
+        - generic [ref=e7]: a.
+        - generic [ref=e8]:
+          - strong [ref=e9]: anres.
+          - generic [ref=e10]: store admin
+      - generic [ref=e11]:
+        - generic [ref=e12]: a.
+        - generic [ref=e13]:
+          - strong [ref=e14]: Anres Store
+          - generic [ref=e15]: Ruang kerja admin
+      - navigation "Menu utama" [ref=e17]:
+        - generic [ref=e18]:
+          - paragraph [ref=e19]: Utama
+          - button "Ringkasan" [ref=e20] [cursor=pointer]
+        - generic [ref=e28]:
+          - paragraph [ref=e29]: Operasional
+          - button "Pesanan & invoice" [ref=e30] [cursor=pointer]
+          - button "Pembayaran" [ref=e35] [cursor=pointer]
+          - button "Katalog & harga" [ref=e39] [cursor=pointer]
+        - generic [ref=e44]:
+          - paragraph [ref=e45]: Pelanggan
+          - button "Pelanggan" [ref=e46] [cursor=pointer]
+          - button "Bantuan pelanggan" [ref=e53] [cursor=pointer]
+        - generic [ref=e58]:
+          - paragraph [ref=e59]: Analisis
+          - button "Laporan" [ref=e60] [cursor=pointer]
+          - button "Status sistem" [ref=e64] [cursor=pointer]
+        - generic [ref=e68]:
+          - paragraph [ref=e69]: Pengaturan
+          - button "Akses admin" [ref=e70] [cursor=pointer]
+      - generic [ref=e76]:
+        - generic [ref=e77]: A
+        - generic [ref=e78]:
+          - strong [ref=e79]: Admin Anres
+          - generic [ref=e80]: Akses administrator
+    - generic [ref=e81]:
+      - banner [ref=e82]:
+        - generic [ref=e84]:
+          - text: Ruang kerja /
+          - strong [ref=e85]: Ringkasan
+        - generic [ref=e86]:
+          - generic [ref=e87]: Akses administrator
+          - button "Status sistem dan notifikasi" [ref=e89] [cursor=pointer]
+          - generic [ref=e93]: A
+      - main [ref=e94]:
+        - generic [ref=e95]:
+          - generic [ref=e96]:
+            - paragraph [ref=e97]: Ruang kerja Anres
+            - heading "Ringkasan toko" [level=1] [ref=e98]
+            - paragraph [ref=e99]: Kelola aktivitas toko dan periksa ketersediaan fitur website.
+          - generic [ref=e100]: Operasional website
+        - generic [ref=e102]:
+          - generic [ref=e103]:
+            - generic [ref=e104]:
+              - heading "Koneksi dengan website" [level=2] [ref=e105]
+              - paragraph [ref=e106]: Data pesanan, pembayaran, produk, dan bantuan berasal dari server website yang sama.
+            - link "Buka website" [ref=e107] [cursor=pointer]:
+              - /url: http://localhost:3000
+          - status [ref=e108]: Memeriksa akses administrator...
+          - generic [ref=e109]:
+            - heading "Pencatatan transaksi" [level=2] [ref=e110]
+            - paragraph [ref=e111]: Pesanan simulasi dan pembayaran sandbox dicatat terpisah. Transaksi produksi serta laporan pendapatan belum tersedia di web.
+            - generic [ref=e112]:
+              - generic [ref=e113]:
+                - strong [ref=e114]: —
+                - generic [ref=e115]: Pembayaran pada halaman ini
+              - generic [ref=e116]:
+                - strong [ref=e117]: —
+                - generic [ref=e118]: Nilai lunas sandbox pada halaman ini (bukan pendapatan)
+          - generic [ref=e119]:
+            - heading "Cakupan pengaturan website" [level=2] [ref=e120]
+            - paragraph [ref=e121]: Status berikut menjelaskan fitur yang tersedia dan yang belum ada di web.
+            - generic [ref=e122]:
+              - article [ref=e123]:
+                - generic [ref=e124]:
+                  - link "Katalog game, PPOB, aplikasi" [ref=e125] [cursor=pointer]:
+                    - /url: http://localhost:3000/katalog
+                  - generic [ref=e126]: Terhubung
+                - paragraph [ref=e127]: Produk aktif dan perubahan katalog admin memakai endpoint yang sama dengan web dan checkout. Publikasi memerlukan ADMIN_CATALOG_ENABLED.
+              - article [ref=e128]:
+                - generic [ref=e129]:
+                  - link "Pesanan dan invoice akun" [ref=e130] [cursor=pointer]:
+                    - /url: http://localhost:3000/invoice
+                  - generic [ref=e131]: Simulasi
+                - paragraph [ref=e132]: Tersimpan di database orders. Nilai pesanan simulasi bukan pendapatan terverifikasi.
+              - article [ref=e133]:
+                - generic [ref=e134]:
+                  - link "Pembayaran Tripay" [ref=e135] [cursor=pointer]:
+                    - /url: http://localhost:3000/katalog
+                  - generic [ref=e136]: Sandbox
+                - paragraph [ref=e137]: Tercatat di sandbox_payments. Status mengikuti verifikasi Tripay; dashboard tidak mengubah status pembayaran.
+              - article [ref=e138]:
+                - generic [ref=e139]:
+                  - link "Provider lain / produk manual" [ref=e140] [cursor=pointer]:
+                    - /url: http://localhost:3000/katalog
+                  - generic [ref=e141]: Katalog tersedia
+                - paragraph [ref=e142]: Identitas provider dan kode produk bebas diatur. Sinkronisasi API dan pengiriman otomatis provider baru belum tersedia di web.
+              - article [ref=e143]:
+                - generic [ref=e144]:
+                  - link "Permintaan bantuan" [ref=e145] [cursor=pointer]:
+                    - /url: http://localhost:3000/bantuan
+                  - generic [ref=e146]: Terhubung
+                - paragraph [ref=e147]: Permintaan web dapat dibaca dan ditandai ditangani/selesai. Percakapan serta balasan CS belum tersedia di web.
+              - article [ref=e148]:
+                - generic [ref=e149]:
+                  - link "Format tugas dan booster" [ref=e150] [cursor=pointer]:
+                    - /url: http://localhost:3000/katalog
+                  - generic [ref=e151]: Belum tersedia di web
+                - paragraph [ref=e152]: Belum ada alur transaksi lengkap; produk kategori ini belum dapat diterbitkan dari dashboard.
+              - article [ref=e153]:
+                - generic [ref=e154]:
+                  - link "Pembayaran produksi dan pengiriman" [ref=e155] [cursor=pointer]:
+                    - /url: http://localhost:3000/katalog
+                  - generic [ref=e156]: Belum tersedia di web
+                - paragraph [ref=e157]: Belum ada transaksi uang nyata atau pengiriman otomatis. Lunas sandbox tidak berarti produk telah dikirim.
+              - article [ref=e158]:
+                - generic [ref=e159]:
+                  - link "Konten beranda, FAQ, promo" [ref=e160] [cursor=pointer]:
+                    - /url: http://localhost:3000/
+                  - generic [ref=e161]: Belum dapat diatur
+                - paragraph [ref=e162]: Masih dikelola melalui kode web. Editor konten dan jadwal promosi dashboard belum tersedia.
+              - article [ref=e163]:
+                - generic [ref=e164]:
+                  - link "Pelanggan dan pengaturan akun" [ref=e165] [cursor=pointer]:
+                    - /url: http://localhost:3000/profil
+                  - generic [ref=e166]: Pengelolaan belum tersedia
+                - paragraph [ref=e167]: Web memiliki akun dan profil; daftar pelanggan, penangguhan akun, serta manajemen peran belum tersedia di dashboard.
+  - button "Open Next.js Dev Tools" [ref=e173] [cursor=pointer]

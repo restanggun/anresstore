@@ -8,15 +8,15 @@ import { TextLink } from "./text-link";
 import { HelpChat } from "./help-chat";
 const categories: { name: string; items: [string, string][] }[] = [
  { name: "Umum", items: [
-  ["Apa itu Anres Store?", "Anres Store adalah website katalog layanan digital. Kamu bisa menjelajahi layanan dan mencoba alur pemesanan yang masih berupa simulasi."],
+  ["Apa itu Anres Store?", "Anres Store adalah katalog layanan digital untuk game, aplikasi, dan kebutuhan sehari-hari. Pilih produk untuk melihat nominal, harga, dan ketentuannya."],
   ["Apa saja layanan yang ada di Anres Store?", "Katalog mencakup top up game, PPOB, booster media sosial, aplikasi premium, dan format tugas."],
   ["Apakah saya harus punya akun untuk melihat katalog?", "Tidak. Kamu bisa melihat dan mencari layanan di katalog tanpa masuk ke akun."],
-  ["Apakah transaksi sudah tersedia?", "Belum. Pemesanan, checkout, dan pembayaran masih berupa simulasi; tidak ada pembayaran yang diproses."],
+  ["Apakah transaksi sudah tersedia?", "Katalog dan alur pesanan tersedia. Informasi metode pembayaran ditampilkan saat checkout. Mode sandbox digunakan untuk pengujian tanpa dana sungguhan."],
  ]},
  { name: "Katalog & layanan", items: [
   ["Bagaimana cara mencari layanan?", "Buka Katalog, lalu gunakan pencarian atau pilih kategori untuk menemukan layanan yang kamu cari."],
   ["Bagaimana cara melihat detail produk?", "Tekan kartu layanan di katalog untuk melihat informasi dan pilihan yang tersedia."],
-  ["Layanan game apa saja yang bisa saya lihat?", "Katalog menampilkan pilihan seperti Mobile Legends, Free Fire, Roblox, PUBG Mobile, Genshin Impact, dan Valorant. Ketersediaan transaksi masih menunggu layanan resmi dibuka."],
+  ["Layanan game apa saja yang bisa saya lihat?", "Katalog menampilkan pilihan seperti Mobile Legends, Free Fire, Roblox, PUBG Mobile, Genshin Impact, dan Valorant. Ketersediaan pilihan mengikuti katalog terkini."],
   ["Apa yang termasuk layanan PPOB?", "Kategori PPOB mencakup kebutuhan seperti pulsa, paket data, token listrik, dan e-wallet."],
   ["Apa itu layanan format tugas?", "Kategori ini membantu kamu menjelajahi layanan format dokumen seperti artikel, makalah, tesis, skripsi, esai, dan laporan. Rincian pekerjaan akan dijelaskan ketika layanan tersedia."],
   ["Bagaimana jika layanan yang saya cari tidak ditemukan?", "Coba kata kunci lain atau periksa kategori di katalog. Jika masih belum ditemukan, tanyakan melalui asisten di halaman bantuan."],
@@ -31,18 +31,18 @@ const categories: { name: string; items: [string, string][] }[] = [
   ["Apakah saya boleh memberikan password atau kode OTP kepada CS?", "Jangan bagikan password, kode OTP, token, atau data sensitif kepada siapa pun, termasuk melalui chat bantuan."],
  ]},
  { name: "Keranjang & pesanan", items: [
-  ["Bagaimana cara menambahkan layanan ke keranjang?", "Buka produk di katalog, isi detail yang diminta, lalu tambahkan ke keranjang. Alur ini masih berupa simulasi."],
+  ["Bagaimana cara menambahkan layanan ke keranjang?", "Buka produk di katalog, isi detail yang diminta, lalu tambahkan ke keranjang."],
   ["Bisakah saya mengubah atau menghapus isi keranjang?", "Bisa. Buka keranjang untuk mengubah jumlah, mengedit tujuan dan kontak, atau menghapus item."],
   ["Apa yang terjadi pada keranjang saat saya masuk?", "Keranjang tamu disimpan di browser dan dapat digabungkan dengan keranjang akun saat kamu masuk, jika layanan dan konfigurasi tersedia."],
-  ["Apakah checkout membuat pesanan sungguhan?", "Belum. Checkout dan pesanan saat ini hanya simulasi dan tidak memproses transaksi nyata."],
-  ["Di mana saya bisa melihat invoice?", "Buka halaman Invoice untuk melihat simulasi yang tersimpan, termasuk detail dan status contohnya."],
-  ["Apakah status invoice menunjukkan transaksi nyata?", "Tidak. Status pada invoice saat ini adalah contoh dalam simulasi, bukan status pembayaran atau pengiriman nyata."],
+  ["Bagaimana cara menyimpan pesanan?", "Periksa detail di halaman checkout, lalu ikuti langkah yang tersedia. Pesanan yang tersimpan dapat dilihat pada halaman Invoice."],
+  ["Di mana saya bisa melihat invoice?", "Buka halaman Invoice untuk melihat pesanan yang tersimpan, lengkap dengan detail dan statusnya."],
+  ["Bagaimana membaca status invoice?", "Status menunjukkan tahap yang tercatat untuk pesananmu. Menyimpan pesanan tidak otomatis menandakan pembayaran sudah berhasil."],
  ]},
  { name: "Harga & pembayaran", items: [
-  ["Apakah harga di katalog sudah final?", "Harga dan ketentuan final akan ditampilkan saat katalog dan sistem pemesanan resmi dibuka. Angka dalam alur saat ini merupakan simulasi."],
-  ["Metode pembayaran apa yang tersedia?", "Pembayaran belum dibuka dan tidak ada metode pembayaran yang memproses transaksi saat ini."],
-  ["Apakah saya perlu membayar simulasi checkout?", "Tidak. Simulasi checkout tidak memproses pembayaran."],
-  ["Kapan layanan dan pembayaran resmi dibuka?", "Jadwal pembukaan belum diumumkan. Informasi resmi akan ditampilkan ketika layanan siap."],
+  ["Apakah harga di katalog sudah final?", "Harga pada halaman produk mengikuti katalog terkini. Harga flash sale berlaku sampai batas waktu promo; biaya pembayaran, jika ada, ditampilkan saat checkout."],
+  ["Metode pembayaran apa yang tersedia?", "Lihat metode yang tersedia di halaman checkout. Perhatikan penanda sandbox untuk pembayaran dalam mode pengujian."],
+  ["Apakah pembayaran sandbox memakai uang sungguhan?", "Tidak. Pembayaran sandbox digunakan untuk pengujian dan tidak memproses dana sungguhan."],
+  ["Di mana saya melihat informasi pembayaran?", "Baca petunjuk dan status pada halaman checkout atau detail pembayaran sebelum melanjutkan."],
  ]},
  { name: "Bantuan", items: [
   ["Bagaimana jika jawaban cepat tidak membantu?", "Cari pertanyaanmu di halaman ini. Jika tidak ada jawaban yang cocok, kamu dapat bertanya kepada asisten AI dan kemudian memilih bantuan CS jika masih diperlukan."],

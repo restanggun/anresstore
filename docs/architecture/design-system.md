@@ -1,6 +1,6 @@
 # Sistem UI Anres Store
 
-Dokumen ini mencatat UI storefront yang disepakati pada landing, Tentang, Bantuan, dan auth. Gunakan tampilan halaman tersebut serta file sumber yang dirujuk sebagai acuan ketika membuat halaman baru. Katalog mengikuti aturan visual yang sama; data produk, harga, dan pembayaran pada alur pesanan masih berupa simulasi sampai backend tersedia.
+Dokumen ini mencatat UI storefront yang disepakati pada landing, Tentang, Bantuan, dan auth. Gunakan tampilan halaman tersebut serta file sumber yang dirujuk sebagai acuan ketika membuat halaman baru. Katalog mengikuti aturan visual yang sama. Katalog game, PPOB, dan aplikasi memakai data VIPayment serta harga jual dari server; pembayaran dan pemrosesan pesanan masih simulasi. Lihat [integrasi katalog](vipayment-catalog.md).
 
 ## Sumber tema
 
@@ -58,7 +58,7 @@ Warna biru dan pink berupa bidang solid. Putih dan warna teks gelap memberi ruan
 
 `.container` mengatur lebar konten bersama; jangan menambah margin luar berbeda pada setiap halaman. Navbar didefinisikan di `navbar.css`, komposisi landing di `landing.css`, dan penyesuaian halaman serta komponen di `page-design.css`. Stylesheet terakhir dimuat setelah `globals.css`, sehingga aturan di sana dapat menimpa aturan awal; periksa cascade sebelum mengubah token atau menambah selector.
 
-Katalog memakai `catalog-flow.css` untuk alur yang ada dan `catalog-system.css` untuk penyelarasan visual. Langkah pesanan menggunakan `Button`, `Input`, indikator tahap, dan ringkasan yang sama; perubahan langkah membawa pengguna kembali ke bagian progres. Harga dan invoice harus tetap ditandai sebagai contoh sampai alur nyata tersambung.
+Katalog memakai `catalog-flow.css` untuk alur yang ada dan `catalog-system.css` untuk penyelarasan visual. Langkah pesanan menggunakan `Button`, `Input`, indikator tahap, dan ringkasan yang sama; perubahan langkah membawa pengguna kembali ke bagian progres. Harga katalog VIPayment ditampilkan sebagai harga jual, sedangkan pembayaran dan invoice tetap ditandai simulasi sampai alur transaksi nyata tersambung. Daftar varian menyediakan pencarian, filter merek/kelompok, dan pemuatan bertahap.
 
 Pertahankan dua kolom hanya bila ruang cukup. Pada ponsel, tumpuk panel, kurangi padding, pastikan grid dan ilustrasi muat, dan hindari scroll horizontal. Periksa minimal lebar 320, 390, 768, 1024, dan 1440 px, juga keyboard, reduced motion, dan isi yang panjang. Tinjau di browser sesudah perubahan visual; build memeriksa kompilasi tetapi tidak menggantikan pemeriksaan tampilan.
 
@@ -76,3 +76,9 @@ import { FaqList } from "@/components/storefront/faq-list";
 ```
 
 Sebelum membuat variasi baru, cari komponen yang sudah ada. Komponen khusus halaman tetap boleh dibuat bila struktur atau perilakunya memang berbeda; catat aturan baru di dokumen ini setelah desainnya disepakati.
+
+## Katalog dan pilihan nominal
+
+Halaman utama katalog mempertahankan lima kartu kategori dari landing beserta alur kategori dan produk yang terpisah. Daftar top up berisi 20 game hasil kurasi. Di dalam produk, gunakan tab untuk mata uang, membership, durasi aplikasi, atau operator PPOB. Kartu pilihan hanya menampilkan nama yang mudah dibaca, harga, dan promo; kode serta kelompok teknis penyedia tidak menjadi informasi utama pengguna.
+
+Pilihan aktif menggunakan bidang pink solid `--pink`, teks `--pink-ink`, dan ikon centang. Perpindahan tab memakai Motion dengan indikator bersama; perubahan panel memakai transisi singkat dan gerak tekan memberi respons pada pemilihan. Hormati reduced motion dan navigasi tab dengan keyboard. Promo memakai satu harga dan jadwal dari server untuk section flash sale, kartu biasa, serta SKU di detail produk. Teks katalog tidak lagi menyebut katalog sebagai simulasi atau pratinjau; mode pengujian pembayaran tetap diterangkan pada checkout sandbox.

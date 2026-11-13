@@ -1,0 +1,156 @@
+- generic [active] [ref=f5e1]:
+  - link "Lewati ke konten" [ref=f5e2] [cursor=pointer]:
+    - /url: "#main"
+  - banner [ref=f5e3]:
+    - generic [ref=f5e4]:
+      - link "Anres Store beranda" [ref=f5e5] [cursor=pointer]:
+        - /url: /
+        - generic [ref=f5e6]:
+          - generic [ref=f5e7]: Anres
+          - generic [ref=f5e8]: Store
+      - navigation "Navigasi utama" [ref=f5e12]:
+        - link "Beranda" [ref=f5e13] [cursor=pointer]:
+          - /url: /
+        - link "Katalog" [ref=f5e15] [cursor=pointer]:
+          - /url: /katalog
+        - link "Invoice" [ref=f5e18] [cursor=pointer]:
+          - /url: /invoice
+        - link "Tentang" [ref=f5e20] [cursor=pointer]:
+          - /url: /about
+        - link "Bantuan" [ref=f5e22] [cursor=pointer]:
+          - /url: /bantuan
+      - generic [ref=f5e24]:
+        - button "Buka keranjang, 0 produk" [ref=f5e25] [cursor=pointer]:
+          - generic [ref=f5e31]: "0"
+        - generic [ref=f5e32]:
+          - link "Login" [ref=f5e33] [cursor=pointer]:
+            - /url: /login
+          - link "Daftar" [ref=f5e34] [cursor=pointer]:
+            - /url: /daftar
+  - main [ref=f5e36]:
+    - generic [ref=f5e37]:
+      - generic [ref=f5e38]:
+        - generic [ref=f5e39]:
+          - text: Katalog Anres
+          - heading "Pilihan untuk harimu." [level=1] [ref=f5e40]:
+            - generic [ref=f5e41]:
+              - generic [ref=f5e42]: Pilihan untuk harimu.
+              - generic [aria-hidden] [ref=f5e43]:
+                - generic [ref=f5e44]: Pilihan
+                - generic [ref=f5e45]: untuk
+                - generic [ref=f5e46]: harimu.
+          - paragraph [ref=f5e47]: Pilih layanan, temukan produk, dan lanjutkan harimu.
+        - search [ref=f5e48]:
+          - searchbox "Cari produk" [ref=f5e52]
+          - button "Cari" [ref=f5e53] [cursor=pointer]
+      - region "Flash sale" [ref=f5e56]:
+        - generic [ref=f5e58]:
+          - generic [ref=f5e59]: Harga pilihan
+          - heading "Flash sale" [level=2] [ref=f5e62]
+          - paragraph [ref=f5e63]: Pilihan hemat untuk kebutuhanmu.
+        - status [ref=f5e64]: Menyiapkan pilihan promo...
+      - region "Temukan pilihanmu" [ref=f5e65]:
+        - generic [ref=f5e66]:
+          - generic [ref=f5e67]:
+            - heading "Temukan pilihanmu" [level=2] [ref=f5e68]
+            - paragraph [ref=f5e69]: Dari kebutuhan main sampai kebutuhan sehari-hari.
+          - status [ref=f5e70]: Memuat...
+        - tablist "Kategori produk" [ref=f5e72]:
+          - tab "Semua" [selected] [ref=f5e73] [cursor=pointer]
+          - tab "Top up game" [ref=f5e75] [cursor=pointer]
+          - tab "Format tugas" [ref=f5e77] [cursor=pointer]
+          - tab "Booster media sosial" [ref=f5e79] [cursor=pointer]
+          - tab "Aplikasi premium" [ref=f5e81] [cursor=pointer]
+          - tab "PPOB" [ref=f5e83] [cursor=pointer]
+        - tabpanel "Semua" [ref=f5e85]:
+          - generic [ref=f5e86]:
+            - button "Instagram Booster media sosial Lihat pilihan" [ref=f5e87] [cursor=pointer]:
+              - generic [ref=f5e89]:
+                - strong [ref=f5e90]:
+                  - generic [ref=f5e91]: Instagram
+                  - generic [ref=f5e93]: Instagram
+                - generic [ref=f5e94]: Booster media sosial
+                - generic [ref=f5e95]: Lihat pilihan
+            - button "TikTok Booster media sosial Lihat pilihan" [ref=f5e99] [cursor=pointer]:
+              - generic [ref=f5e101]:
+                - strong [ref=f5e102]:
+                  - generic [ref=f5e103]: TikTok
+                  - generic [ref=f5e105]: TikTok
+                - generic [ref=f5e106]: Booster media sosial
+                - generic [ref=f5e107]: Lihat pilihan
+            - button "YouTube Booster media sosial Lihat pilihan" [ref=f5e111] [cursor=pointer]:
+              - generic [ref=f5e113]:
+                - strong [ref=f5e114]:
+                  - generic [ref=f5e115]: YouTube
+                  - generic [ref=f5e117]: YouTube
+                - generic [ref=f5e118]: Booster media sosial
+                - generic [ref=f5e119]: Lihat pilihan
+            - button "Facebook Booster media sosial Lihat pilihan" [ref=f5e123] [cursor=pointer]:
+              - generic [ref=f5e125]:
+                - strong [ref=f5e126]:
+                  - generic [ref=f5e127]: Facebook
+                  - generic [ref=f5e129]: Facebook
+                - generic [ref=f5e130]: Booster media sosial
+                - generic [ref=f5e131]: Lihat pilihan
+            - button "Artikel Format tugas Lihat pilihan" [ref=f5e135] [cursor=pointer]:
+              - generic [ref=f5e140]:
+                - strong [ref=f5e141]:
+                  - generic [ref=f5e142]: Artikel
+                  - generic [ref=f5e144]: Artikel
+                - generic [ref=f5e145]: Format tugas
+                - generic [ref=f5e146]: Lihat pilihan
+            - button "Makalah Format tugas Lihat pilihan" [ref=f5e150] [cursor=pointer]:
+              - generic [ref=f5e155]:
+                - strong [ref=f5e156]:
+                  - generic [ref=f5e157]: Makalah
+                  - generic [ref=f5e159]: Makalah
+                - generic [ref=f5e160]: Format tugas
+                - generic [ref=f5e161]: Lihat pilihan
+            - button "Tesis Format tugas Lihat pilihan" [ref=f5e165] [cursor=pointer]:
+              - generic [ref=f5e170]:
+                - strong [ref=f5e171]:
+                  - generic [ref=f5e172]: Tesis
+                  - generic [ref=f5e174]: Tesis
+                - generic [ref=f5e175]: Format tugas
+                - generic [ref=f5e176]: Lihat pilihan
+            - button "Skripsi Format tugas Lihat pilihan" [ref=f5e180] [cursor=pointer]:
+              - generic [ref=f5e185]:
+                - strong [ref=f5e186]:
+                  - generic [ref=f5e187]: Skripsi
+                  - generic [ref=f5e189]: Skripsi
+                - generic [ref=f5e190]: Format tugas
+                - generic [ref=f5e191]: Lihat pilihan
+            - button "Esai Format tugas Lihat pilihan" [ref=f5e195] [cursor=pointer]:
+              - generic [ref=f5e200]:
+                - strong [ref=f5e201]:
+                  - generic [ref=f5e202]: Esai
+                  - generic [ref=f5e204]: Esai
+                - generic [ref=f5e205]: Format tugas
+                - generic [ref=f5e206]: Lihat pilihan
+            - button "Laporan Format tugas Lihat pilihan" [ref=f5e210] [cursor=pointer]:
+              - generic [ref=f5e215]:
+                - strong [ref=f5e216]:
+                  - generic [ref=f5e217]: Laporan
+                  - generic [ref=f5e219]: Laporan
+                - generic [ref=f5e220]: Format tugas
+                - generic [ref=f5e221]: Lihat pilihan
+  - contentinfo [ref=f5e225]:
+    - generic [ref=f5e226]:
+      - generic [ref=f5e227]:
+        - link "Anres Store beranda footer" [ref=f5e228] [cursor=pointer]:
+          - /url: /
+          - generic [ref=f5e229]:
+            - generic [ref=f5e230]: Anres
+            - generic [ref=f5e231]: Store
+        - paragraph [ref=f5e235]: Kebutuhan digital, dekat denganmu.
+      - navigation "Navigasi footer" [ref=f5e236]:
+        - link "Tentang Anres" [ref=f5e237] [cursor=pointer]:
+          - /url: /about
+        - link "Pusat bantuan" [ref=f5e238] [cursor=pointer]:
+          - /url: /bantuan
+        - link "Jelajahi katalog" [ref=f5e239] [cursor=pointer]:
+          - /url: /katalog
+      - generic [ref=f5e240]:
+        - generic [ref=f5e241]: Game. Karya. Keseharian.
+        - generic [ref=f5e242]: © 2026 Anres Store
+  - button "Open Next.js Dev Tools" [ref=f5e248] [cursor=pointer]

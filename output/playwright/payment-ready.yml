@@ -1,0 +1,166 @@
+- generic [active] [ref=f5e1]:
+  - link "Lewati ke konten" [ref=f5e2] [cursor=pointer]:
+    - /url: "#main"
+  - banner [ref=f5e3]:
+    - generic [ref=f5e4]:
+      - link "Anres Store beranda" [ref=f5e5] [cursor=pointer]:
+        - /url: /
+        - generic [ref=f5e6]:
+          - generic [ref=f5e7]: Anres
+          - generic [ref=f5e8]: Store
+      - generic [ref=f5e12]:
+        - button "Buka keranjang, 0 produk" [ref=f5e13] [cursor=pointer]:
+          - generic [ref=f5e19]: "0"
+        - button "Buka menu" [ref=f5e20] [cursor=pointer]
+  - main [ref=f5e23]:
+    - generic [ref=f5e24]:
+      - generic [ref=f5e25]:
+        - generic [ref=f5e26]:
+          - text: Katalog Anres
+          - generic [ref=f5e29]:
+            - heading "Mobile Legends" [level=1] [ref=f5e30]:
+              - generic [ref=f5e31]:
+                - generic [ref=f5e32]: Mobile Legends
+                - generic [aria-hidden] [ref=f5e33]:
+                  - generic [ref=f5e34]: Mobile
+                  - generic [ref=f5e35]: Legends
+            - generic [ref=f5e36]: Moonton
+          - paragraph [ref=f5e37]: Lengkapi pesananmu dengan mudah.
+        - button "Kembali" [ref=f5e39] [cursor=pointer]
+      - generic [ref=f5e42]:
+        - generic [ref=f5e43]:
+          - navigation "Tahap pesanan" [ref=f5e44]:
+            - generic [ref=f5e45]:
+              - generic [ref=f5e46]: "1"
+              - text: Detail pesanan
+            - generic [ref=f5e47]:
+              - generic [ref=f5e48]: "2"
+              - text: Checkout
+            - generic [ref=f5e49]:
+              - generic [ref=f5e50]: "3"
+              - text: Pembayaran
+          - generic [ref=f5e52]:
+            - heading "Detail pesanan" [level=2] [ref=f5e53]:
+              - generic [ref=f5e54]:
+                - generic [ref=f5e55]: Detail pesanan
+                - generic [aria-hidden] [ref=f5e56]:
+                  - generic [ref=f5e57]: Detail
+                  - generic [ref=f5e58]: pesanan
+            - paragraph [ref=f5e59]: Isi informasi berikut untuk Mobile Legends.
+            - generic [ref=f5e60]:
+              - text: ID pemain / ID server
+              - textbox "ID pemain / ID server" [ref=f5e61]:
+                - /placeholder: Masukkan ID pemain dan server
+            - region "Pilih kebutuhanmu" [ref=f5e62]:
+              - generic [ref=f5e64]:
+                - heading "Pilih kebutuhanmu" [level=3] [ref=f5e65]
+                - paragraph [ref=f5e66]: Temukan nominal atau paket yang pas.
+              - tablist "Kategori nominal" [ref=f5e68]:
+                - tab "Diamond" [selected] [ref=f5e69] [cursor=pointer]
+                - tab "Membership" [ref=f5e71] [cursor=pointer]
+              - searchbox "Cari nominal" [ref=f5e77]
+              - tabpanel "Diamond" [ref=f5e78]:
+                - group "Diamond" [ref=f5e79]:
+                  - button "5 Diamond Rp2.100" [ref=f5e80] [cursor=pointer]:
+                    - strong [ref=f5e82]: 5 Diamond
+                    - generic [ref=f5e84]: Rp2.100
+                  - button "5 Diamond Rp2.100" [ref=f5e86] [cursor=pointer]:
+                    - strong [ref=f5e88]: 5 Diamond
+                    - generic [ref=f5e90]: Rp2.100
+                  - button "10 Diamond Rp4.100 Rp4.000 Flash sale" [ref=f5e92] [cursor=pointer]:
+                    - strong [ref=f5e94]: 10 Diamond
+                    - generic [ref=f5e96]:
+                      - deletion [ref=f5e97]: Rp4.100
+                      - generic [ref=f5e98]: Rp4.000
+                      - generic [ref=f5e99]: Flash sale
+                  - button "10 Diamond Rp4.100 Rp4.000 Flash sale" [ref=f5e100] [cursor=pointer]:
+                    - strong [ref=f5e102]: 10 Diamond
+                    - generic [ref=f5e104]:
+                      - deletion [ref=f5e105]: Rp4.100
+                      - generic [ref=f5e106]: Rp4.000
+                      - generic [ref=f5e107]: Flash sale
+                  - button "12 Diamond Rp4.800 Rp4.700 Flash sale" [ref=f5e108] [cursor=pointer]:
+                    - strong [ref=f5e110]: 12 Diamond
+                    - generic [ref=f5e112]:
+                      - deletion [ref=f5e113]: Rp4.800
+                      - generic [ref=f5e114]: Rp4.700
+                      - generic [ref=f5e115]: Flash sale
+                  - button "12 Diamond Rp4.800 Rp4.700 Flash sale" [ref=f5e116] [cursor=pointer]:
+                    - strong [ref=f5e118]: 12 Diamond
+                    - generic [ref=f5e120]:
+                      - deletion [ref=f5e121]: Rp4.800
+                      - generic [ref=f5e122]: Rp4.700
+                      - generic [ref=f5e123]: Flash sale
+                  - button "15 Diamond Rp6.100 Rp6.000 Flash sale" [ref=f5e124] [cursor=pointer]:
+                    - strong [ref=f5e126]: 15 Diamond
+                    - generic [ref=f5e128]:
+                      - deletion [ref=f5e129]: Rp6.100
+                      - generic [ref=f5e130]: Rp6.000
+                      - generic [ref=f5e131]: Flash sale
+                  - button "14 Diamond Rp6.200 Rp6.100 Flash sale" [ref=f5e132] [cursor=pointer]:
+                    - strong [ref=f5e134]: 14 Diamond
+                    - generic [ref=f5e136]:
+                      - deletion [ref=f5e137]: Rp6.200
+                      - generic [ref=f5e138]: Rp6.100
+                      - generic [ref=f5e139]: Flash sale
+                  - button "15 Diamond Rp6.200 Rp6.100 Flash sale" [ref=f5e140] [cursor=pointer]:
+                    - strong [ref=f5e142]: 15 Diamond
+                    - generic [ref=f5e144]:
+                      - deletion [ref=f5e145]: Rp6.200
+                      - generic [ref=f5e146]: Rp6.100
+                      - generic [ref=f5e147]: Flash sale
+                  - button "17 Diamond Rp6.800 Rp6.600 Flash sale" [ref=f5e148] [cursor=pointer]:
+                    - strong [ref=f5e150]: 17 Diamond
+                    - generic [ref=f5e152]:
+                      - deletion [ref=f5e153]: Rp6.800
+                      - generic [ref=f5e154]: Rp6.600
+                      - generic [ref=f5e155]: Flash sale
+                  - button "19 Diamond Rp7.500 Rp7.300 Flash sale" [ref=f5e156] [cursor=pointer]:
+                    - strong [ref=f5e158]: 19 Diamond
+                    - generic [ref=f5e160]:
+                      - deletion [ref=f5e161]: Rp7.500
+                      - generic [ref=f5e162]: Rp7.300
+                      - generic [ref=f5e163]: Flash sale
+                  - button "19 Diamond Rp7.500 Rp7.300 Flash sale" [ref=f5e164] [cursor=pointer]:
+                    - strong [ref=f5e166]: 19 Diamond
+                    - generic [ref=f5e168]:
+                      - deletion [ref=f5e169]: Rp7.500
+                      - generic [ref=f5e170]: Rp7.300
+                      - generic [ref=f5e171]: Flash sale
+                - button "Lihat pilihan lainnya" [ref=f5e172] [cursor=pointer]
+            - generic [ref=f5e175]:
+              - text: Nomor WhatsApp atau email
+              - textbox "Nomor WhatsApp atau email" [ref=f5e176]:
+                - /placeholder: Untuk informasi pesanan
+            - button "Tambah ke keranjang" [disabled]
+            - button "Lanjut ke checkout" [disabled]
+        - complementary [ref=f5e177]:
+          - text: Ringkasan pesanan
+          - heading "Mobile Legends" [level=3] [ref=f5e178]
+          - paragraph [ref=f5e179]: Top up game
+          - separator [ref=f5e180]
+          - generic [ref=f5e181]:
+            - generic [ref=f5e182]: Total
+            - strong [ref=f5e183]: Rp0
+          - generic [ref=f5e184]: Periksa kembali pilihan dan tujuan sebelum melanjutkan.
+  - contentinfo [ref=f5e185]:
+    - generic [ref=f5e186]:
+      - generic [ref=f5e187]:
+        - link "Anres Store beranda footer" [ref=f5e188] [cursor=pointer]:
+          - /url: /
+          - generic [ref=f5e189]:
+            - generic [ref=f5e190]: Anres
+            - generic [ref=f5e191]: Store
+        - paragraph [ref=f5e195]: Kebutuhan digital, dekat denganmu.
+      - navigation "Navigasi footer" [ref=f5e196]:
+        - link "Tentang Anres" [ref=f5e197] [cursor=pointer]:
+          - /url: /about
+        - link "Pusat bantuan" [ref=f5e198] [cursor=pointer]:
+          - /url: /bantuan
+        - link "Jelajahi katalog" [ref=f5e199] [cursor=pointer]:
+          - /url: /katalog
+      - generic [ref=f5e200]:
+        - generic [ref=f5e201]: Game. Karya. Keseharian.
+        - generic [ref=f5e202]: © 2026 Anres Store
+  - button "Open Next.js Dev Tools" [ref=f5e208] [cursor=pointer]
+  - alert [ref=f5e212]

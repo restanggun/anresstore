@@ -78,6 +78,10 @@
 .order-options button { min-height:62px;border:1px solid transparent;background:white;transition:background-color .2s,border-color .2s; }
 .order-options button:hover { background:var(--primary-soft); }
 .order-options button.active { border-color:var(--pink);background:#ffe6f1; }
+.order-options button { min-width:0;overflow-wrap:anywhere; }
+.order-options button small { display:block;margin-top:6px;color:var(--muted);font-size:11px; }
+.order-service-description { overflow-wrap:anywhere;white-space:pre-wrap; }
+.catalog-product-action { overflow-wrap:anywhere; }
 .shop-flow .order-primary { display:flex;align-items:center;justify-content:space-between;width:100%;min-height:50px;margin-top:16px;border:0;border-radius:15px;background:var(--primary);color:var(--foreground); }
 .shop-flow .order-primary:hover:not(:disabled) { background:var(--pink);color:var(--foreground); }
 .shop-flow .order-primary:active:not(:disabled) { background:var(--primary); }

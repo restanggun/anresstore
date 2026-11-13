@@ -16,3 +16,4 @@ supabase/.branches/
 backups/
 .DS_Store
 Thumbs.db
+output/cloudflared.exe

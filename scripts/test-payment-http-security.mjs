@@ -1,0 +1,45 @@
+import {config} from 'dotenv';
+import {fileURLToPath} from 'node:url';
+import {createRequire} from 'node:module';
+import {randomUUID,randomBytes,createHash} from 'node:crypto';
+import assert from 'node:assert/strict';
+config({path:fileURLToPath(new URL('../apps/api/.env',import.meta.url)),quiet:true});
+const require=createRequire(import.meta.url);
+const {PaymentStore}=require('../apps/api/dist/payments/payment-store.js');
+const store=new PaymentStore();
+const hash=value=>createHash('sha256').update(value).digest('hex');
+const base=(process.env.AUTH_API_ORIGIN||'http://localhost:4000')+'/v1';
+const origin=process.env.AUTH_WEB_ORIGIN||'http://localhost:3000';
+const request=(path,options={})=>fetch(base+path,{...options,redirect:'error',signal:AbortSignal.timeout(20000)});
+
+async function main() {
+ if(!process.argv.includes('--run'))throw new Error('Use --run for explicit sandbox HTTP security tests.');
+ const session=await request('/payments/session',{method:'POST',headers:{Origin:origin,'Content-Type':'application/json'},body:'{}'});
+ assert.equal(session.status,200);
+ const header=session.headers.getSetCookie().find(value=>/^(?:__Host-)?anres_payment_guest=/.test(value));
+ assert.ok(header&&header.includes('HttpOnly')&&header.includes('SameSite=Lax'));
+ const cookie=header.split(';')[0],token=decodeURIComponent(cookie.slice(cookie.indexOf('=')+1));
+ assert.match(token,/^[A-Za-z0-9_-]{43}$/);
+ console.log('PASS: real API creates an opaque HttpOnly SameSite guest session');
+ const id=randomUUID(),guestHash=createHash('sha256').update(Buffer.from(token,'base64url')).digest('hex');
+ const reservation=await store.rpc('reserve_sandbox_payment',{p_payment:{id,access_hash:hash(randomUUID()),request_hash:hash(id),source:'game',product_name:'HTTP SECURITY TEST - NO GATEWAY',provider_code:'HTTP-SECURITY-TEST',target:'SECURITY-TEST',amount:10000,method:'QRIS2',owner_user_id:null,guest_session_hash:guestHash,checkout_hash:hash(id)}});
+ assert.equal(reservation.claimed,true);
+ await store.request(`sandbox_payments?id=eq.${id}&revision=eq.0`,'PATCH',{status:'failed',revision:1});
+ const read=await request('/payments/transactions/'+id,{headers:{Cookie:cookie}});
+ assert.equal(read.status,200);const payment=await read.json();assert.equal(payment.id,id);assert.equal(payment.status,'failed');assert.equal(payment.amount,10000);
+ assert.doesNotMatch(JSON.stringify(payment),/access_hash|request_hash|guest_session_hash|owner_user_id|SECURITY-TEST"/);
+ console.log('PASS: matching guest can read its real database fixture without internal ownership fields');
+ for(const headers of [{},{Cookie:cookie.replace(token,randomBytes(32).toString('base64url'))}])assert.equal((await request('/payments/transactions/'+id,{headers})).status,404);
+ const forged=await request('/payments/transactions/'+id,{headers:{Cookie:cookie+'; anres_access=forged-session'}});
+ assert.ok([401,503].includes(forged.status));
+ console.log('PASS: another guest, no session and a forged account session cannot open the invoice');
+ const badOrigin=await request('/payments/session',{method:'POST',headers:{Origin:'https://evil.example','Content-Type':'application/json'},body:'{}'});assert.equal(badOrigin.status,403);
+ const forgedOwner=await request('/payments/transactions',{method:'POST',headers:{Origin:origin,Cookie:cookie,'Content-Type':'application/json'},body:JSON.stringify({id:randomUUID(),userId:randomUUID()})});assert.equal(forgedOwner.status,400);
+ const oversized=await request('/payments/transactions',{method:'POST',headers:{Origin:origin,'Content-Type':'application/json'},body:JSON.stringify({padding:'x'.repeat(20000)})});assert.equal(oversized.status,413);
+ const callback=await request('/payments/callback',{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'});assert.equal(callback.status,401);
+ console.log('PASS: wrong origin, forged ownership, oversized JSON and unsigned callback are rejected');
+ const health=await request('/health');assert.equal(health.headers.get('x-content-type-options'),'nosniff');assert.equal(health.headers.get('cache-control'),'no-store');assert.equal(health.headers.get('x-powered-by'),null);
+ console.log('PASS: API security and cache headers are present');
+ console.log('All sandbox HTTP security checks passed. No provider transaction or product order was created.');
+}
+main().catch(error=>{console.error(error?.getResponse?.()||error.message||'HTTP security check failed.');process.exitCode=1;});

@@ -9,20 +9,20 @@ export const categoryInfo = [
 ] as const;
 export const categories = ["Semua", ...categoryInfo.map(category => category.name)];
 export const services = [
-  { name: "Mobile Legends", category: "Top up game", code: "ML", color: "blue", description: "Pilihan diamond untuk kebutuhan main kamu. Nominal dan harga akan tampil saat katalog dibuka." },
-  { name: "Free Fire", category: "Top up game", code: "FF", color: "orange", description: "Top up diamond Free Fire. Pilihan nominal dan detail proses akan tersedia di katalog resmi." },
+  { name: "Mobile Legends", category: "Top up game", code: "ML", color: "blue", description: "Pilihan diamond untuk kebutuhan main kamu. Pilih nominal dan lihat harganya langsung di katalog." },
+  { name: "Free Fire", category: "Top up game", code: "FF", color: "orange", description: "Top up diamond Free Fire. Lihat pilihan nominal dan ketentuan produk di katalog." },
   { name: "Roblox", category: "Top up game", code: "Rb", color: "dark", description: "Kebutuhan Roblox dalam satu tempat. Metode pengiriman dan pilihan produk akan dijelaskan sebelum pembelian." },
-  { name: "Canva", category: "Aplikasi premium", code: "Ca", color: "teal", description: "Kebutuhan desain dan presentasi. Jenis akses, durasi, serta ketentuan penggunaan akan dicantumkan per produk." },
-  { name: "Pulsa & paket data", category: "PPOB", code: "08", color: "pink", description: "Pilihan pulsa dan paket data. Operator, masa aktif, dan harga akan tersedia saat layanan dibuka." },
+  { name: "Canva", category: "Aplikasi premium", code: "Ca", color: "teal", description: "Kebutuhan desain dan presentasi. Baca jenis akses, durasi, dan ketentuan pada setiap pilihan." },
+  { name: "Pulsa & paket data", category: "PPOB", code: "08", color: "pink", description: "Pilihan pulsa dan paket data. Pilih operator, paket, dan nominal sesuai kebutuhanmu." },
   { name: "Token listrik", category: "PPOB", code: "PLN", color: "yellow", description: "Kebutuhan token listrik prabayar. Nominal dan biaya layanan akan ditampilkan sebelum pembayaran." },
   { name: "Layanan media sosial", category: "Booster media sosial", code: "@", color: "blue", description: "Lihat pilihan layanan untuk akun sosial kamu. Lingkup layanan dan ketentuannya akan dijelaskan di katalog." },
   { name: "Rapikan tugas", category: "Format tugas", code: "Aa", color: "pink", description: "Format dokumen Word, PDF, dan presentasi. Lingkup pekerjaan, revisi, dan waktu pengerjaan disepakati sebelum mulai." },
 ];
 export const categoryIcons = [LayoutGrid, ...categoryInfo.map(category => category.icon)];
 export const questions: [string, string][] = [
-  ["Sudah bisa transaksi di website ini?", "Belum. Website ini masih berupa pratinjau. Pembayaran dan pemesanan akan dibuka setelah katalog serta sistem transaksi siap."],
-  ["Apa saja layanan Anres Store?", "Rencana layanan mencakup top up game, format tugas, booster media sosial, aplikasi premium, dan PPOB."],
-  ["Di mana harga dan kontak bantuan?", "Harga, ketentuan produk, dan kontak bantuan terverifikasi akan dicantumkan saat katalog resmi dibuka."],
+  ["Sudah bisa transaksi di website ini?", "Katalog sudah tersedia. Pilih produk dan ikuti informasi pesanan serta pembayaran di halaman checkout."],
+  ["Apa saja layanan Anres Store?", "Layanan mencakup top up game, format tugas, booster media sosial, aplikasi premium, dan PPOB."],
+  ["Di mana harga dan kontak bantuan?", "Lihat harga dan ketentuan pada halaman produk. Kunjungi Bantuan jika membutuhkan informasi tambahan."],
 ];
 export type Service = typeof services[number];
 

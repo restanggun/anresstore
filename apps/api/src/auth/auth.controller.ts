@@ -1,13 +1,15 @@
 ﻿import { Controller, Get, Post, Body, Req, Res, HttpException, BadRequestException } from "@nestjs/common";
 import { createHash, randomBytes } from "node:crypto";
 import type { Request, Response } from "express";
+import { boundedFetch as fetch } from "../common/bounded-fetch";
+import { paymentCookies } from "../payments/payment-identity";
 
 import { Param } from "@nestjs/common";
 
 @Controller("auth")
 export class AuthController {
  private config() { const url = process.env.SUPABASE_URL; const key = process.env.SUPABASE_PUBLISHABLE_KEY || process.env.SUPABASE_ANON_KEY; const web = process.env.AUTH_WEB_ORIGIN || "http://localhost:3000"; const api = process.env.AUTH_API_ORIGIN || "http://localhost:4000"; if (!url || !key) throw new HttpException("Konfigurasi autentikasi API belum lengkap.", 503); return {url:url.replace(/\/$/, ""), key, web, api}; }
- private cookies(req: Request) { return Object.fromEntries((req.headers.cookie || "").split(";").map(x => { const i=x.indexOf("="); return i < 0 ? ["", ""] : [x.slice(0,i).trim(), decodeURIComponent(x.slice(i+1))]; })); }
+ private cookies(req: Request) { return paymentCookies(req); }
  private options(maxAge: number) { return {httpOnly:true, secure:process.env.NODE_ENV === "production", sameSite:"lax" as const, path:"/", maxAge}; }
  private async request(path:string, body?:unknown, token?:string, method="POST") { const {url,key}=this.config(); const response=await fetch(`${url}/auth/v1/${path}`, {method, headers:{apikey:key, "Content-Type":"application/json", ...(token ? {Authorization:`Bearer ${token}`} : {})}, ...(body === undefined ? {} : {body:JSON.stringify(body)})}); const data = await response.json().catch(() => ({})) as Record<string, any>; if(!response.ok) throw new HttpException(data.msg || data.error_description || data.message || "Autentikasi gagal.", response.status); return data; }
  private session(res:Response, data:Record<string,any>) { if(data.access_token && data.refresh_token) { res.cookie("anres_access",data.access_token,this.options(3600000)); res.cookie("anres_refresh",data.refresh_token,this.options(30*86400000)); } }
@@ -67,6 +69,7 @@ export class AuthController {
   const rows=await response.json() as unknown[]; return {userId:user.id,order:rows[0] ?? null};
  }
  @Post("orders") async createOrder(@Body() body:unknown,@Req() req:Request,@Res({passthrough:true}) res:Response) {
+  if(process.env.NODE_ENV === "production") throw new HttpException("Checkout keranjang belum tersedia untuk pembayaran produksi. Gunakan checkout produk yang terverifikasi.",503);
   this.validateOrigin(req); const {user,token}=await this.authenticated(req,res), {url,key}=this.config();
   const data=body as {id?:unknown;userId?:unknown;paymentMethod?:unknown;items?:unknown};
   if(data?.userId !== user.id) throw new HttpException("Sesi berubah. Muat ulang halaman.",409);

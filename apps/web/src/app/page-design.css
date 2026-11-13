@@ -217,7 +217,8 @@
 .service-art-social-logo { display:grid;width:60px;height:55px;place-items:center;align-content:center;gap:4px;border-radius:13px;background:rgb(255 255 255 / 90%);box-shadow:0 8px 18px rgb(71 53 71 / 9%); }
 .service-art-social-logo img { display:block;width:21px;height:21px;object-fit:contain; }
 .service-art-social-logo small { color:#495763;font-size:7px;font-weight:700;line-height:1; }
-.landing-hero-art-social { background:#d9eff8; }
+.landing-hero-art-social { background:var(--primary); }
+.landing-hero-art-social .landing-art-visual { background:var(--primary-soft);border-radius:18px; }
 .landing-hero-art-social .landing-art-visual { min-height:150px; }
 .landing-hero-art-social .service-art-social-logos { width:min(100%,280px);grid-template-columns:repeat(4,minmax(48px,62px));gap:8px;margin-inline:auto; }
 .landing-hero-art-social .service-art-social-logo { width:100%;max-width:62px;height:56px; }
@@ -235,7 +236,8 @@
 .service-category-art .service-art-social-logo { width:42px;height:39px;gap:3px;border-radius:10px; }
 .service-category-art .service-art-social-logo img { width:17px;height:17px; }
 .service-category-art .service-art-social-logo small { font-size:5.5px; }
-.service-category-3 .service-category-art { background:#d9eff8; }
+.service-categories .service-category-3 { background:var(--primary); }
+.service-categories .service-category-3 .service-category-art { background:var(--primary-soft); }
 .service-category-3:hover .service-category-art { background:#fff; }
 .service-category-art .service-art-app-window { transform:scale(.78) rotate(-5deg); }
 .service-category-art .service-art-bills { transform:scale(.72); }

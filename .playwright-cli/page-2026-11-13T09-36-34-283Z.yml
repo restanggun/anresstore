@@ -1,0 +1,102 @@
+- generic [active] [ref=f1e1]:
+  - link "Lewati ke konten" [ref=f1e2] [cursor=pointer]:
+    - /url: "#main"
+  - banner [ref=f1e3]:
+    - generic [ref=f1e4]:
+      - link "Anres Store beranda" [ref=f1e5] [cursor=pointer]:
+        - /url: /
+        - generic [ref=f1e6]:
+          - generic [ref=f1e7]: Anres
+          - generic [ref=f1e8]: Store
+      - navigation "Navigasi utama" [ref=f1e12]:
+        - link "Beranda" [ref=f1e13] [cursor=pointer]:
+          - /url: /
+        - link "Katalog" [ref=f1e15] [cursor=pointer]:
+          - /url: /katalog
+        - link "Invoice" [ref=f1e17] [cursor=pointer]:
+          - /url: /invoice
+        - link "Tentang" [ref=f1e19] [cursor=pointer]:
+          - /url: /about
+        - link "Bantuan" [ref=f1e21] [cursor=pointer]:
+          - /url: /bantuan
+      - generic [ref=f1e23]:
+        - button "Buka keranjang, 0 produk" [ref=f1e24] [cursor=pointer]:
+          - generic [ref=f1e30]: "0"
+        - generic [ref=f1e31]:
+          - link "Login" [ref=f1e32] [cursor=pointer]:
+            - /url: /login
+          - link "Daftar" [ref=f1e33] [cursor=pointer]:
+            - /url: /daftar
+  - main [ref=f1e35]:
+    - generic [ref=f1e36]:
+      - generic [ref=f1e37]:
+        - generic [ref=f1e38]:
+          - text: Katalog Anres
+          - heading "Memuat produk..." [level=1] [ref=f1e39]:
+            - generic [ref=f1e40]:
+              - generic [ref=f1e41]: Memuat produk...
+              - generic [aria-hidden] [ref=f1e42]:
+                - generic [ref=f1e43]: Memuat
+                - generic [ref=f1e44]: produk...
+          - paragraph [ref=f1e45]: Lengkapi pesananmu dengan mudah.
+        - button "Kembali" [ref=f1e46] [cursor=pointer]
+      - generic [ref=f1e49]:
+        - generic [ref=f1e50]:
+          - navigation "Tahap pesanan" [ref=f1e51]:
+            - generic [ref=f1e52]:
+              - generic [ref=f1e53]: "1"
+              - text: Detail pesanan
+            - generic [ref=f1e54]:
+              - generic [ref=f1e55]: "2"
+              - text: Checkout
+            - generic [ref=f1e56]:
+              - generic [ref=f1e57]: "3"
+              - text: Pembayaran
+          - generic [ref=f1e59]:
+            - heading "Detail pesanan" [level=2] [ref=f1e60]:
+              - generic [ref=f1e61]:
+                - generic [ref=f1e62]: Detail pesanan
+                - generic [aria-hidden] [ref=f1e63]:
+                  - generic [ref=f1e64]: Detail
+                  - generic [ref=f1e65]: pesanan
+            - paragraph [ref=f1e66]: Isi informasi berikut untuk .
+            - generic [ref=f1e67]:
+              - text: ID pemain / ID server
+              - textbox "ID pemain / ID server" [ref=f1e68]:
+                - /placeholder: Masukkan ID pemain dan server
+            - status [ref=f1e69]: Memuat pilihan untukmu...
+            - generic [ref=f1e71]:
+              - text: Nomor WhatsApp atau email
+              - textbox "Nomor WhatsApp atau email" [ref=f1e72]:
+                - /placeholder: Untuk informasi pesanan
+            - button "Tambah ke keranjang" [disabled]
+            - button "Lanjut ke checkout" [disabled]
+        - complementary [ref=f1e73]:
+          - text: Ringkasan pesanan
+          - heading [level=3]
+          - paragraph [ref=f1e74]: Top up game
+          - separator [ref=f1e75]
+          - generic [ref=f1e76]:
+            - generic [ref=f1e77]: Total
+            - strong [ref=f1e78]: Rp0
+          - generic [ref=f1e79]: Periksa kembali pilihan dan tujuan sebelum melanjutkan.
+  - contentinfo [ref=f1e80]:
+    - generic [ref=f1e81]:
+      - generic [ref=f1e82]:
+        - link "Anres Store beranda footer" [ref=f1e83] [cursor=pointer]:
+          - /url: /
+          - generic [ref=f1e84]:
+            - generic [ref=f1e85]: Anres
+            - generic [ref=f1e86]: Store
+        - paragraph [ref=f1e90]: Kebutuhan digital, dekat denganmu.
+      - navigation "Navigasi footer" [ref=f1e91]:
+        - link "Tentang Anres" [ref=f1e92] [cursor=pointer]:
+          - /url: /about
+        - link "Pusat bantuan" [ref=f1e93] [cursor=pointer]:
+          - /url: /bantuan
+        - link "Jelajahi katalog" [ref=f1e94] [cursor=pointer]:
+          - /url: /katalog
+      - generic [ref=f1e95]:
+        - generic [ref=f1e96]: Game. Karya. Keseharian.
+        - generic [ref=f1e97]: © 2026 Anres Store
+  - button "Open Next.js Dev Tools" [ref=f1e103] [cursor=pointer]

@@ -10,12 +10,13 @@ test("keranjang memakai identitas sesi dan menolak akses atau data yang tidak va
   let body = ""; for await (const part of req) body += part;
   calls.push({url:req.url, method:req.method, authorization:req.headers.authorization, body:body ? JSON.parse(body) : null});
   res.setHeader("Content-Type", "application/json");
-  if (req.url === "/auth/v1/user") res.end(JSON.stringify({id:"user-123"}));
+  if (req.url === "/rest/v1/rpc/consume_payment_rate") res.end("true");
+  else if (req.url === "/auth/v1/user") res.end(JSON.stringify({id:"user-123"}));
   else if (req.url === "/rest/v1/rpc/apply_cart") res.end(JSON.stringify({items:[],version:0,conflict:false}));
   else { res.statusCode = 204; res.end(); }
  });
  await new Promise(resolve => mock.listen(0, "127.0.0.1", resolve));
- const server = spawn(process.execPath, ["dist/main.js"], {env:{...process.env,PORT:"4150",SUPABASE_URL:`http://127.0.0.1:${mock.address().port}`,SUPABASE_PUBLISHABLE_KEY:"test-key"},stdio:"ignore"});
+ const server = spawn(process.execPath, ["dist/main.js"], {env:{...process.env,PORT:"4150",SUPABASE_URL:`http://127.0.0.1:${mock.address().port}`,SUPABASE_PUBLISHABLE_KEY:"test-key",SUPABASE_SECRET_KEY:"sb_secret_test"},stdio:"ignore"});
  try {
   const base = "http://127.0.0.1:4150/v1/auth/cart";
   let ready = false; for (let i=0;i<300;i++) { try { await fetch(base); ready=true; break; } catch { await delay(100); } } assert.ok(ready);

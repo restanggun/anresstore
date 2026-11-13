@@ -1,4 +1,5 @@
 "use client";
+import { publicOrderDetails } from "@/lib/catalog";
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowRight, ChevronDown, Minus, Pencil, Plus, ShoppingCart, Trash2 } from "lucide-react";
@@ -42,7 +43,7 @@ export function CartPopup() {
  return <>
   <button className="cart-nav" aria-label={`Buka keranjang, ${count} produk`} onClick={() => { setEditing(null); setStage(0); setOpen(true); }}><ShoppingCart size={20} aria-hidden="true"/><span>{count}</span></button>
   <Dialog open={open} onOpenChange={setOpen}><DialogContent className="cart-dialog">
-   <div className="cart-heading"><span className="cart-heading-icon"><ShoppingCart size={22} aria-hidden="true"/></span><div><DialogTitle>{stage === 0 ? "Keranjangmu" : "Checkout"}</DialogTitle><DialogDescription>{stage === 0 ? `${count} produk pilihanmu` : "Pilih metode pembayaran simulasi."}</DialogDescription></div></div>
+   <div className="cart-heading"><span className="cart-heading-icon"><ShoppingCart size={22} aria-hidden="true"/></span><div><DialogTitle>{stage === 0 ? "Keranjangmu" : "Checkout"}</DialogTitle><DialogDescription>{stage === 0 ? `${count} produk pilihanmu` : "Periksa kembali pesananmu."}</DialogDescription></div></div>
    <motion.div className="cart-body" key={stage} initial={reduce ? false : {opacity:0,y:8}} animate={{opacity:1,y:0}} transition={{duration:reduce ? 0 : .25}}>
     {error && <p role="alert">{error}</p>}
     {!ready ? <p>{error ? "Keranjang belum tersedia." : "Memuat keranjang..."}</p> : items.length === 0 ? <div className="cart-empty"><ShoppingCart size={28} aria-hidden="true"/><strong>Keranjang masih kosong</strong><p>Pilih produk di katalog untuk mulai berbelanja.</p><Button onClick={() => setOpen(false)}>Lanjut belanja</Button></div> : <>
@@ -53,13 +54,13 @@ export function CartPopup() {
        <label>Tujuan / detail<Input value={editing.target} onChange={e => setEditing({...editing,target:e.target.value})} required /></label>
        <label>Nomor WhatsApp atau email<Input value={editing.contact} onChange={e => setEditing({...editing,contact:e.target.value})} required /></label>
        <div className="cart-edit-actions"><button type="button" onClick={() => setEditing(null)}>Batal</button><button type="submit" disabled={!editing.target.trim() || !editing.contact.trim()}>Simpan perubahan</button></div>
-      </form> : <div className="cart-item-details"><small>Pilihan: {item.details}</small><small>Tujuan: {item.target}</small><small>Kontak: {item.contact}</small></div>)}
+      </form> : <div className="cart-item-details"><small>Pilihan: {publicOrderDetails(item.details,item.category)}</small><small>Tujuan: {item.target}</small><small>Kontak: {item.contact}</small></div>)}
       {stage === 0 && <div className="cart-controls"><div className="cart-quantity"><button aria-label={`Kurangi ${item.product}`} disabled={item.quantity <= 1} onClick={() => update(items.map(x => x.id === item.id ? {...x, quantity:x.quantity - 1} : x))}><Minus size={15}/></button><span aria-label={`Jumlah ${item.quantity}`}>{item.quantity}</span><button aria-label={`Tambah ${item.product}`} onClick={() => update(items.map(x => x.id === item.id ? {...x, quantity:x.quantity + 1} : x))}><Plus size={15}/></button></div><button onClick={() => { setExpanded(current => new Set(current).add(item.id)); setEditing(item); }}><Pencil size={15}/>Edit</button><button onClick={() => { if (editing?.id === item.id) setEditing(null); update(items.filter(x => x.id !== item.id)); }}><Trash2 size={15}/>Hapus</button></div>}
      </motion.div>)}</AnimatePresence></div>
-     <div className="cart-total"><span>Total estimasi<small>Harga masih berupa simulasi</small></span><strong>{money(total)}</strong></div>
+     <div className="cart-total"><span>Total</span><strong>{money(total)}</strong></div>
      {stage === 1 && <label className="cart-payment">Metode pembayaran<select value={payment} onChange={e => setPayment(e.target.value)}><option>QRIS</option><option>Transfer bank</option><option>E-wallet</option></select></label>}
-     {stage === 1 && <p>Ini simulasi; tidak ada pembayaran yang diproses. Produk tetap ada di keranjang.</p>}
-     {stage === 0 ? <Button className="order-primary" disabled={!!editing || busy} onClick={() => setStage(1)}>Lanjut checkout<ArrowRight size={17}/></Button> : <Button className="order-primary" disabled={busy} onClick={checkout}>{busy ? "Menyimpan..." : "Simpan pesanan simulasi"}<ArrowRight size={17}/></Button>}
+     {stage === 1 && <p>Menyimpan pesanan tidak otomatis menandakan pembayaran berhasil.</p>}
+     {stage === 0 ? <Button className="order-primary" disabled={!!editing || busy} onClick={() => setStage(1)}>Lanjut checkout<ArrowRight size={17}/></Button> : <Button className="order-primary" disabled={busy} onClick={checkout}>{busy ? "Menyimpan..." : "Simpan pesanan"}<ArrowRight size={17}/></Button>}
      {stage === 1 && <Button variant="outline" className="order-cart-add" onClick={() => setStage(0)}>Kembali ke keranjang</Button>}
     </>}
    </motion.div>

@@ -17,7 +17,7 @@ test("chat bantuan memvalidasi permintaan dan meneruskan konteks melalui server"
   const result=await controller.chat({messages:[{role:"user",content:"Bagaimana checkout?"}]},req);
   assert.equal(result.answer,"Jawaban bantuan");
   assert.equal(sent.url,"https://openrouter.ai/api/v1/chat/completions");
-  assert.equal(sent.body.model,"test/model"); assert.equal(sent.body.messages[0].role,"system"); assert.match(sent.body.messages[0].content,/simulasi/); assert.match(sent.body.messages[0].content,/bahasa Indonesia/);
+  assert.equal(sent.body.model,"test/model"); assert.equal(sent.body.messages[0].role,"system"); assert.match(sent.body.messages[0].content,/VIPayment/); assert.match(sent.body.messages[0].content,/sandbox/); assert.doesNotMatch(sent.body.messages[0].content,/Harga, checkout, pesanan, dan pembayaran masih simulasi/); assert.match(sent.body.messages[0].content,/bahasa Indonesia/);
   assert.match(sent.body.messages[0].content,/https:\/\/anresstore\.site\/katalog/); assert.match(sent.body.messages[0].content,/tautan Markdown/);
   assert.equal(sent.options.headers.Authorization,"Bearer test-key");
   delete process.env.OPENROUTER_API_KEY;
