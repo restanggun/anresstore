@@ -5,6 +5,13 @@
 .help-chat-intro h2 { margin:10px 0;font-size:30px;line-height:1.2;letter-spacing:-1px; }
 .help-chat-intro p { max-width:300px;color:var(--muted);font-size:14px;line-height:1.8; }
 .help-chat-panel { min-width:0;padding:24px;border-radius:24px;background:var(--primary-soft); }
+.help-chat-session-controls { display:flex;align-items:flex-end;gap:12px;margin-bottom:20px; }
+.help-chat-session-controls label { display:grid;gap:7px;min-width:0;flex:1;font-size:12px;font-weight:700; }
+.help-chat-session-controls select,.help-chat-session-controls button { min-width:0;max-width:100%;padding:10px;border:1px solid var(--field-border);border-radius:12px;background:var(--surface);color:var(--foreground);font:inherit;font-size:12px; }
+.help-chat-session-controls button { flex-shrink:0;cursor:pointer;background:var(--pink); }
+.help-chat-session-controls :focus-visible { outline:2px solid var(--focus);outline-offset:2px; }
+.help-chat-session-controls :disabled { opacity:.5;cursor:not-allowed; }
+@media(max-width:380px) { .help-chat-session-controls { align-items:stretch;flex-direction:column; } }
 .help-chat-messages { display:flex;flex-direction:column;align-items:flex-start;gap:14px;max-height:390px;overflow:auto; }
 .help-chat-message { max-width:90%; }
 .help-chat-message.user { align-self:flex-end; }

@@ -28,10 +28,24 @@ test('maps actual provider groups and keeps exact service identity and safe sell
  assert.ok(!('cost' in ml)); assert.ok(!('basic' in ml));
 });
 
+test('exposes provider developer on game products without substituting the game or type', async () => {
+ await withProvider(async()=>Response.json({result:true,data:[game({developer:'Moonton',type:'Top up game'})]}),async controller=>{
+  const catalog=await controller.list('game');
+  assert.equal(catalog.items[0].developer,'Moonton');
+  assert.equal(catalog.products[0].developer,'Moonton');
+ });
+ assert.equal(mapCatalog('game',[game()])[0].developer,'');
+});
+
 test('does not mix login, gift, jockeying, unknown games or out-of-stock services into top-up', () => {
  const groups=['Mobile Legends Gift','Mobile Legends Joki Ranked','Mobile Legends Vilog','Roblox Via Login','Free Fire Vilog','Mobile Legends (Brazil)','Unknown Game'];
  assert.deepEqual(mapCatalog('game',groups.map((group,i)=>game({code:`TEST${i}`,game:group}))),[]);
  assert.deepEqual(mapCatalog('game',[game({status:'empty'}),game({name:'Login account'}),null,42,[]]),[]);
+});
+
+test('includes available Roblox vouchers but excludes Roblox login and unrelated gifts', () => {
+ const items=mapCatalog('game',[game({code:'ROB-V',game:'Voucher Roblox',name:'Roblox Gift Card IDR 100K'}),game({code:'ROB-L',game:'Roblox Via Login',name:'80 Robux'}),game({code:'ROB-E',game:'Voucher Roblox',status:'empty'}),game({code:'ML-G',game:'Mobile Legends Gift'})]);
+ assert.equal(items.length,1); assert.equal(items[0].product,'Roblox'); assert.equal(items[0].section,'Voucher');
 });
 
 test('maps PPOB by provider type instead of ambiguous product text', () => {
@@ -103,4 +117,17 @@ test('catalog fails closed when provider credentials are missing', async () => {
   delete process.env.VIPAYMENT_API_ID; delete process.env.VIPAYMENT_API_KEY;
   try { await assert.rejects(() => new CatalogController().list('game'), error => error.getStatus() === 503); }
   finally { if (oldId !== undefined) process.env.VIPAYMENT_API_ID = oldId; if (oldKey !== undefined) process.env.VIPAYMENT_API_KEY = oldKey; }
+});
+
+test('social catalog uses provider service IDs, quantity bounds, and price per thousand',()=>{
+ const [item]=mapCatalog('social',[{id:'17',name:'TikTok Likes',category:'TikTok Likes',min:100,max:50000,price:{basic:6497},status:'available',note:'Public profile only'}]);
+ assert.equal(item.category,'social');assert.equal(item.code,'17');assert.equal(item.product,'TikTok');assert.equal(item.minimum,100);assert.equal(item.maximum,50000);assert.equal(item.providerCost,6497);
+ assert.equal(mapCatalog('social',[{id:'17',name:'Likes',category:'TikTok',min:100,max:50,price:{basic:10},status:'available'}]).length,0);
+});
+
+test('unmapped supplier services are importable for manual work and stay unpublished by default',async()=>{
+ const env={...process.env},original=global.fetch;
+ Object.assign(process.env,{VIPAYMENT_API_ID:'test',VIPAYMENT_API_KEY:'key',ADMIN_CATALOG_ENABLED:'true',SUPABASE_URL:'https://db.example',SUPABASE_SECRET_KEY:'secret'});
+ global.fetch=async url=>String(url).includes('vip-reseller')?Response.json({result:true,data:[game(),game({code:'UNKNOWN',game:'New provider flow',name:'Service with custom destination'})]}):Response.json([]);
+ try{const c=new CatalogController(),raw=await c.list('game',true),live=await c.list('game');assert.equal(raw.items.find(i=>i.code==='UNKNOWN').requiresManualReview,true);assert.equal(raw.items.find(i=>i.code==='UNKNOWN').fulfillmentMode,'manual');assert.equal(live.items.some(i=>i.code==='UNKNOWN'),false);}finally{process.env=env;global.fetch=original;}
 });

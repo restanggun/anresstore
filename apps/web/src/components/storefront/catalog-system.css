@@ -34,10 +34,16 @@
 .catalog-product-card { display:flex;flex-direction:column;min-width:0;padding:7px;border:0;border-radius:24px;background:#f3f6f8;color:var(--foreground);text-align:left;cursor:pointer;transition:background-color .2s; }
 .catalog-product-card:hover { background:var(--pink); }
 .catalog-product-art { position:relative;display:grid;place-items:center;width:100%;height:170px;overflow:hidden;border-radius:18px;background:#d6effb;color:#286589; }
+.catalog-product-pin { position:absolute;z-index:1;top:9px;right:9px;display:grid;place-items:center;width:32px;height:32px;border-radius:50%;background:#fff;color:#eeb800;box-shadow:0 3px 12px rgba(80,55,0,.16);animation:pin-glow 3s ease-in-out infinite; }
+.catalog-product-pin svg { animation:pin-twinkle 3s ease-in-out infinite; }
+@keyframes pin-glow { 0%,100% { box-shadow:0 3px 12px rgba(80,55,0,.16),0 0 0 0 rgba(255,207,55,0); } 50% { box-shadow:0 3px 12px rgba(80,55,0,.16),0 0 0 5px rgba(255,207,55,.2); } }
+@keyframes pin-twinkle { 0%,100% { transform:scale(1) rotate(0); } 50% { transform:scale(1.14) rotate(12deg); } }
 .catalog-product-card:nth-child(even) .catalog-product-art { background:#ffe6f1;color:var(--pink-ink); }
 .catalog-product-art img { display:block;width:90px;height:90px;object-fit:cover;border-radius:20px; }
 .catalog-product-art img[src$=".svg"] { width:52px;height:52px;object-fit:contain;border-radius:0; }
 .catalog-product-art img.catalog-product-cover { position:absolute;inset:0;width:100%;height:100%;object-fit:cover;border-radius:0;transition:transform .35s ease; }
+.catalog-product-video { position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:0;transition:opacity .2s ease;pointer-events:none; }
+.catalog-product-video.is-ready { opacity:1; }
 .catalog-product-art img.catalog-product-cover[src$="/roblox.jpg"] { scale:1.2; }
 .catalog-product-card:hover .catalog-product-cover { transform:scale(1.035); }
 .catalog-product-game-heading { display:flex;align-items:center;gap:12px;width:100%;min-width:0; }
@@ -107,7 +113,7 @@
 @media(max-width:800px) { .shop-products { grid-template-columns:repeat(2,minmax(0,1fr)); }.order-layout { grid-template-columns:1fr; }.order-summary { grid-row:auto; }.shop-section-head { align-items:stretch; }.shop-product-search { width:100%; } }
 @media(max-width:600px) { .shop-flow { padding:8px 0 45px; }.shop-heading { min-height:0;padding:25px 22px;border-radius:25px; }.shop-heading h1 { font-size:clamp(30px,9vw,38px); }.shop-heading:has(.shop-back) { align-items:flex-start;flex-direction:column; }.shop-heading-game { flex-direction:row!important;align-items:center!important;gap:12px;min-height:200px; }.shop-heading-game::after { inset:8px 0 0;border-radius:25px; }.shop-heading-game .shop-heading-copy { flex:1 1 100%; }.shop-heading-game-title { gap:9px; }.shop-heading-game-title h1 { font-size:clamp(22px,6vw,30px);letter-spacing:-1px; }.shop-heading-game-icon { flex-basis:46px;width:46px;height:46px;padding:4px;border-radius:15px; }.shop-heading-game-icon img { border-radius:11px; }.shop-heading-game-art { inset:0 0 12px;border-radius:25px; }.shop-heading-game .shop-back { flex:0 0 auto;width:max-content;margin-left:0; }.shop-section { margin-top:40px; }.catalog-product-art { height:128px; }.catalog-product-art img { width:70px;height:70px;border-radius:16px; }.catalog-product-content { padding:13px 9px 10px; }.catalog-product-title { font-size:13px; }.catalog-product-category,.catalog-product-action { font-size:11px; }.order-progress { grid-template-columns:repeat(2,minmax(0,1fr)); }.order-progress span { font-size:11px; }.order-card,.order-summary { padding:22px; }.order-fields { grid-template-columns:1fr 1fr; }.shop-flow .order-card input:not([type="range"]),.shop-flow .order-card select,.shop-flow .order-card textarea { font-size:16px; } }
 @media(max-width:600px) { .catalog-product-game-heading { gap:9px; }.catalog-product-game-icon { flex-basis:48px;width:48px;height:48px;padding:4px;border-radius:15px; }.catalog-product-game-icon img { border-radius:11px; }.catalog-product-developer { font-size:10px; } }
-@media(prefers-reduced-motion:reduce) { .catalog-product-card,.catalog-product-cover,.shop-offers button,.shop-back,.order-options button { transition:none; }.catalog-product-card:hover .catalog-product-cover { transform:none; } }
+@media(prefers-reduced-motion:reduce) { .catalog-product-card,.catalog-product-cover,.shop-offers button,.shop-back,.order-options button { transition:none; }.catalog-product-card:hover .catalog-product-cover { transform:none; }.catalog-product-pin,.catalog-product-pin svg { animation:none; } }
 /* Each cart item is a distinct surface, matching the storefront cards. */
 .cart-dialog .cart-dialog-items { display:flex; flex-direction:column; gap:10px; padding:2px; }
 .cart-dialog .cart-row { display:flex; flex-direction:column; gap:14px; padding:17px; border:0; border-radius:18px; background:#f3f7f9; }
@@ -123,3 +129,6 @@
 .shop-flow .shop-hero-search { padding-right:5px; margin-bottom:0; }
 .shop-flow .shop-hero-search input { flex:1 1 0; width:0; min-width:0; }
 .shop-flow .shop-hero-search button { flex:0 0 42px; margin-left:auto; }
+.catalog-manual-note { padding:15px 17px; border-radius:14px; background:var(--pink-soft); color:var(--pink-ink)!important; font-size:12px!important; line-height:1.8; }
+
+.order-card .anres-select-trigger { width:100%; min-height:48px; background:white; font-size:13px; padding:12px 14px; border-radius:13px; }

@@ -1,4 +1,4 @@
-import Link from "next/link";
+import Link from "@/components/storefront/domain-link";
 import { ArrowRight } from "lucide-react";
 import type { ReactNode } from "react";
 

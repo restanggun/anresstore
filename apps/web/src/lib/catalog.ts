@@ -1,12 +1,13 @@
-export type CatalogKind = "Top up game" | "PPOB" | "Booster media sosial" | "Aplikasi premium" | "Format tugas";
+export type CatalogKind = "Top up game" | "PPOB" | "Booster media sosial" | "Aplikasi premium" | "Joki tugas";
 export type CatalogPromotion = { id: string; startsAt: string; endsAt: string; originalPrice: number; discountPercent: number };
 export type CatalogItem = {
+  fulfillmentMode?: "manual" | "vipayment"; serviceQuantity?: number;
   code: string; name: string; displayName: string; section: string; group: string; type: string; price: number;
-  product: string; productSlug: string; brand: string; description: string; promotion: CatalogPromotion | null;
+  product: string; productSlug: string; brand: string; developer?: string; description: string; promotion: CatalogPromotion | null;
 };
-export type CatalogProduct = { name: string; slug: string; category: CatalogKind; count: number; minPrice: number; regularMinPrice?: number; promotion: CatalogPromotion | null; offerName?: string | null; offerCode?: string | null };
+export type CatalogProduct = { name: string; slug: string; category: CatalogKind; pinRank?: number | null; developer?: string; count: number; minPrice: number; regularMinPrice?: number; promotion: CatalogPromotion | null; offerName?: string | null; offerCode?: string | null };
 export type CatalogFeed = { items: CatalogItem[]; products: Omit<CatalogProduct, "category">[]; serverTime: string };
-export const categorySlugs: Record<CatalogKind, string> = { "Top up game": "top-up-game", PPOB: "ppob", "Booster media sosial": "sosial-media", "Aplikasi premium": "aplikasi-premium", "Format tugas": "format-tugas" };
+export const categorySlugs: Record<CatalogKind, string> = { "Top up game": "top-up-game", PPOB: "ppob", "Booster media sosial": "sosial-media", "Aplikasi premium": "aplikasi-premium", "Joki tugas": "format-tugas" };
 export const slugify = (value: string) => value.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
 export const money = (value: number) => `Rp${value.toLocaleString("id-ID")}`;
 export function publicOrderDetails(details: string, category: string): string {
@@ -20,7 +21,7 @@ export function currentPrice(item: {price: number; promotion: CatalogPromotion |
 }
 
 // Keep the exact selected service code; merge only identical alternatives within the same region/terms.
-export function tidyVariants(items: CatalogItem[]): CatalogItem[] {
+export function tidyVariants(items: CatalogItem[], selectedCode = ""): CatalogItem[] {
   const variants = new Map<string,CatalogItem>();
   for (const item of items) {
     const region = item.group.replace(/\s+[AB]$/i, "").toLowerCase();
@@ -29,7 +30,7 @@ export function tidyVariants(items: CatalogItem[]): CatalogItem[] {
     const terms = operationalNote ? "" : item.description;
     const key = JSON.stringify([item.displayName.toLowerCase(),item.section,region,terms]);
     const existing = variants.get(key);
-    if (!existing || item.price < existing.price) variants.set(key,item);
+    if (!existing || item.code === selectedCode || (existing.code !== selectedCode && item.price < existing.price)) variants.set(key,item);
   }
   return [...variants.values()].sort((a,b) => a.price-b.price || a.displayName.localeCompare(b.displayName,"id",{numeric:true}));
 }
@@ -39,4 +40,14 @@ export function variantHint(item: CatalogItem): string {
   if (/\bslow\b/i.test(item.group)) return "Proses bertahap";
   if (/\bpromo\b/i.test(item.group)) return "Paket promo";
   return "";
+}
+
+/** Only classify regions explicitly supplied by the catalog. */
+export function variantRegion(item: CatalogItem): string {
+ const text = `${item.group} ${item.displayName} ${item.name}`;
+ if (/\b(?:usa|united states|amerika)\b/i.test(text)) return "Amerika Serikat";
+ if (/\b(?:indonesia|indo|id)\b/i.test(text)) return "Indonesia";
+ if (/\bglobal\b/i.test(text)) return "Global";
+ if (/\b(?:sea|southeast asia)\b/i.test(text)) return "Asia Tenggara";
+ return "Tidak disebutkan";
 }

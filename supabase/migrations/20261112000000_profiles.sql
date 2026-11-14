@@ -1,4 +1,4 @@
-﻿create table if not exists public.profiles (
+create table if not exists public.profiles (
   id uuid primary key references auth.users(id) on delete cascade,
   full_name text not null default '' check (char_length(full_name) <= 100),
   updated_at timestamptz not null default now()

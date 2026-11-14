@@ -21,12 +21,12 @@ function setup() {
  const rows=new Map(),rates=new Map(),leases=new Set();let creates=0,beforePatch=null;
  const controller=new PaymentsController();
  controller.identities={resolve:async request=>request.testIdentity??copy(identity)};
- controller.catalog={list:async()=>({items:[{code:'SKU',price:20000,product:'Game',name:'Diamonds'}]})};
+ controller.catalog={list:async()=>({items:[{code:'SKU',price:20000,providerCost:15000,product:'Game',name:'Diamonds'}]})};
  controller.tripay={channels:async()=>[{code:'BRIVA',minimum_amount:10000,maximum_amount:1000000}],create:async value=>{creates++;await new Promise(resolve=>setTimeout(resolve,2));return {...copy(detail),merchant_ref:value.id};},detail:async()=>({...copy(detail),status:'PAID'})};
- controller.store={rpc:async(name,args)=>{
+ controller.store={request:async()=>[],rpc:async(name,args)=>{
   if(name==='consume_payment_rate') {const count=(rates.get(args.p_key)||0)+1;rates.set(args.p_key,count);return count<=args.p_limit;}
   if(name==='claim_sandbox_payment_check') {if(leases.has(args.p_id))return false;leases.add(args.p_id);return true;}
-  if(name==='reserve_sandbox_payment') {
+  if(name==='reserve_payment') {
    const value=args.p_payment,owner=value.owner_user_id??value.guest_session_hash;
    let row=rows.get(value.id);
    if(row) {assert.equal(row.owner_user_id??row.guest_session_hash,owner);assert.equal(row.request_hash,value.request_hash);return {payment:copy(row),claimed:false};}
@@ -79,7 +79,7 @@ test('ambiguous provider result stays unknown and retry never creates another pa
 });
 test('database reservation failure prevents sending a payment to the provider',async()=>{
  const {controller,creates}=setup();const rpc=controller.store.rpc;
- controller.store.rpc=async(name,args)=>{if(name==='reserve_sandbox_payment')throw new Error('database disconnected');return rpc(name,args);};
+ controller.store.rpc=async(name,args)=>{if(name==='reserve_payment')throw new Error('database disconnected');return rpc(name,args);};
  await assert.rejects(controller.create(input,req,res));assert.equal(creates(),0);
 });
 test('account payments bind to verified session identity and cannot be opened by a guest or another account',async()=>{
@@ -184,4 +184,44 @@ test('guest and legacy capability expiry are checked on the server, not just in 
  const legacy={...row,guest_session_hash:null,created_at:new Date(Date.now()-8*86400000).toISOString()};
  assert.equal(ownsPayment(legacy,identity,row.access_hash),false);
  assert.equal(ownsPayment({...row,created_at:'invalid'},identity,null),false);
+});
+
+for (const [providerStatus, status] of [['FAILED','failed'], ['EXPIRED','expired']]) {
+ test(`${providerStatus} is terminal, survives replay and cannot silently become paid`, async()=>{
+  const {controller,read}=setup();
+  await controller.create(input,req,res);
+  controller.tripay.detail=async()=>({...detail,status:providerStatus});
+  await controller.callback(signed({...event,status:providerStatus}));
+  await controller.callback(signed({...event,status:providerStatus}));
+  assert.equal((await controller.detail(id,req,res)).status,status);
+  controller.tripay.detail=async()=>({...detail,status:'PAID'});
+  await assert.rejects(controller.callback(signed(event)),error=>error.getStatus()===409);
+  assert.equal(read().status,status);
+  assert.equal(read().review_required,true);
+ });
+}
+
+test('callback database failure is not acknowledged and provider retry recovers the same invoice',async()=>{
+ const {controller,read,creates}=setup();
+ await controller.create(input,req,res);
+ const db=controller.db;
+ controller.db=async(query,method,body)=>{if(method==='PATCH')throw new Error('database unavailable');return db(query,method,body);};
+ await assert.rejects(controller.callback(signed(event)));
+ assert.equal(read().status,'pending');
+ controller.db=db;
+ assert.deepEqual(await controller.callback(signed(event)),{success:true});
+ assert.equal(read().status,'paid');
+ assert.equal(creates(),1);
+});
+
+test('manual task checkout stores authoritative work mode and customer contact snapshots',async()=>{
+ const s=setup();await s.controller.create({...input,source:'tasks',target:'Format 10 halaman'},req,res);
+ assert.equal(s.read().fulfillment_mode,'manual');assert.equal(s.read().customer_email,input.email);assert.equal(s.read().customer_phone,input.phone);
+ assert.equal(s.read().service_quantity,1);assert.equal(s.read().amount,input.expectedAmount);
+});
+
+test('social checkout rejects a changed package quantity before creating any gateway order',async()=>{
+ const s=setup();s.controller.catalog={list:async()=>({items:[{code:'SKU',price:20000,product:'TikTok',name:'Likes',serviceQuantity:1000,providerServiceCode:'17',providerCost:6500,fulfillmentMode:'vipayment'}]})};
+ await assert.rejects(s.controller.create({...input,source:'social',expectedQuantity:500},req,res),e=>e.getStatus()===409);assert.equal(s.creates(),0);
+ await s.controller.create({...input,source:'social',expectedQuantity:1000},req,res);assert.equal(s.read().service_quantity,1000);assert.equal(s.read().provider_service_code,'17');assert.equal(s.read().provider_cost,6500);
 });

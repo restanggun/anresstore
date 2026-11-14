@@ -1,4 +1,4 @@
-﻿-- Jalankan di Supabase SQL Editor sebagai pemilik proyek.
+-- Jalankan di Supabase SQL Editor sebagai pemilik proyek.
 -- auth.users tetap menjadi sumber autentikasi; public.users menyimpan data aplikasi.
 begin;
 create table if not exists public.users (

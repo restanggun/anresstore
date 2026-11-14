@@ -8,8 +8,9 @@ export function apiAbuseMiddleware(store = new PaymentStore()) {
   return async (req: Request, res: Response, next: NextFunction) => {
     const path = req.path.replace(/\/+$/, "").toLowerCase();
     const sensitive = ["POST", "PATCH", "PUT", "DELETE"].includes(req.method) && /^\/v1\/(auth|help|admin)\//.test(path);
+    const adminRead = req.method === "GET" && /^\/v1\/admin\//.test(path);
     const oauth = req.method === "GET" && path === "/v1/auth/google";
-    if (!sensitive && !oauth) { next(); return; }
+    if (!sensitive && !oauth && !adminRead) { next(); return; }
     const origins = (process.env.CORS_ORIGINS ?? "http://localhost:3000,http://localhost:3001").split(",").map(value => value.trim());
     if (sensitive && (!req.headers.origin || !origins.includes(req.headers.origin))) { res.status(403).json({ message: "Origin tidak diizinkan." }); return; }
     const ip = req.ip || req.socket?.remoteAddress || "unknown";

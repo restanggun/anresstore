@@ -5,8 +5,9 @@ import { mergeProducts } from '../dist/admin/admin-store.js';
 import { CatalogController } from '../dist/catalog/catalog.controller.js';
 const admin='f623c4ef-1eb2-49fb-ae0d-123456789012';
 const res={setHeader(){}};
-const req={headers:{cookie:'anres_access=verified-token',origin:'http://localhost:3001'}};
-const config={ADMIN_USER_IDS:admin,SUPABASE_URL:'https://db.example',SUPABASE_PUBLISHABLE_KEY:'public-key',SUPABASE_SECRET_KEY:'server-key',CORS_ORIGINS:'http://localhost:3001'};
+const token=(claims={})=>`header.${Buffer.from(JSON.stringify({sub:admin,aal:'aal2',exp:Math.floor(Date.now()/1000)+3600,...claims})).toString('base64url')}.signature`;
+const req={headers:{cookie:`anres_access=${token()}`,origin:'http://localhost:3001'}};
+const config={ADMIN_USER_IDS:admin,SUPABASE_URL:'https://db.example',SUPABASE_PUBLISHABLE_KEY:'public-key',SUPABASE_SECRET_KEY:'server-key',CORS_ORIGINS:'http://localhost:3001',ADMIN_ALLOWED_ORIGINS:'http://localhost:3001'};
 async function isolated(fn){const env={...process.env},original=global.fetch;Object.assign(process.env,config);try{await fn();}finally{global.fetch=original;process.env=env;}}
 test('admin is denied when unconfigured, anonymous, or not allowlisted; metadata cannot grant access',()=>isolated(async()=>{
  const c=new AdminController();delete process.env.ADMIN_USER_IDS;
@@ -14,9 +15,38 @@ test('admin is denied when unconfigured, anonymous, or not allowlisted; metadata
  process.env.ADMIN_USER_IDS=admin;
  await assert.rejects(c.session({headers:{}},res),e=>e.getStatus()===401);
  global.fetch=async()=>Response.json({id:'other',user_metadata:{role:'admin'}});
- await assert.rejects(c.session(req,res),e=>e.getStatus()===403);
+ await assert.rejects(c.session(req,res),e=>e.getStatus()===401);
  global.fetch=async()=>Response.json({id:admin});
  assert.equal((await c.session(req,res)).id,admin);
+}));
+test('admin requires verified MFA claims and an unexpired token for the verified user',()=>isolated(async()=>{
+ const c=new AdminController(); global.fetch=async()=>Response.json({id:admin});
+ const withToken=value=>({headers:{...req.headers,cookie:`anres_access=${value}`}});
+ await assert.rejects(c.session(withToken(token({aal:'aal1'})),res),e=>e.getStatus()===403);
+ await assert.rejects(c.session(withToken(token({sub:'other'})),res),e=>e.getStatus()===401);
+ await assert.rejects(c.session(withToken(token({exp:1})),res),e=>e.getStatus()===401);
+ await assert.rejects(c.session(withToken('malformed'),res),e=>e.getStatus()===401);
+ global.fetch=async()=>new Response('',{status:401});
+ await assert.rejects(c.session(req,res),e=>e.getStatus()===401);
+}));
+test('MFA challenge requires an allowed origin and verified factor; successful verification stores HttpOnly cookies',()=>isolated(async()=>{
+ const factor='f623c4ef-1eb2-49fb-ae0d-123456789011', challenge='f623c4ef-1eb2-49fb-ae0d-123456789010';
+ const aal1={headers:{...req.headers,cookie:`anres_access=${token({aal:'aal1'})}`}};
+ const cookies=[];const response={setHeader(){},cookie(...args){cookies.push(args);}};
+ let verified=false;
+ global.fetch=async(url)=>{
+  url=String(url);
+  if(url.endsWith('/user'))return Response.json({id:admin,factors:[{id:factor,status:'verified',factor_type:'totp'}]});
+  if(url.endsWith('/challenge'))return Response.json({id:challenge});
+  if(url.endsWith('/verify')){verified=true;return Response.json({access_token:token(),refresh_token:'refresh-secret'});}
+  throw new Error('unexpected request');
+ };
+ const c=new AdminController();
+ await assert.rejects(c.mfaChallenge({factorId:factor},{headers:{...aal1.headers,origin:'https://evil.example'}},response),e=>e.getStatus()===403);
+ await assert.rejects(c.mfaVerify({factorId:factor,challengeId:challenge,code:'bad'},aal1,response),e=>e.getStatus()===400);
+ await c.mfaChallenge({factorId:factor},aal1,response);
+ await c.mfaVerify({factorId:factor,challengeId:challenge,code:'123456'},aal1,response);
+ assert.equal(verified,true);assert.equal(cookies.length,3);assert.ok(cookies.every(c=>c[2].httpOnly));
 }));
 test('payment listing has pagination and never selects guest hashes or gateway details',()=>isolated(async()=>{
  const calls=[];global.fetch=async(url)=>{calls.push(String(url));return Response.json(String(url).endsWith('/user')?{id:admin}:Array.from({length:51},(_,i)=>({id:i})));};
@@ -32,7 +62,7 @@ test('product writes require allowed origin, validate prices, and whitelist save
  const c=new AdminController();
  await assert.rejects(c.saveProduct(product,{headers:{...req.headers,origin:'https://evil.example'}},res),e=>e.getStatus()===403);
  await assert.rejects(c.saveProduct({...product,price:0},req,res),e=>e.getStatus()===400);
- await assert.rejects(c.saveProduct({...product,category:'social'},req,res),e=>e.getStatus()===400);
+ await assert.rejects(c.saveProduct({...product,category:'invalid'},req,res),e=>e.getStatus()===400);
  await c.saveProduct({...product,access_hash:'should-never-save'},req,res);
  assert.equal(saved.provider,'custom');assert.equal(saved.access_hash,undefined);
 }));
@@ -50,14 +80,107 @@ test('support status can be updated; invalid status cannot be stored',()=>isolat
  const c=new AdminController();assert.equal((await c.support(admin,{status:'closed'},req,res)).status,'closed');
  await assert.rejects(c.support(admin,{status:'paid'},req,res),e=>e.getStatus()===400);
 }));
+test('audit storage failure blocks a support update',()=>isolated(async()=>{
+ let updated=false;
+ global.fetch=async(url)=>{url=String(url);if(url.endsWith('/user'))return Response.json({id:admin});if(url.includes('admin_audit_log'))return new Response('',{status:503});updated=true;return Response.json([]);};
+ await assert.rejects(new AdminController().support(admin,{status:'closed'},req,res),e=>e.getStatus()===503);
+ assert.equal(updated,false);
+}));
 
 test('reopening an existing provider SKU preserves its public UUID across admin pages',()=>isolated(async()=>{
  const existingId='f623c4ef-1eb2-49fb-ae0d-123456789099';let saved;
  global.fetch=async(url,options)=>{
   if(String(url).endsWith('/user'))return Response.json({id:admin});
-  if(!options.body)return Response.json([{id:existingId}]);
+  if(!options.body)return Response.json(String(url).includes('id=eq.') ? [] : [{id:existingId}]);
   saved=JSON.parse(options.body);return Response.json([saved]);
  };
  await new AdminController().saveProduct(product,req,res);
  assert.equal(saved.id,existingId);assert.equal(saved.provider_code,'SKU');
+}));
+test('scoped roles cannot read other services, manage access, or modify a product in another category',()=>isolated(async()=>{
+ const other='f623c4ef-1eb2-49fb-ae0d-123456789099'; const roleId='f623c4ef-1eb2-49fb-ae0d-123456789098';
+ const scoped={headers:{...req.headers,cookie:`anres_access=${token({sub:other})}`}};
+ global.fetch=async(url)=>{
+  url=String(url);
+  if(url.endsWith('/user'))return Response.json({id:other});
+  if(url.includes('/admin_assignments'))return Response.json([{role_id:roleId,is_super:false}]);
+  if(url.includes('/admin_roles'))return Response.json([{permissions:['products.read','products.write'],categories:['game'],product_slugs:['test-game']}]);
+  if(url.includes('/managed_products') && url.includes('id=eq.'))return Response.json([{id:product.id,category:'apps'}]);
+  return Response.json([]);
+ };
+ const c=new AdminController();
+ await assert.rejects(c.catalog('apps',scoped,res),e=>e.getStatus()===403);
+ await assert.rejects(c.records('payments','0',scoped,res),e=>e.getStatus()===403);
+ await assert.rejects(c.accessList(scoped,res),e=>e.getStatus()===403);
+ await assert.rejects(c.saveProduct({...product,product_slug:'other-game'},scoped,res),e=>e.getStatus()===403);
+ await assert.rejects(c.saveProduct(product,scoped,res),e=>e.getStatus()===403);
+}));
+
+test('MFA enrollment is allowlisted and returns a browser-ready QR without exposing it in status',()=>isolated(async()=>{
+ const c=new AdminController();
+ const factor='f623c4ef-1eb2-49fb-ae0d-123456789011';
+ const aal1={headers:{...req.headers,cookie:`anres_access=${token({aal:'aal1'})}`}};
+ let created=0;
+ global.fetch=async(url)=>{
+  if(String(url).endsWith('/user'))return Response.json({id:admin,factors:[]});
+  created++;return Response.json({id:factor,totp:{secret:'test-secret',qr_code:'<?xml version="1.0"?>\n<!-- Generated by SVGo -->\n<svg xmlns="http://www.w3.org/2000/svg"></svg>'}});
+ };
+ delete process.env.ADMIN_MFA_ENROLLMENT_USER_IDS;
+ assert.equal((await c.mfaStatus(aal1,res)).enrollmentAllowed,false);
+ await assert.rejects(c.mfaEnroll(aal1,res),e=>e.getStatus()===403);
+ assert.equal(created,0);
+ process.env.ADMIN_MFA_ENROLLMENT_USER_IDS=admin;
+ assert.deepEqual(await c.mfaStatus(aal1,res),{factors:[],enrollmentAllowed:true});
+ const enrolled=await c.mfaEnroll(aal1,res);
+ assert.equal(enrolled.id,factor);assert.equal(enrolled.secret,'test-secret');
+ assert.ok(enrolled.qrCode.startsWith('data:image/svg+xml;base64,'));
+ assert.ok(Buffer.from(enrolled.qrCode.split(',')[1],'base64').toString().includes('<svg'));
+ global.fetch=async()=>Response.json({id:admin,factors:[{id:factor,status:'verified',factor_type:'totp'}]});
+ assert.equal((await c.mfaStatus(aal1,res)).enrollmentAllowed,false);
+ await assert.rejects(c.mfaEnroll(aal1,res),e=>e.getStatus()===403);
+}));
+
+test('management includes hidden variants across pages and preserves access scope',()=>isolated(async()=>{
+ const c=new AdminController(); const calls=[];
+ c.catalogReader.list=async()=>({items:[{code:'SKU',productSlug:'test-game',price:12000}],products:[]});
+ const hidden={...product,active:false};
+ global.fetch=async(url)=>{url=String(url);calls.push(url);if(url.endsWith('/user'))return Response.json({id:admin});return Response.json(url.includes('offset=0')?Array.from({length:500},(_,i)=>({...hidden,id:String(i)})):[{...hidden,id:'last'}]);};
+ const result=await c.productManagement('game',req,res);
+ assert.equal(result.managed.length,501);assert.equal(result.managed[500].active,false);assert.equal(result.items[0].code,'SKU');assert.ok(calls.some(u=>u.includes('offset=500')));assert.equal(result.canWrite,true);
+ c.catalogReader.list=async()=>{throw new Error('provider unavailable');};
+ const fallback=await c.productManagement('game',req,res);
+ assert.equal(fallback.providerAvailable,false);assert.equal(fallback.managed.length,501);
+}));
+
+test('every saved variant remains in the public catalog beyond the database page limit',()=>isolated(async()=>{
+ process.env.ADMIN_CATALOG_ENABLED='true';
+ const {managedCatalog}=await import('../dist/admin/admin-store.js');
+ global.fetch=async url=>Response.json(String(url).includes('offset=0')?Array.from({length:500},(_,i)=>({...product,id:`item-${i}`,provider_code:`sku-${i}`})):[{...product,id:'last',provider_code:'last-sku'}]);
+ const items=await managedCatalog([],'game');
+ assert.equal(items.length,501);assert.ok(items.some(i=>i.code==='managed.last'));
+}));
+
+test('product overrides preserve supplier fulfillment metadata and cannot revive unavailable SKUs',()=>{
+ const supplier={code:'ML-1',category:'game',product:'Mobile Legends',productSlug:'mobile-legends',name:'86 Diamonds',displayName:'86 Diamonds',price:23000,providerCost:21000,group:'Mobile Legends Indonesia',type:'diamonds',brand:'Mobile Legends',section:'Diamonds',description:''};
+ const override={...product,provider:'vipayment',provider_code:'ML-1',name:'86 Diamond',product:'Mobile Legends',product_slug:'mobile-legends',price:25000};
+ const [item]=mergeProducts([supplier],[override],'game');
+ assert.equal(item.price,25000);assert.equal(item.providerCost,21000);assert.equal(item.group,supplier.group);assert.equal(item.section,supplier.section);
+ assert.deepEqual(mergeProducts([],[override],'game'),[]);
+});
+
+test('social packages keep supplier code separate and scale authoritative cost without publishing unselected services',()=>{
+ const source={code:'17',category:'social',name:'TikTok Likes',displayName:'TikTok Likes',product:'TikTok',productSlug:'tiktok',group:'TikTok Likes',type:'social',brand:'TikTok',section:'Likes',description:'',price:8000,providerCost:6497,minimum:100,maximum:50000};
+ const managed={...product,id:'social-package',category:'social',provider:'vipayment',provider_code:'17-500',supplier_code:'17',service_quantity:500,product:'TikTok',product_slug:'tiktok',name:'500 Likes',price:5000,fulfillment_mode:'vipayment'};
+ const [item]=mergeProducts([],[managed],'social',[source]);
+ assert.equal(item.code,'managed.social-package');assert.equal(item.providerServiceCode,'17');assert.equal(item.serviceQuantity,500);assert.equal(item.providerCost,3249);assert.equal(item.price,5000);
+ assert.deepEqual(mergeProducts([],[{...managed,service_quantity:50}],'social',[source]),[]);
+ const [manual]=mergeProducts([],[{...product,category:'tasks',provider:'manual',fulfillment_mode:'manual'}],'tasks');
+ assert.equal(manual.fulfillmentMode,'manual');assert.equal(manual.providerCost,undefined);
+});
+
+test('manual work updates require write permission and preserve payment state with a conditional update',()=>isolated(async()=>{
+ let written;global.fetch=async(url,options={})=>{url=String(url);if(url.endsWith('/user'))return Response.json({id:admin});if(url.includes('admin_audit_log'))return Response.json([]);if(options.method==='PATCH'){written={url,body:JSON.parse(options.body)};return Response.json([written.body]);}return Response.json([{fulfillment_status:'ready'}]);};
+ const c=new AdminController();await c.manualFulfillment(admin,{status:'processing',note:'Mulai pengerjaan'},req,res);
+ assert.equal(written.body.fulfillment_status,'processing');assert.equal(written.body.payment_status,undefined);assert.ok(written.url.includes('payment_status=eq.paid'));assert.ok(written.url.includes('fulfillment_mode=eq.manual'));
+ await assert.rejects(c.manualFulfillment(admin,{status:'paid',note:'invalid'},req,res),e=>e.getStatus()===400);
 }));

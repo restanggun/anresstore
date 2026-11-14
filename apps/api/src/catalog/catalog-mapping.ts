@@ -1,8 +1,11 @@
-export type CatalogSource = "game" | "prepaid";
+export type CatalogSource = "game" | "prepaid" | "social";
 export type CatalogItem = {
+  providerCost?: number;
   code: string; name: string; group: string; type: string; price: number;
-  product: string; productSlug: string; brand: string; description: string; category: "game" | "prepaid" | "apps";
-  displayName: string; section: string;
+  product: string; productSlug: string; brand: string; description: string; category: "game" | "prepaid" | "apps" | "social" | "tasks";
+  fulfillmentMode?: "vipayment" | "manual"; providerServiceCode?: string; serviceQuantity?: number; minimum?: number; maximum?: number;
+  requiresManualReview?: boolean;
+  displayName: string; section: string; developer?: string;
 };
 
 function text(value: unknown, max = 300): string {
@@ -153,6 +156,7 @@ export function catalogSection(category: CatalogItem["category"], name: string, 
 
 // Expose only services with a known storefront flow; never guess from the service name.
 export function mapCatalog(source: CatalogSource, rows: unknown[]): CatalogItem[] {
+  if (source === "social") return mapSocialCatalog(rows);
   const items = new Map<string, CatalogItem>();
   const duplicates = new Set<string>();
   for (const row of rows) {
@@ -172,10 +176,12 @@ export function mapCatalog(source: CatalogSource, rows: unknown[]): CatalogItem[
       const app = Object.hasOwn(appGroups, normalized(group)) ? appGroups[normalized(group)] : undefined;
       if (app) { product = app; productSlug = slugify(app); category = "apps"; }
       else {
-        if (/\b(joki|gift|login|vilog|password|akun|account)\b/i.test(`${group} ${name}`)) continue;
+        const robloxVoucher = normalized(group) === "voucher roblox";
+        if (/\b(joki|login|vilog|password|akun|account)\b/i.test(`${group} ${name}`) || (!robloxVoucher && /\bgift\b/i.test(`${group} ${name}`))) continue;
         const game = games.find(([, , pattern]) => pattern.test(normalized(group)));
         const other = (Object.hasOwn(extraGameAliases, normalized(group)) ? extraGameAliases[normalized(group)] : undefined) || otherGames.find(name => normalized(name) === normalized(group));
-        if (game) [product, productSlug] = game;
+        if (robloxVoucher) { product = "Roblox"; productSlug = "roblox"; }
+        else if (game) [product, productSlug] = game;
         else if (other) { product = other; productSlug = slugify(other); }
         else continue;
       }
@@ -188,8 +194,24 @@ export function mapCatalog(source: CatalogSource, rows: unknown[]): CatalogItem[
     if (items.has(code)) { duplicates.add(code); continue; }
     const brand = text(item.brand) || group;
     const displayName = name.replace(/\bDiamonds\b/gi, "Diamond").replace(/\s*\(\s*\d+\s*\+\s*\d+\s*(?:Bonus)?\s*\)\s*/gi, " ").trim();
-    items.set(code, { code, name, displayName, section: catalogSection(category, name, brand), group, type, price, product, productSlug, category, brand, description: text(item.description || item.note, 2000) });
+    items.set(code, { providerCost: cost, code, name, displayName, section: normalized(group) === "voucher roblox" ? "Voucher" : catalogSection(category, name, brand), group, type, price, product, productSlug, category, brand, developer: category === "game" ? text(item.developer || item.publisher) : "", description: text(item.description || item.note, 2000) });
   }
   for (const code of duplicates) items.delete(code);
   return [...items.values()].sort((a, b) => a.product.localeCompare(b.product, "id") || a.brand.localeCompare(b.brand, "id") || a.price - b.price || a.code.localeCompare(b.code));
+}
+
+function mapSocialCatalog(rows: unknown[]): CatalogItem[] {
+  const items = new Map<string, CatalogItem>();
+  const duplicate = new Set<string>();
+  for (const value of rows) {
+    if (!value || typeof value !== "object") continue;
+    const row = value as Record<string, any>;
+    const code = text(String(row.id ?? ""), 100), name = text(row.name), group = text(row.category), cost = Number(row.price?.basic), minimum = Number(row.min), maximum = Number(row.max);
+    if (row.status !== "available" || !/^[A-Za-z0-9._-]+$/.test(code) || !name || !group || !Number.isSafeInteger(cost) || cost < 1 || !Number.isSafeInteger(minimum) || minimum < 1 || !Number.isSafeInteger(maximum) || maximum < minimum) continue;
+    const platform = ["Instagram","TikTok","YouTube","Facebook","Telegram","Twitter","Spotify","WhatsApp","Threads"].find(p => group.toLowerCase().includes(p.toLowerCase())) || group;
+    if (items.has(code)) duplicate.add(code);
+    items.set(code, { code, name, displayName:name, category:"social", group, type:"social", brand:platform, product:platform, productSlug:slugify(platform), section:group, price:sellingPrice(cost), providerCost:cost, providerServiceCode:code, serviceQuantity:1000, minimum, maximum, fulfillmentMode:"vipayment", description:text(row.note,2000) });
+  }
+  for (const code of duplicate) items.delete(code);
+  return [...items.values()].sort((a,b)=>a.product.localeCompare(b.product)||a.price-b.price);
 }

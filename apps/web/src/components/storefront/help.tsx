@@ -6,12 +6,13 @@ import { TextGenerateEffect } from "@/components/ui/text-generate-effect";
 import { FaqList } from "./faq-list";
 import { TextLink } from "./text-link";
 import { HelpChat } from "./help-chat";
+import { SupportInbox } from "./support-inbox";
 const categories: { name: string; items: [string, string][] }[] = [
  { name: "Umum", items: [
   ["Apa itu Anres Store?", "Anres Store adalah katalog layanan digital untuk game, aplikasi, dan kebutuhan sehari-hari. Pilih produk untuk melihat nominal, harga, dan ketentuannya."],
   ["Apa saja layanan yang ada di Anres Store?", "Katalog mencakup top up game, PPOB, booster media sosial, aplikasi premium, dan format tugas."],
   ["Apakah saya harus punya akun untuk melihat katalog?", "Tidak. Kamu bisa melihat dan mencari layanan di katalog tanpa masuk ke akun."],
-  ["Apakah transaksi sudah tersedia?", "Katalog dan alur pesanan tersedia. Informasi metode pembayaran ditampilkan saat checkout. Mode sandbox digunakan untuk pengujian tanpa dana sungguhan."],
+  ["Apakah transaksi sudah tersedia?", "Informasi metode pembayaran ditampilkan saat checkout."],
  ]},
  { name: "Katalog & layanan", items: [
   ["Bagaimana cara mencari layanan?", "Buka Katalog, lalu gunakan pencarian atau pilih kategori untuk menemukan layanan yang kamu cari."],
@@ -40,8 +41,7 @@ const categories: { name: string; items: [string, string][] }[] = [
  ]},
  { name: "Harga & pembayaran", items: [
   ["Apakah harga di katalog sudah final?", "Harga pada halaman produk mengikuti katalog terkini. Harga flash sale berlaku sampai batas waktu promo; biaya pembayaran, jika ada, ditampilkan saat checkout."],
-  ["Metode pembayaran apa yang tersedia?", "Lihat metode yang tersedia di halaman checkout. Perhatikan penanda sandbox untuk pembayaran dalam mode pengujian."],
-  ["Apakah pembayaran sandbox memakai uang sungguhan?", "Tidak. Pembayaran sandbox digunakan untuk pengujian dan tidak memproses dana sungguhan."],
+  ["Metode pembayaran apa yang tersedia?", "Lihat metode yang tersedia di halaman checkout."],
   ["Di mana saya melihat informasi pembayaran?", "Baca petunjuk dan status pada halaman checkout atau detail pembayaran sebelum melanjutkan."],
  ]},
  { name: "Bantuan", items: [
@@ -60,5 +60,5 @@ export function HelpContent() {
  const matches=categories.map(group=>({...group,items:group.items.filter(([q,a])=>`${q} ${a}`.toLowerCase().includes(term))})).filter(group=>group.items.length);
  const visible=term ? matches : matches.filter(group=>category === "Semua" || group.name === category);
  const count=visible.reduce((total,group)=>total+group.items.length,0);
- return <main id="main" className="container help-page"><section className="help-intro"><div className="help-title"><div className="help-mark" aria-hidden="true">?</div><h1><TextGenerateEffect as="span" words="Kita cari jawabannya." duration={0.34}/></h1></div><p>Informasi layanan, katalog, dan akun Anres Store.</p><div className="search"><Search size={20} aria-hidden="true"/><label className="sr-only" htmlFor="faq-search">Cari pertanyaan</label><Input id="faq-search" type="search" value={query} onChange={e=>{setQuery(e.target.value);setChatRequest(null);}} placeholder="Ketik pertanyaanmu"/>{term && !matches.length && <button className="help-ask-ai" type="button" onClick={()=>setChatRequest({id:++requestId.current,text:query})}>Tanya AI Anres</button>}</div></section>{matches.length ? <section className="help-content"><aside><h2>Jawaban cepat</h2><p>Pilih kategori atau cari pertanyaan yang ingin kamu ketahui.</p><nav className="help-categories" aria-label="Kategori jawaban cepat">{["Semua",...categories.map(group=>group.name)].map(name=><button key={name} type="button" aria-pressed={!term && category === name} onClick={()=>{setCategory(name);setQuery("");}}>{name}</button>)}</nav><TextLink href="/katalog">Lihat katalog</TextLink></aside><div><p className="result-count" role="status">{count} jawaban ditemukan{term ? " di semua kategori" : ""}</p>{visible.map(group=><section className="help-faq-group" key={group.name} aria-labelledby={`faq-${categories.indexOf(categories.find(item=>item.name===group.name)!)}`}><h2 id={`faq-${categories.indexOf(categories.find(item=>item.name===group.name)!)}`}>{group.name}</h2><FaqList items={group.items}/></section>)}</div></section> : <HelpChat query={query} request={chatRequest}/>}</main>;
+ return <main id="main" className="container help-page"><section className="help-intro"><div className="help-title"><div className="help-mark" aria-hidden="true">?</div><h1><TextGenerateEffect as="span" words="Kita cari jawabannya." duration={0.34}/></h1></div><p>Informasi layanan, katalog, dan akun Anres Store.</p><div className="search"><Search size={20} aria-hidden="true"/><label className="sr-only" htmlFor="faq-search">Cari pertanyaan</label><Input id="faq-search" type="search" value={query} onChange={e=>{setQuery(e.target.value);setChatRequest(null);}} placeholder="Ketik pertanyaanmu"/>{term && !matches.length && <button className="help-ask-ai" type="button" onClick={()=>setChatRequest({id:++requestId.current,text:query})}>Tanya AI Anres</button>}</div></section>{matches.length ? <section className="help-content"><aside><h2>Jawaban cepat</h2><p>Pilih kategori atau cari pertanyaan yang ingin kamu ketahui.</p><nav className="help-categories" aria-label="Kategori jawaban cepat">{["Semua",...categories.map(group=>group.name)].map(name=><button key={name} type="button" aria-pressed={!term && category === name} onClick={()=>{setCategory(name);setQuery("");}}>{name}</button>)}</nav><TextLink href="/katalog">Lihat katalog</TextLink></aside><div><p className="result-count" role="status">{count} jawaban ditemukan{term ? " di semua kategori" : ""}</p>{visible.map(group=><section className="help-faq-group" key={group.name} aria-labelledby={`faq-${categories.indexOf(categories.find(item=>item.name===group.name)!)}`}><h2 id={`faq-${categories.indexOf(categories.find(item=>item.name===group.name)!)}`}>{group.name}</h2><FaqList items={group.items}/></section>)}</div></section> : <p role="status">Belum ada jawaban cepat yang cocok. Tanyakan melalui asisten di bawah.</p>}<HelpChat query={query} request={chatRequest}/><SupportInbox/></main>;
 }

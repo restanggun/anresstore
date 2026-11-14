@@ -1,0 +1,11 @@
+anresstore.site, auth.anresstore.site, app.anresstore.site {
+    encode zstd gzip
+    reverse_proxy web:3000
+}
+admin.anresstore.site {
+    encode zstd gzip
+    reverse_proxy admin:3001
+}
+api.anresstore.site {
+    reverse_proxy api:4000
+}

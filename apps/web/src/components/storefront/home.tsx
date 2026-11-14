@@ -1,6 +1,6 @@
 "use client";
 
-import Link from "next/link";
+import Link from "@/components/storefront/domain-link";
 import { useEffect, useState } from "react";
 import { Button } from "@anres/ui";
 import { ArrowRight, ArrowUpRight, BookOpenCheck, Search, ShieldCheck } from "lucide-react";

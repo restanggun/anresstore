@@ -17,3 +17,9 @@ backups/
 .DS_Store
 Thumbs.db
 output/cloudflared.exe
+
+.next-subdomains/
+.next-*/
+.playwright-cli/
+output/
+release-artifacts/

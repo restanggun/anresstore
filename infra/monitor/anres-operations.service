@@ -1,0 +1,12 @@
+[Unit]
+Description=Anres read-only transaction monitor
+After=network-online.target docker.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+WorkingDirectory=/opt/anres-store
+ExecStart=/usr/bin/docker compose -f infra/compose.production.yaml exec -T api node scripts/monitor-operations.mjs
+NoNewPrivileges=true
+StandardOutput=journal
+StandardError=journal

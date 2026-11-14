@@ -12,6 +12,8 @@
     "packages/*"
   ],
   "scripts": {
+    "test:db": "node scripts/test-migrations.mjs",
+    "test:web": "node --test apps/web/src/lib/*.test.mjs",
     "dev": "concurrently -n web,admin,api -c cyan,magenta,green \"npm run dev:web\" \"npm run dev:admin\" \"npm run dev:api\"",
     "dev:web": "npm run dev --workspace=@anres/web",
     "dev:admin": "npm run dev --workspace=@anres/admin",
@@ -23,9 +25,12 @@
     "db:stop": "supabase stop",
     "db:reset": "supabase db reset",
     "db:test": "supabase test db",
-    "db:types": "node scripts/generate-db-types.mjs"
+    "db:types": "node scripts/generate-db-types.mjs",
+    "dev:subdomains": "node scripts/dev-subdomains.mjs",
+    "test:domains": "node --test apps/web/src/lib/domain-routing.test.mjs"
   },
   "devDependencies": {
+    "@electric-sql/pglite": "^0.5.16",
     "@types/node": "^22.0.0",
     "concurrently": "^9.0.0",
     "shadcn": "^4.23.0",

@@ -1,14 +1,13 @@
 "use client";
 import { publicOrderDetails } from "@/lib/catalog";
-import { useEffect, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
 import { ArrowRight, ChevronDown, Minus, Pencil, Plus, ShoppingCart, Trash2 } from "lucide-react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { Button } from "@anres/ui";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { initCart, readCart, refreshGuestCart, writeCart, type CartItem } from "@/lib/cart";
-import { createOrder } from "@/lib/orders";
+import { PaymentCheckout } from "./payment-checkout";
 import "./catalog-flow.css";
 import "./catalog-system.css";
 import "./cart.css";
@@ -16,11 +15,9 @@ import "./cart.css";
 const money = (n: number) => `Rp${n.toLocaleString("id-ID")}`;
 
 export function CartPopup() {
- const router=useRouter(); const pendingOrder=useRef<{id:string;payload:string}|null>(null);
  const [open, setOpen] = useState(false);
  const [items, setItems] = useState<CartItem[]>([]);
  const [stage, setStage] = useState(0);
- const [payment, setPayment] = useState("QRIS");
  const [editing, setEditing] = useState<CartItem | null>(null);
  const [expanded, setExpanded] = useState<Set<string>>(() => new Set());
  const [ready, setReady] = useState(false);
@@ -37,7 +34,7 @@ export function CartPopup() {
   return () => { window.removeEventListener("anres-cart-change", refresh); window.removeEventListener("storage", refreshGuestCart); window.removeEventListener("anres-cart-open", show); };
  }, []);
  const update = async (next: CartItem[]) => { if (busy || !ready) return false; setBusy(true); setError(""); try { await writeCart(next); return true; } catch (err) { setError(err instanceof Error ? err.message : "Keranjang gagal disimpan. Coba lagi."); return false; } finally { setBusy(false); } };
- const checkout = async () => { if(busy || !items.length) return; const payload=JSON.stringify({payment,items}); if(!pendingOrder.current || pendingOrder.current.payload!==payload) pendingOrder.current={id:crypto.randomUUID(),payload}; const id=pendingOrder.current.id; setBusy(true); setError(""); try { await createOrder(id,payment,items); pendingOrder.current=null; setOpen(false); router.push(`/invoice/${id}`); } catch(err) { setError(err instanceof Error ? err.message : "Pesanan belum dapat disimpan."); } finally { setBusy(false); } };
+ const providerItems = items.filter(item => ["Top up game","PPOB","Aplikasi premium","Booster media sosial","Joki tugas"].includes(item.category));
  const count = items.reduce((sum, item) => sum + item.quantity, 0);
  const total = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
  return <>
@@ -57,10 +54,9 @@ export function CartPopup() {
       </form> : <div className="cart-item-details"><small>Pilihan: {publicOrderDetails(item.details,item.category)}</small><small>Tujuan: {item.target}</small><small>Kontak: {item.contact}</small></div>)}
       {stage === 0 && <div className="cart-controls"><div className="cart-quantity"><button aria-label={`Kurangi ${item.product}`} disabled={item.quantity <= 1} onClick={() => update(items.map(x => x.id === item.id ? {...x, quantity:x.quantity - 1} : x))}><Minus size={15}/></button><span aria-label={`Jumlah ${item.quantity}`}>{item.quantity}</span><button aria-label={`Tambah ${item.product}`} onClick={() => update(items.map(x => x.id === item.id ? {...x, quantity:x.quantity + 1} : x))}><Plus size={15}/></button></div><button onClick={() => { setExpanded(current => new Set(current).add(item.id)); setEditing(item); }}><Pencil size={15}/>Edit</button><button onClick={() => { if (editing?.id === item.id) setEditing(null); update(items.filter(x => x.id !== item.id)); }}><Trash2 size={15}/>Hapus</button></div>}
      </motion.div>)}</AnimatePresence></div>
+     {items.length > providerItems.length && <p role="alert">Ada produk lama yang perlu dipilih ulang melalui katalog agar harga dan layanan dapat diverifikasi.</p>}
      <div className="cart-total"><span>Total</span><strong>{money(total)}</strong></div>
-     {stage === 1 && <label className="cart-payment">Metode pembayaran<select value={payment} onChange={e => setPayment(e.target.value)}><option>QRIS</option><option>Transfer bank</option><option>E-wallet</option></select></label>}
-     {stage === 1 && <p>Menyimpan pesanan tidak otomatis menandakan pembayaran berhasil.</p>}
-     {stage === 0 ? <Button className="order-primary" disabled={!!editing || busy} onClick={() => setStage(1)}>Lanjut checkout<ArrowRight size={17}/></Button> : <Button className="order-primary" disabled={busy} onClick={checkout}>{busy ? "Menyimpan..." : "Simpan pesanan"}<ArrowRight size={17}/></Button>}
+     {stage === 0 ? <Button className="order-primary" disabled={!!editing || busy || !providerItems.length} onClick={() => setStage(1)}>Lanjut checkout<ArrowRight size={17}/></Button> : <section><h3>Bayar per produk</h3><p>Setiap produk menggunakan satu invoice dan satu tujuan. Harga serta ketersediaan diverifikasi kembali oleh server. Selesaikan satu pembayaran sebelum melanjutkan produk berikutnya.</p>{providerItems.map(item => { const code=item.code || item.details.split(" · ").at(-1); const source=item.source || (item.category === "Top up game" ? "game" : item.category === "PPOB" ? "prepaid" : item.category === "Booster media sosial" ? "social" : item.category === "Joki tugas" ? "tasks" : "apps"); return <section key={item.id}><h4>{item.product}</h4>{code && /^[A-Za-z0-9._-]+$/.test(code) && (item.product !== "Mobile Legends" || item.targetZone) ? <PaymentCheckout source={source} code={code} serviceQuantity={item.serviceQuantity} target={item.target} targetZone={item.targetZone} amount={item.price} contact={item.contact} onCreated={async()=>{await writeCart(readCart().flatMap(row=>row.id!==item.id?[row]:row.quantity>1?[{...row,quantity:row.quantity-1}]:[]));setOpen(false);}}/> : <p>Data produk lama belum lengkap. Pilih ulang produk dan ID server melalui <a href="/katalog" onClick={()=>setOpen(false)}>katalog</a>.</p>}</section>;})}{items.length>providerItems.length && <p>Produk lama belum memiliki kode layanan. Pilih ulang dari katalog sebelum membayar.</p>}</section>}
      {stage === 1 && <Button variant="outline" className="order-cart-add" onClick={() => setStage(0)}>Kembali ke keranjang</Button>}
     </>}
    </motion.div>

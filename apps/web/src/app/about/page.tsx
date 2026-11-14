@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import Link from "next/link";
+import Link from "@/components/storefront/domain-link";
 import { ArrowRight, Gamepad2, FileText, Smartphone, AppWindow, Users } from "lucide-react";
 import { Button } from "@anres/ui";
 import { TextGenerateEffect } from "@/components/ui/text-generate-effect";

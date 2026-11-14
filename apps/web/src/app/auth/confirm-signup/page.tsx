@@ -1,5 +1,6 @@
 ﻿"use client";
-import Link from "next/link";
+import { domains } from "@/lib/domains";
+import Link from "@/components/storefront/domain-link";
 import { useEffect, useState, type FormEvent } from "react";
 import { ArrowLeft, ArrowRight, LockKeyhole } from "lucide-react";
 import { Button } from "@anres/ui";
@@ -15,7 +16,7 @@ export default function ConfirmSignup() {
   useEffect(() => { setEmail(sessionStorage.getItem("anres_confirm_email") || ""); }, []);
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault(); setMessage(""); setMessageSuccess(false); setBusy(true);
-    try { await authRequest("confirm-signup", { email: email.trim(), token: token.trim() }); sessionStorage.removeItem("anres_confirm_email"); window.location.assign("/"); }
+    try { await authRequest("confirm-signup", { email: email.trim(), token: token.trim() }); sessionStorage.removeItem("anres_confirm_email"); window.location.assign(domains.app); }
     catch (error) { setMessage(error instanceof Error ? error.message : "Konfirmasi gagal. Coba lagi."); }
     finally { setBusy(false); }
   }

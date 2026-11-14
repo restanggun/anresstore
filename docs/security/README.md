@@ -6,5 +6,6 @@
 - Role admin tidak boleh bersumber dari metadata yang dapat diubah pengguna.
 - Verifikasi signature webhook, referensi, nominal dan idempotensi di server.
 - CORS memakai origin eksplisit; CORS bukan mekanisme autentikasi.
-- Dashboard saat ini hanya halaman setup publik tanpa data dan tindakan sensitif.
+- Dashboard memuat data dan tindakan sensitif; akses API harus memverifikasi sesi,
+  UUID/role admin, scope layanan, MFA dan origin untuk perubahan data.
 - Produksi memerlukan TLS, rate limiting, kebijakan retensi, monitoring dan review.

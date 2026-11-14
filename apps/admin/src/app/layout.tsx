@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import "./admin-design.css";
+import "./commerce-dashboard.css";
 import { DashboardProvider } from "../components/dashboard-provider";
 export const metadata: Metadata = { title: "Admin | Anres Store", description: "Fondasi operasional Anres Store.", robots: { index: false, follow: false } };
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {

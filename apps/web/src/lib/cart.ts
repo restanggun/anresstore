@@ -1,5 +1,5 @@
 import { apiUrl } from "./auth-api";
-export type CartItem = { id: string; product: string; category: string; details: string; target: string; contact: string; price: number; quantity: number };
+export type CartItem = { source?: "game" | "prepaid" | "apps" | "social" | "tasks"; code?: string; targetZone?: string; serviceQuantity?: number; id: string; product: string; category: string; details: string; target: string; contact: string; price: number; quantity: number };
 type AccountCart = { items: CartItem[]; version: number; userId: string; conflict: boolean };
 const key = "anres-cart";
 let items: CartItem[] = [];

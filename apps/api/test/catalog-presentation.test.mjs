@@ -1,10 +1,11 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { mapCatalog, catalogSection } from '../dist/catalog/catalog-mapping.js';
-import { presentCatalog, catalogCampaigns } from '../dist/catalog/catalog-promotions.js';
+import { presentCatalog } from '../dist/catalog/catalog-promotions.js';
 import { tidyVariants, currentPrice } from '../../web/src/lib/catalog.ts';
 
 const game=(overrides={})=>({code:'ML86',game:'Mobile Legends A',name:'86 Diamonds ( 78 + 8 Bonus )',price:{basic:20000},status:'available',...overrides});
+const catalogCampaigns=[{category:'game',item_code:'ML86',sale_price:23000,starts_at:'2026-11-13T00:00:00+07:00',ends_at:'2026-11-20T23:59:59+07:00',active:true}];
 const catalog=()=>({source:'vipayment',updatedAt:'2026-11-13T00:00:00Z',items:mapCatalog('game',[game()])});
 
 test('user categories distinguish membership, currency, app duration and operator',()=>{
@@ -21,19 +22,19 @@ test('user categories distinguish membership, currency, app duration and operato
 
 test('sale cards and exact variants share a price and absolute expiry without mutating cache',()=>{
  const data=catalog(),during=Date.parse('2026-11-15T00:00:00+07:00');
- const feed=presentCatalog(data,during),variant=feed.items[0],card=feed.products[0];
+ const feed=presentCatalog(data,during,catalogCampaigns),variant=feed.items[0],card=feed.products[0];
  assert.equal(card.minPrice,variant.price);assert.deepEqual(card.promotion,variant.promotion);
  assert.ok(variant.price<data.items[0].price);assert.ok(variant.price>20000);
- assert.equal(variant.promotion.endsAt,catalogCampaigns[0].endsAt);
- assert.equal(presentCatalog(data,during+3600000).items[0].promotion.endsAt,variant.promotion.endsAt);
+ assert.equal(variant.promotion.endsAt,catalogCampaigns[0].ends_at);
+ assert.equal(presentCatalog(data,during+3600000,catalogCampaigns).items[0].promotion.endsAt,variant.promotion.endsAt);
  assert.equal(data.items[0].price,24000);
 });
 
 test('campaign boundary restores regular price in the API and in already loaded browser data',()=>{
- const data=catalog(),end=Date.parse(catalogCampaigns[0].endsAt);
- const loaded=presentCatalog(data,end-1000).items[0];
+ const data=catalog(),end=Date.parse(catalogCampaigns[0].ends_at);
+ const loaded=presentCatalog(data,end-1000,catalogCampaigns).items[0];
  for(const now of [Date.parse('2026-11-12T23:59:59+07:00'),end]){
-  const feed=presentCatalog(data,now);assert.equal(feed.items[0].price,data.items[0].price);assert.equal(feed.items[0].promotion,null);assert.equal(feed.products[0].minPrice,data.items[0].price);
+  const feed=presentCatalog(data,now,catalogCampaigns);assert.equal(feed.items[0].price,data.items[0].price);assert.equal(feed.items[0].promotion,null);assert.equal(feed.products[0].minPrice,data.items[0].price);
  }
  assert.equal(currentPrice(loaded,end),data.items[0].price);
  assert.equal(currentPrice(loaded,end-1),loaded.price);
@@ -41,7 +42,7 @@ test('campaign boundary restores regular price in the API and in already loaded 
 
 test('a tiny undiscounted denomination does not hide offers and promo cards identify the exact service',()=>{
  const data={source:'vipayment',updatedAt:'2026-11-13T00:00:00Z',items:mapCatalog('game',[game({code:'SMALL',price:500}),game({code:'SALE',price:20000})])};
- const feed=presentCatalog(data,Date.parse('2026-11-15T00:00:00+07:00'));
+ const feed=presentCatalog(data,Date.parse('2026-11-15T00:00:00+07:00'),[{...catalogCampaigns[0],item_code:'SALE'}]);
  const offer=feed.products[0],variant=feed.items.find(item=>item.code===offer.offerCode);
  assert.equal(offer.offerCode,'SALE');assert.equal(offer.minPrice,variant.price);assert.equal(offer.offerName,variant.displayName);
  assert.equal(offer.regularMinPrice,700);assert.deepEqual(offer.promotion,variant.promotion);

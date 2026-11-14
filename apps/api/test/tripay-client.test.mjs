@@ -10,6 +10,13 @@ test('sandbox cannot send credentials to production or arbitrary hosts',()=>{
   for(const base of ['https://tripay.co.id/api','https://evil.example/api-sandbox','https://tripay.co.id/api-sandbox?other=1']) assert.throws(()=>tripayConfig({...config,TRIPAY_BASE_URL:base}));
   assert.throws(()=>tripayConfig({...config,TRIPAY_PRIVATE_KEY:''}));
 });
+
+test('live requires explicit matching mode and exact production endpoint',()=>{
+ const live={...config,TRIPAY_MODE:'live',TRIPAY_BASE_URL:'https://tripay.co.id/api'};
+ assert.equal(tripayConfig(live).mode,'live');
+ assert.throws(()=>tripayConfig({...live,TRIPAY_BASE_URL:config.TRIPAY_BASE_URL}));
+ assert.throws(()=>tripayConfig({...live,TRIPAY_MODE:'production'}));
+});
 test('create signs the merchant, reference and authoritative amount and sends one line item',async()=>{
   let captured;
   const client=new TripayClient(async(url,options)=>{

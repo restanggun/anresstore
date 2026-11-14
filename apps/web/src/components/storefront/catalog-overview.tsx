@@ -1,5 +1,5 @@
 "use client";
-import Link from "next/link";
+import Link from "@/components/storefront/domain-link";
 import { ArrowUpRight } from "lucide-react";
 import { motion, useReducedMotion } from "motion/react";
 import { categoryInfo, services } from "@/lib/storefront";

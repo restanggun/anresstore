@@ -1,4 +1,4 @@
-﻿begin;
+begin;
 create or replace function public.lookup_auth_methods(p_email text)
 returns jsonb language sql security definer set search_path = '' stable as $$
   select coalesce((select jsonb_build_object('exists', true, 'confirmed', u.email_confirmed_at is not null,

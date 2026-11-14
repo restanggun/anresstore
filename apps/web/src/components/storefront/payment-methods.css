@@ -1,0 +1,20 @@
+.payment-methods { min-width:0; margin:24px 0; padding:0; border:0; }
+.payment-methods > legend { padding:0; font-size:16px; font-weight:800; color:var(--foreground); }
+.payment-method-group { margin-top:20px; }
+.payment-method-group > h3 { margin:0 0 10px; font-size:12px; font-weight:700; color:var(--muted); }
+.payment-method-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; }
+.payment-method-grid > .payment-method { position:relative; display:flex; flex-direction:column; align-items:flex-start; gap:10px; min-width:0; margin:0; padding:16px; border:1px solid var(--border); border-radius:16px; background:var(--surface); cursor:pointer; transition:background .15s,border-color .15s; }
+.payment-method:hover { border-color:var(--field-focus); }
+.payment-method[data-selected="true"] { background:var(--pink-soft); border-color:var(--pink-ink); }
+.payment-method:has(input:focus-visible) { outline:2px solid var(--focus); outline-offset:3px; }
+.payment-methods:disabled .payment-method { cursor:wait; opacity:.65; }
+.payment-method > input { position:absolute; width:1px; height:1px; padding:0; margin:0; opacity:0; }
+.payment-method-logo { display:flex; align-items:center; justify-content:flex-start; width:100%; max-width:104px; height:38px; color:var(--muted); }
+.payment-method-logo > img { display:block; width:auto; max-width:100%; height:auto; max-height:32px; object-fit:contain; object-position:left center; }
+.payment-method-copy { display:flex; flex-direction:column; gap:4px; min-width:0; padding-right:8px; }
+.payment-method-copy > strong { font-size:12px; line-height:1.5; overflow-wrap:anywhere; color:var(--foreground); }
+.payment-method-copy > small { font-size:11px; line-height:1.5; font-weight:500; color:var(--muted); }
+.payment-method-check { position:absolute; right:12px; top:12px; display:grid; place-items:center; width:18px; height:18px; border:1px solid var(--field-border); border-radius:50%; background:var(--surface); }
+.payment-method[data-selected="true"] .payment-method-check { background:var(--pink-ink); color:white; border-color:var(--pink-ink); }
+@media(max-width:380px) { .payment-method-grid { grid-template-columns:1fr; } .payment-method-grid > .payment-method { flex-direction:row; align-items:center; padding-right:36px; } .payment-method-logo { width:76px; flex-shrink:0; } .payment-method-check { top:50%; transform:translateY(-50%); } }
+@media(prefers-reduced-motion:reduce) { .payment-method { transition:none; } }

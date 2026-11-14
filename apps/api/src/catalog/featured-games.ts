@@ -3,6 +3,6 @@
 export const featuredGameSlugs = [
   "mobile-legends", "free-fire", "pubg-mobile", "ea-sports-fc-mobile", "magic-chess-go-go",
   "whiteout-survival", "honkai-star-rail", "honor-of-kings-global", "delta-force-garena", "genshin-impact",
-  "valorant", "call-of-duty-mobile-indonesia", "arena-breakout", "blood-strike", "love-and-deepspace",
+  "valorant", "roblox", "call-of-duty-mobile-indonesia", "arena-breakout", "blood-strike", "love-and-deepspace",
   "zenless-zone-zero", "identity-v", "lords-mobile", "war-robots", "age-of-empires-mobile",
 ];

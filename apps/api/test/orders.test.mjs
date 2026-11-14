@@ -17,10 +17,7 @@ test("invoice menggunakan sesi, memvalidasi input dan membatasi pencarian ke pem
   await assert.rejects(()=>controller.order("invalid",req,{}),error=>error.getStatus()===400);
   assert.deepEqual(await controller.order(id,req,{}),{userId:"user-123",order:null});
   const read=calls.find(call=>call.url.includes("/rest/v1/orders?id=")); assert.match(read.url,/user_id=eq.user-123/); assert.equal(read.options.headers.Authorization,"Bearer access");
-  await assert.rejects(()=>controller.createOrder({id,userId:"other",paymentMethod:"QRIS",items:[item]},req,{}),error=>error.getStatus()===409);
-  await assert.rejects(()=>controller.createOrder({id,userId:"user-123",paymentMethod:"QRIS",items:[{...item,quantity:-1}]},req,{}),error=>error.getStatus()===400);
-  assert.deepEqual(await controller.createOrder({id,userId:"user-123",paymentMethod:"QRIS",items:[item]},req,{}),{id});
-  const write=calls.find(call=>call.options.method==="POST" && call.url.includes("/rest/v1/orders")); const data=JSON.parse(write.options.body);
-  assert.equal(data.user_id,"user-123"); assert.equal(data.items[0].status,"awaiting_payment");
+  await assert.rejects(()=>controller.createOrder({id,userId:"user-123",paymentMethod:"QRIS",items:[item]},req,{}),error=>error.getStatus()===410);
+  assert.equal(calls.filter(call=>call.options.method==="POST").length,0);
  } finally { globalThis.fetch=previous.fetch; if(previous.url===undefined) delete process.env.SUPABASE_URL; else process.env.SUPABASE_URL=previous.url; if(previous.key===undefined) delete process.env.SUPABASE_PUBLISHABLE_KEY; else process.env.SUPABASE_PUBLISHABLE_KEY=previous.key; }
 });

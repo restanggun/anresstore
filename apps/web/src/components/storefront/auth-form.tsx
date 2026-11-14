@@ -1,5 +1,6 @@
 "use client";
-import Link from "next/link";
+import { loginDestination } from "@/lib/domains";
+import Link from "@/components/storefront/domain-link";
 import { apiUrl, authRequest } from "@/lib/auth-api";
 import { useEffect, useState, type FormEvent } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
@@ -26,6 +27,12 @@ export function AuthForm({ mode }: { mode: Mode }) {
   const [busy, setBusy] = useState(false);
   const reduce = useReducedMotion();
   useEffect(() => { if (new URLSearchParams(window.location.search).has("auth_error")) setError("Autentikasi gagal atau tautan kedaluwarsa. Silakan coba lagi."); }, []);
+  useEffect(() => {
+    if (new URLSearchParams(window.location.search).has("logged_out")) {
+      sessionStorage.removeItem("anres_confirm_email");
+      sessionStorage.removeItem("anres_recovery_email");
+    }
+  }, []);
   const heading: Record<Stage, string> = {
     email: mode === "recover" ? "Atur ulang password" : "Selamat datang",
     options: "Pilih cara masuk",
@@ -55,14 +62,14 @@ export function AuthForm({ mode }: { mode: Mode }) {
     if (stage === "register" && (String(form.get("name") ?? "").trim().length < 2 || password.length < 8 || password !== String(form.get("confirmation") ?? ""))) { setError("Periksa nama, password minimal 8 karakter, dan konfirmasi password."); return; }
     setBusy(true); setError(""); setNotice("");
     try {
-      if (stage === "register") { const data = await authRequest<{authenticated:boolean}>("register",{email,password,name:String(form.get("name")).trim()}); if (data.authenticated) { window.location.assign("/"); } else { sessionStorage.setItem("anres_confirm_email",email); window.location.assign("/auth/confirm-signup"); } }
-      else if (stage === "password") { await authRequest("login",{email,password}); window.location.assign("/"); }
+      if (stage === "register") { const data = await authRequest<{authenticated:boolean}>("register",{email,password,name:String(form.get("name")).trim()}); if (data.authenticated) { window.location.assign(loginDestination()); } else { sessionStorage.setItem("anres_confirm_email",email); window.location.assign("/auth/confirm-signup"); } }
+      else if (stage === "password") { await authRequest("login",{email,password}); window.location.assign(loginDestination()); }
     } catch (err) { setError(err instanceof Error ? err.message : "Terjadi kesalahan. Coba lagi."); } finally { setBusy(false); }
   }
   async function sendCode() { setBusy(true); setError(""); try { await authRequest("send-login-code",{email}); changeStage("otp"); setNotice("Kode login dikirim. Periksa email kamu."); } catch(err) { setError(err instanceof Error ? err.message : "Kode gagal dikirim."); } finally { setBusy(false); } }
-  async function verifyCode(event:FormEvent<HTMLFormElement>) { event.preventDefault(); setBusy(true); setError(""); try { await authRequest("verify-login-code",{email,token:code}); window.location.assign("/"); } catch(err) { setError(err instanceof Error ? err.message : "Kode tidak valid."); } finally { setBusy(false); } }
+  async function verifyCode(event:FormEvent<HTMLFormElement>) { event.preventDefault(); setBusy(true); setError(""); try { await authRequest("verify-login-code",{email,token:code}); window.location.assign(loginDestination()); } catch(err) { setError(err instanceof Error ? err.message : "Kode tidak valid."); } finally { setBusy(false); } }
   async function recover() { setBusy(true); setError(""); try { await authRequest("recover",{email}); sessionStorage.setItem("anres_recovery_email",email); window.location.assign("/auth/reset-password"); } catch(err) { setError(err instanceof Error ? err.message : "Permintaan gagal."); } finally { setBusy(false); } }
-  function google() { window.location.assign(`${apiUrl}/auth/google`); }
+  function google() { window.location.assign(`${apiUrl}/auth/google${new URLSearchParams(window.location.search).get("app") === "admin" ? "?app=admin" : ""}`); }
   const field = (id: string, label: string, type: string, placeholder: string, auto: string) =>
     <div className="form-field"><label htmlFor={id}>{label}</label><div className="auth-input-wrap"><Input id={id} name={id} type={type === "password" && show ? "text" : type} placeholder={placeholder} autoComplete={auto} required />{id === "password" && <button type="button" className="password-toggle" onClick={() => setShow(!show)} aria-label={show ? "Sembunyikan password" : "Lihat password"} aria-pressed={show}>{show ? <EyeOff size={19}/> : <Eye size={19}/>}</button>}</div></div>;
   return <main id="main" className="container auth-page">

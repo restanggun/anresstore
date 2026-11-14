@@ -1,5 +1,5 @@
 ﻿"use client";
-import Link from "next/link";
+import Link from "@/components/storefront/domain-link";
 import { useEffect, useState, type FormEvent } from "react";
 import { ArrowLeft, ArrowRight, LockKeyhole } from "lucide-react";
 import { Button } from "@anres/ui";

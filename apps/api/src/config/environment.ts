@@ -19,5 +19,18 @@ export function readEnvironment(env: NodeJS.ProcessEnv = process.env) {
       !env.AUTH_WEB_ORIGIN?.startsWith("https://") || !env.AUTH_API_ORIGIN?.startsWith("https://"))) {
     throw new Error("Production memerlukan origin web/API HTTPS eksplisit.");
   }
+  if (env.NODE_ENV === "production") {
+    for (const name of ["AUTH_WEB_ORIGIN", "AUTH_AUTH_ORIGIN", "AUTH_APP_ORIGIN", "AUTH_API_ORIGIN", "AUTH_ADMIN_ORIGIN"] as const) {
+      const value = env[name];
+      try {
+        const parsed = new URL(value || "");
+        if (parsed.protocol !== "https:" || parsed.origin !== value) throw new Error();
+        if (name !== "AUTH_API_ORIGIN" && !origins.includes(value!)) throw new Error();
+      } catch { throw new Error(`${name} harus origin HTTPS eksplisit dan frontend wajib terdaftar di CORS_ORIGINS.`); }
+    }
+    if (!(env.ADMIN_ALLOWED_ORIGINS || "").split(",").map(value => value.trim()).includes(env.AUTH_ADMIN_ORIGIN!)) {
+      throw new Error("AUTH_ADMIN_ORIGIN harus terdaftar di ADMIN_ALLOWED_ORIGINS.");
+    }
+  }
   return { port, origins, trustedProxies };
 }

@@ -1,7 +1,7 @@
 import { HttpException } from "@nestjs/common";
 import { createHmac } from "node:crypto";
 
-export type PaymentChannel = { code: string; name: string; group: string; minimum_amount: number; maximum_amount: number; fee_customer: { flat: number; percent: number | string }; active: boolean };
+export type PaymentChannel = { code: string; name: string; group: string; icon_url?: string; minimum_amount: number; maximum_amount: number; fee_customer: { flat: number; percent: number | string }; active: boolean };
 export type TripayTransaction = {
   reference: string; merchant_ref: string; payment_method: string; payment_name: string;
   amount: number; fee_customer: number; status: string; checkout_url: string;
@@ -12,10 +12,12 @@ export type TripayTransaction = {
 export function tripayConfig(env: NodeJS.ProcessEnv = process.env) {
   const apiKey = env.TRIPAY_API_KEY?.trim(), privateKey = env.TRIPAY_PRIVATE_KEY?.trim(), merchant = env.TRIPAY_MERCHANT_CODE?.trim();
   const base = env.TRIPAY_BASE_URL?.trim().replace(/\/$/, "");
-  if (!apiKey || !privateKey || !merchant) throw new HttpException("Kredensial Tripay sandbox belum lengkap.", 503);
-  // Production needs a separate rollout; sandbox payments must never charge real funds.
-  if (base !== "https://tripay.co.id/api-sandbox") throw new HttpException("Integrasi ini hanya mengizinkan Tripay sandbox.", 503);
-  return { apiKey, privateKey, merchant, base };
+  const mode = env.TRIPAY_MODE?.trim() || "sandbox";
+  if (mode !== "sandbox" && mode !== "live") throw new HttpException("TRIPAY_MODE harus sandbox atau live.", 503);
+  if (!apiKey || !privateKey || !merchant) throw new HttpException("Kredensial Tripay belum lengkap.", 503);
+  const expected = mode === "live" ? "https://tripay.co.id/api" : "https://tripay.co.id/api-sandbox";
+  if (base !== expected) throw new HttpException("Endpoint Tripay tidak sesuai mode pembayaran.", 503);
+  return { apiKey, privateKey, merchant, base, mode };
 }
 
 export class TripayClient {
@@ -45,7 +47,7 @@ export class TripayClient {
       return result.data;
     } catch {
       // Never echo provider payloads, credentials, customer details or fetch errors.
-      throw new HttpException("Tripay sandbox tidak dapat dihubungi atau menolak permintaan. Periksa konfigurasi dan channel merchant.", 502);
+      throw new HttpException("Tripay tidak dapat dihubungi atau menolak permintaan. Periksa konfigurasi dan channel merchant.", 502);
     }
   }
 

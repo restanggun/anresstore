@@ -7,16 +7,21 @@ permissions:
 jobs:
   validate:
     runs-on: ubuntu-latest
+    env:
+      NEXT_PUBLIC_WEB_URL: https://anresstore.site
+      NEXT_PUBLIC_AUTH_URL: https://auth.anresstore.site
+      NEXT_PUBLIC_APP_URL: https://app.anresstore.site
+      NEXT_PUBLIC_ADMIN_URL: https://admin.anresstore.site
+      NEXT_PUBLIC_API_URL: https://api.anresstore.site/v1
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 24
-      # Bootstrap belum memiliki lockfile karena registry tidak dapat diakses.
-      # Gunakan npm ci otomatis setelah package-lock.json dihasilkan dan di-commit.
       - name: Install dependencies
-        run: |
-          if [ -f package-lock.json ]; then npm ci; else npm install; fi
+        run: npm ci
       - run: npm run typecheck
       - run: npm test
+      - run: npm run test:web
+      - run: npm run test:db
       - run: npm run build

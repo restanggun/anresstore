@@ -10,6 +10,8 @@
   },
   "dependencies": {
     "@anres/ui": "*",
+    "embla-carousel-autoplay": "^8.6.0",
+    "embla-carousel-react": "^8.6.0",
     "lucide-react": "^1.71.0",
     "motion": "^14.12.0",
     "next": "^16.0.0",

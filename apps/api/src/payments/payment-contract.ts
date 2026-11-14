@@ -7,20 +7,22 @@ import type { TripayTransaction } from "./tripay-client";
 export const paymentId = /^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/;
 export const paymentHash = (value: string) => createHash("sha256").update(value).digest("hex");
 export type PaymentRow = {
+  payment_mode?: "sandbox" | "live";
+  target_zone?: string | null; provider_cost?: number | null;
   id: string; access_hash: string; request_hash: string; created_at: string;
   source: string; product_name: string; provider_code: string; target: string;
   amount: number; method: string; reference: string | null; status: PaymentStatus; details: TripayTransaction | null;
   owner_user_id: string | null; guest_session_hash: string | null; checkout_hash: string | null;
   revision: number; provider_checked_at: string | null; provider_check_until: string | null; review_required: boolean;
 };
-export type PaymentInput = { id: string; source: string; code: string; target: string; method: string; name: string; email: string; phone: string; expectedAmount: number };
+export type PaymentInput = { expectedQuantity?: number; targetZone?: string; id: string; source: string; code: string; target: string; method: string; name: string; email: string; phone: string; expectedAmount: number };
 
 export function parsePayment(input: unknown): PaymentInput {
   const invalid = () => new HttpException("Data pembayaran tidak valid. Muat ulang checkout dan periksa isian.", 400);
   if (!input || typeof input !== "object" || Array.isArray(input)) throw invalid();
   const body = input as Record<string, unknown>;
   const fields = ["id", "source", "code", "target", "method", "name", "email", "phone"] as const;
-  const allowed: readonly string[] = [...fields, "expectedAmount"];
+  const allowed: readonly string[] = [...fields, "expectedAmount", "targetZone", "expectedQuantity"];
   if (Object.keys(body).some(key => !allowed.includes(key))) throw invalid();
   const values: Record<string, string> = {};
   for (const key of fields) {
@@ -30,10 +32,18 @@ export function parsePayment(input: unknown): PaymentInput {
     values[key] = value;
   }
   const result = { ...values, id: values.id!.toLowerCase(), email: values.email!.toLowerCase(), expectedAmount: body.expectedAmount } as PaymentInput;
-  if (!paymentId.test(result.id) || !["game", "prepaid", "apps"].includes(result.source) ||
+  if (!paymentId.test(result.id) || !["game", "prepaid", "apps", "social", "tasks"].includes(result.source) ||
       result.code.length > 100 || result.target.length > 200 || result.name.length > 100 ||
       !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(result.email) || !/^\+?\d{8,15}$/.test(result.phone) ||
       !/^[A-Z0-9_]{1,50}$/.test(result.method) || !Number.isSafeInteger(result.expectedAmount) || result.expectedAmount < 1 || result.expectedAmount > 100000000) throw invalid();
+  if (body.expectedQuantity !== undefined) {
+    if (result.source !== "social" || !Number.isSafeInteger(body.expectedQuantity) || Number(body.expectedQuantity) < 1 || Number(body.expectedQuantity) > 10000000) throw invalid();
+    result.expectedQuantity = Number(body.expectedQuantity);
+  }
+  if (body.targetZone !== undefined) {
+    if (typeof body.targetZone !== "string" || !/^[A-Za-z0-9_-]{0,100}$/.test(body.targetZone) || (result.source !== "game" && body.targetZone)) throw invalid();
+    if (body.targetZone) result.targetZone = body.targetZone;
+  }
   return result;
 }
 

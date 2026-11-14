@@ -34,3 +34,18 @@ button:disabled { cursor: not-allowed; }
 :focus-visible { outline: 3px solid var(--focus); outline-offset: 4px; }
 ::selection { background: var(--pink-soft); color: var(--foreground); }
 @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } *, *::before, *::after { animation: none !important; transition: none !important; } }
+
+/* Accessible shared blue/pink select. */
+.anres-select-trigger { display:inline-flex; align-items:center; justify-content:space-between; gap:12px; min-height:42px; min-width:130px; max-width:100%; padding:10px 13px; border:0; border-radius:12px; background:var(--primary-soft); color:var(--foreground); font-family:var(--font-sans); font-size:12px; font-weight:600; text-align:left; cursor:pointer; }
+.anres-select-trigger>span:first-child { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.anres-select-trigger>span:last-child { display:flex; flex-shrink:0; color:var(--focus); }
+.anres-select-trigger:focus-visible { outline:2px solid var(--focus); outline-offset:3px; }
+.anres-select-trigger[data-state="open"] { background:var(--pink-soft); }
+.anres-select-trigger:disabled { opacity:.55; cursor:default; }
+.anres-select-content { position:relative; z-index:100; min-width:var(--radix-select-trigger-width); max-width:calc(100vw - 24px); max-height:min(340px,var(--radix-select-content-available-height)); overflow:hidden; border-radius:14px; padding:5px; background:white; color:var(--foreground); font-family:var(--font-sans); box-shadow:0 12px 45px #24658a1f; border:1px solid var(--primary-soft); }
+.anres-select-viewport { padding:3px; max-height:300px; }
+.anres-select-item { display:flex; align-items:center; justify-content:space-between; gap:20px; min-height:39px; padding:10px 12px; border-radius:10px; outline:none; user-select:none; cursor:pointer; font-size:12px; line-height:1.5; }
+.anres-select-item[data-highlighted] { background:var(--primary-soft); }
+.anres-select-item[data-state="checked"] { background:var(--pink-soft); color:var(--pink-ink); }
+.anres-select-item[data-disabled] { opacity:.45; pointer-events:none; }
+.anres-select-scroll { display:flex; justify-content:center; padding:4px; background:white; color:var(--focus); }
