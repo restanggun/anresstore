@@ -1,6 +1,5 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
 import { Button } from "@anres/ui";
 import { Input } from "@/components/ui/input";
 import { useCheckoutEmail } from "./use-checkout-email";
@@ -20,7 +19,6 @@ async function jsonResponse<T>(response: Response): Promise<T> {
 }
 
 export function PaymentCheckout({ source, code, target, serviceQuantity, targetZone = "", amount, contact, customer, onCreated }: { source: "game" | "prepaid" | "apps" | "social" | "tasks"; code: string; serviceQuantity?: number; target: string; targetZone?: string; amount: number; contact: string; onCreated?: () => Promise<void>; customer?: { name?: string; email: string; phone: string } }) {
-  const router = useRouter();
   const { accountEmail, loading: emailLoading } = useCheckoutEmail();
   const [channels, setChannels] = useState<Channel[]>([]), [method, setMethod] = useState("");
   const [name, setName] = useState(customer?.name ?? (source === "game" ? "Pelanggan" : "")), [email, setEmail] = useState(customer?.email ?? (contact.includes("@") ? contact : "")), [phone, setPhone] = useState(customer?.phone ?? (contact.includes("@") ? "" : contact.replace(/[\s-]/g, "")));
@@ -28,7 +26,10 @@ export function PaymentCheckout({ source, code, target, serviceQuantity, targetZ
   const [mode, setMode] = useState<"live" | "sandbox">("live");
   const [sandboxRealFulfillment, setSandboxRealFulfillment] = useState(false);
   const [previousPayment, setPreviousPayment] = useState<PaymentRecord | null>(null);
+  const [providerPhoneRequired, setProviderPhoneRequired] = useState(false);
   const ovoPhoneRequired = method === "OVO";
+  const paymentPhoneRequired = ovoPhoneRequired || providerPhoneRequired;
+  useEffect(()=>setProviderPhoneRequired(false),[method]);
   const checkoutEmail = accountEmail ?? email;
   const pending = useRef<string | null>(null);
   const submitting = useRef(false);
@@ -49,20 +50,19 @@ export function PaymentCheckout({ source, code, target, serviceQuantity, targetZ
     setBusy(true); setError("");
     try {
       const payment = await submitPayment<PaymentRecord>({ source, code, target, targetZone, method, name: name.trim(), email: checkoutEmail.trim(), phone: phone.trim(), expectedAmount: amount, ...(source === "social" ? {expectedQuantity: serviceQuantity || 0} : {}) }, id => { pending.current = id; });
-      if (["paid", "failed", "expired", "refunded"].includes(payment.status)) {
+      const checkoutUrl = tripayCheckoutUrl(payment);
+      if (!checkoutUrl) {
+        // Stay on checkout when the gateway has not supplied a verified payable URL.
+        // Opening an invoice is a separate user action, not a substitute for paying.
         setPreviousPayment(payment);
         return;
       }
-      // A cart failure cannot hide the authoritative invoice or stop payment navigation.
       try { if (payment.mode !== "sandbox" || payment.sandboxRealFulfillment) await onCreated?.(); } catch { /* The reserved invoice remains authoritative. */ }
       const invoice = invoicePath(payment.id, payment.invoiceNumber);
-      const checkoutUrl = tripayCheckoutUrl(payment);
-      if (checkoutUrl) {
-        // Back from Tripay returns to the invoice, never a form that could be resubmitted.
-        window.history.replaceState(window.history.state, "", invoice);
-        window.location.assign(checkoutUrl);
-      } else router.replace(invoice);
-    } catch (error) { setError(error instanceof Error ? error.message : "Pembayaran gagal dibuat."); }
+      // Back from Tripay returns to the invoice, never a form that could be resubmitted.
+      window.history.replaceState(window.history.state, "", invoice);
+      window.location.assign(checkoutUrl);
+    } catch (error) { const message=error instanceof Error ? error.message : "Pembayaran gagal dibuat.";setError(message);if(/nomor HP/i.test(message))setProviderPhoneRequired(true); }
     finally { submitting.current = false; setBusy(false); }
   }
   return <form onSubmit={checkout}>
@@ -74,14 +74,14 @@ export function PaymentCheckout({ source, code, target, serviceQuantity, targetZ
     {!customer && <>
     {source !== "game" && <label>Nama pelanggan<Input autoComplete="name" value={name} onChange={event => setName(event.target.value)} maxLength={100} required disabled={busy}/></label>}
     <label>{accountEmail ? "Email akun" : "Email (Wajib)"}<Input type="email" autoComplete="email" value={checkoutEmail} readOnly={!!accountEmail} onChange={event => setEmail(event.target.value)} maxLength={254} required disabled={busy || emailLoading}/></label>
-    <label>{ovoPhoneRequired ? "Nomor HP OVO (Wajib)" : `Nomor WhatsApp${source === "game" ? " (Opsional)" : ""}`}<Input type="tel" autoComplete="tel" value={phone} onChange={event => setPhone(event.target.value)} pattern="\+?[0-9]{8,15}" placeholder="081234567890" required={source !== "game" || ovoPhoneRequired} disabled={busy}/></label>
+    <label>{ovoPhoneRequired ? "Nomor HP OVO (Wajib)" : providerPhoneRequired ? "Nomor HP pembayaran (Wajib)" : `Nomor WhatsApp${source === "game" ? " (Opsional)" : ""}`}<Input type="tel" autoComplete="tel" value={phone} onChange={event => setPhone(event.target.value)} pattern="\+?[0-9]{8,15}" placeholder="081234567890" required={source !== "game" || paymentPhoneRequired} disabled={busy}/></label>
     </>}
-    {customer && ovoPhoneRequired && <label>Nomor HP OVO (Wajib)<Input type="tel" autoComplete="tel" inputMode="tel" value={phone} onChange={event=>setPhone(event.target.value)} pattern="\+?[0-9]{8,15}" placeholder="Nomor yang terdaftar di OVO" required disabled={busy}/></label>}
+    {customer && paymentPhoneRequired && <label>{ovoPhoneRequired ? "Nomor HP OVO (Wajib)" : "Nomor HP pembayaran (Wajib)"}<Input type="tel" autoComplete="tel" inputMode="tel" value={phone} onChange={event=>setPhone(event.target.value)} pattern="\+?[0-9]{8,15}" placeholder={ovoPhoneRequired ? "Nomor yang terdaftar di OVO" : "081234567890"} required disabled={busy}/></label>}
     {ovoPhoneRequired && <p>Masukkan nomor HP yang terdaftar di akun OVO untuk melanjutkan pembayaran.</p>}
     <p>Nominal produk {money(amount)}. Biaya admin dan total akhir ditampilkan setelah kode bayar dibuat.</p>
     {error && <p role="alert">{error}{pending.current && <> <a className="shop-text-button" href={invoicePath(pending.current)}>Periksa status permintaan</a></>}</p>}
-    {previousPayment && <section className="checkout-existing-invoice" role="status"><h3>{orderStatus(previousPayment).title}</h3><p>Data checkout ini terhubung dengan invoice {previousPayment.invoiceNumber || previousPayment.id}. {previousPayment.status === "paid" ? "Pembayaran invoice ini sudah lunas, sehingga tidak dibuka lagi di Tripay." : "Invoice ini sudah berakhir."}</p><p>{orderStatus(previousPayment).description}</p><a className="shop-text-button" href={invoicePath(previousPayment.id, previousPayment.invoiceNumber)}>Lihat invoice dan status pesanan</a>{!previousPayment.needsReview && !["requested","in_review"].includes(previousPayment.refund?.refund_status || "") && (["failed","expired","refunded"].includes(previousPayment.status) || previousPayment.status === "paid" && ["completed","failed"].includes(previousPayment.fulfillment?.status || "")) && <Button type="button" variant="outline" onClick={()=>{forgetPaymentIntent(previousPayment.id);pending.current=null;setPreviousPayment(null);setError("");}}>Mulai pesanan baru</Button>}</section>}
-    <Button type="submit" className="order-primary" disabled={!!previousPayment || busy || loading || emailLoading || !checkoutEmail.trim() || !method || ovoPhoneRequired && !/^\+?[0-9]{8,15}$/.test(phone.trim())}>{busy ? "Menyiapkan pembayaran..." : "Lanjut ke Tripay"}</Button>
+    {previousPayment && <section className="checkout-existing-invoice" role="status"><h3>{orderStatus(previousPayment).title}</h3><p>Data checkout ini terhubung dengan invoice {previousPayment.invoiceNumber || previousPayment.id}. {previousPayment.status === "paid" ? "Pembayaran invoice ini sudah lunas, sehingga tidak dibuka lagi di Tripay." : ["failed","expired","refunded"].includes(previousPayment.status) ? "Invoice ini sudah berakhir." : "Tautan pembayaran dari Tripay belum tersedia atau masih perlu diverifikasi. Kamu tetap di halaman checkout; jangan membuat pembayaran pengganti."}</p><p>{orderStatus(previousPayment).description}</p><a className="shop-text-button" href={invoicePath(previousPayment.id, previousPayment.invoiceNumber)}>Lihat invoice dan status pesanan</a>{!previousPayment.needsReview && !["requested","in_review"].includes(previousPayment.refund?.refund_status || "") && (["failed","expired","refunded"].includes(previousPayment.status) || previousPayment.status === "paid" && ["completed","failed"].includes(previousPayment.fulfillment?.status || "")) && <Button type="button" variant="outline" onClick={()=>{forgetPaymentIntent(previousPayment.id);pending.current=null;setPreviousPayment(null);setError("");}}>Mulai pesanan baru</Button>}</section>}
+    <Button type="submit" className="order-primary" disabled={!!previousPayment || busy || loading || emailLoading || !checkoutEmail.trim() || !method || paymentPhoneRequired && !/^\+?[0-9]{8,15}$/.test(phone.trim())}>{busy ? "Menyiapkan pembayaran..." : "Lanjut ke pembayaran"}</Button>
     <p className="checkout-payment-note">Kamu akan diarahkan ke Tripay untuk membayar, lalu kembali ke invoice untuk melihat status pesanan.</p>
   </form>;
 }

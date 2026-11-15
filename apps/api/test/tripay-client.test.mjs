@@ -64,3 +64,11 @@ test('explicit gateway rejection is classified without leaking provider content,
  const serverError=new TripayClient(async()=>Response.json({success:false},{status:500}));
  await assert.rejects(serverError.channels(),error=>!(error instanceof TripayRejectedError));
 });
+
+
+test('QRIS always sends the optional phone field, including an empty value, to match gateway parameter handling',async()=>{
+ let sent;
+ const client=new TripayClient(async(_url,options)=>{sent=JSON.parse(options.body);return Response.json({success:true,data:{reference:'QRIS-PHONE-TEST'}});});
+ await client.create({id:'invoice-optional-phone',method:'QRISC',amount:2100,name:'Pelanggan',email:'test@example.com',phone:'',product:'Game',code:'SKU',callback:'https://api.example/v1/payments/callback',returnUrl:'https://shop.example/invoice/test'});
+ assert.ok(Object.hasOwn(sent,'customer_phone'));assert.equal(sent.customer_phone,'');assert.equal(sent.method,'QRISC');
+});

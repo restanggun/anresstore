@@ -87,7 +87,7 @@ export class TripayClient {
     const email = tripayCustomerEmail(input.email);
     return this.request<TripayTransaction>("transaction/create", {
       method: input.method, merchant_ref: input.id, amount: input.amount,
-      customer_name: input.name, customer_email: email, ...(input.phone ? { customer_phone: input.phone } : {}),
+      customer_name: input.name, customer_email: email, customer_phone: input.phone.trim(),
       order_items: [{ sku: input.code, name: input.product, price: input.amount, quantity: 1 }],
       callback_url: input.callback, return_url: input.returnUrl,
       signature: createHmac("sha256", privateKey).update(merchant + input.id + input.amount).digest("hex"),
