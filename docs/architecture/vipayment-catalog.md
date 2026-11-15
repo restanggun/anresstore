@@ -41,4 +41,4 @@ node scripts/check-vipayment-catalog.mjs
 
 Perintah kedua memerlukan hasil build API (dihasilkan perintah tes), koneksi internet, dan whitelist IP keluar server di VIPayment. Diagnostik hanya membaca layanan dan mencetak jumlah produk; tidak membuat pesanan. Bila pesan `IP ... tidak diizinkan` muncul, whitelist IP yang disebut penyedia. IP development dan production dapat berbeda.
 
-Katalog game, PPOB, dan aplikasi memakai data asli. Booster media sosial dan format tugas masih simulasi. Keranjang, checkout, pembayaran, dan fulfillment juga masih simulasi. Sebelum mengaktifkan transaksi nyata, validasi ulang SKU, tujuan, stok, dan harga di server serta simpan identitas provider sebagai field tersendiri; jangan memakai harga browser atau mengurai teks `details` untuk membuat transaksi. Saat ini kode layanan ikut dicantumkan dalam detail pesanan simulasi untuk keterlacakan.
+Katalog dan harga checkout berasal dari server. Booster media sosial memakai paket yang dikonfigurasi, sementara layanan tugas dikerjakan manual setelah pembayaran terverifikasi. SKU, tujuan, harga dan jumlah paket divalidasi ulang saat checkout.

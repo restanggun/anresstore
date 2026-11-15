@@ -8,7 +8,6 @@ import { isPromotionActive, slugify, tidyVariants, type CatalogKind, type Catalo
 import { CatalogCategoryTabs } from "./catalog-category-tabs";
 import { CatalogProductCard } from "./catalog-product-card";
 import { FlashSale } from "./flash-sale";
-import { demoFlashOffers } from "./flash-sale-demo";
 import { searchProducts } from "@/lib/product-search";
 
 export function CatalogBrowse({offers,products,initialCategory,query,state,retry,onSelect,now}: {offers:(CatalogItem & {category:CatalogKind})[];products:CatalogProduct[];initialCategory:string;query:string;state:"loading"|"ready"|"error";retry:()=>void;onSelect:(name:string,category:CatalogKind,code?:string)=>void;now:number}) {
@@ -19,12 +18,9 @@ export function CatalogBrowse({offers,products,initialCategory,query,state,retry
  if (!query.trim()) visible.sort((a,b)=>(a.pinRank ?? Infinity)-(b.pinRank ?? Infinity));
  const uniqueOffers = (items: (CatalogItem & {category:CatalogKind})[]) => [...new Set(items.map(item => `${item.category}:${item.product}`))].flatMap(key => { const group = items.filter(item => `${item.category}:${item.product}` === key); return tidyVariants(group).map(item => ({ ...item, category: group[0]!.category })); });
  const activeOffers = uniqueOffers(offers.filter(item => isPromotionActive(item.promotion,now) && (initialCategory === "Semua" || item.category === initialCategory)));
- const demo = process.env.NODE_ENV !== "production" && activeOffers.length === 0;
- const demoCandidates = uniqueOffers(offers.filter(item => item.price > 1 && (initialCategory === "Semua" || item.category === initialCategory))).slice(0, 14);
- const demoFromCatalog = demoCandidates.map(item => ({ ...item, price: Math.max(1, Math.floor(item.price * .9)), promotion: { id: `preview-${item.code}`, startsAt: "2020-01-01T00:00:00Z", endsAt: "2027-12-31T16:59:59Z", originalPrice: item.price, discountPercent: 10 } }));
- const flashOffers = demo ? (demoFromCatalog.length ? demoFromCatalog : demoFlashOffers.filter(item => initialCategory === "Semua" || item.category === initialCategory)) : activeOffers;
+ const flashOffers = activeOffers;
  return <>
-  {!query.trim() && <FlashSale offers={flashOffers} demo={demo} demoSelectable={demo && demoFromCatalog.length > 0} state={state} now={now} onSelect={onSelect}/>}
+  {!query.trim() && <FlashSale offers={flashOffers} state={state} now={now} onSelect={onSelect}/>}
   {!overview && <section id="catalog-results" className="catalog-directory" aria-labelledby="directory-title" tabIndex={-1}>
    <div className="catalog-directory-heading"><div>{initialCategory !== "Semua" && <Link href="/katalog" className="shop-text-button catalog-all-categories">Semua kategori</Link>}<h2 id="directory-title">{query.trim() ? "Hasil pencarian" : initialCategory === "Top up game" ? "Pilih game" : initialCategory === "PPOB" ? "Pilih kebutuhanmu" : initialCategory === "Aplikasi premium" ? "Pilih aplikasi" : initialCategory === "Booster media sosial" ? "Pilih media sosial" : "Pilih paket tugas"}</h2><p>{query.trim() ? `Pilihan untuk “${query.trim()}”.` : "Dari kebutuhan main sampai kebutuhan sehari-hari."}</p></div><span className="catalog-result-count" role="status">{state==="loading" ? "Memuat..." : `${visible.length} produk`}</span></div>
    {initialCategory === "Semua" && <CatalogCategoryTabs values={categories} value={category} onChange={value=>{setCategory(value);setLimit(16);}} label="Kategori produk" id="product-categories"/>}

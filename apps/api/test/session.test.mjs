@@ -2,9 +2,25 @@
 import assert from 'node:assert/strict';
 import {resolveSession,writeSession} from '../dist/auth/session.js';
 import {AdminController} from '../dist/admin/admin.controller.js';
+import {PaymentIdentityService} from '../dist/payments/payment-identity.js';
 const id='f623c4ef-1eb2-49fb-ae0d-123456789012';
 const jwt=(aal='aal2')=>`header.${Buffer.from(JSON.stringify({sub:id,aal,exp:Math.floor(Date.now()/1000)+3600})).toString('base64url')}.signature`;
 const response=()=>({cookies:[],setHeader(){},cookie(...args){this.cookies.push(args);}});
+
+test('checkout refreshes expired access and never downgrades revoked account sessions to guest',()=>isolated(async()=>{
+ const token=jwt();let refresh=0;
+ global.fetch=async(url,options)=>{
+  if(String(url).includes('grant_type=refresh_token')){refresh++;return Response.json({access_token:token,refresh_token:'rotated'});}
+  return options.headers.Authorization===`Bearer ${token}`?Response.json({id}):Response.json({}, {status:401});
+ };
+ const identity=new PaymentIdentityService(),res=response();
+ assert.equal((await identity.resolve({headers:{cookie:'anres_access=expired; anres_refresh=valid'}},res)).userId,id);
+ assert.equal(refresh,1);assert.equal(res.cookies.length,2);
+ global.fetch=async()=>Response.json({}, {status:401});
+ await assert.rejects(identity.resolve({headers:{cookie:'anres_refresh=revoked'}},response()),e=>e.getStatus()===401);
+ global.fetch=async()=>{throw new Error('offline');};
+ await assert.rejects(identity.resolve({headers:{cookie:'anres_access=existing'}},response()));
+}));
 async function isolated(fn){const env={...process.env},fetch=global.fetch;Object.assign(process.env,{ADMIN_USER_IDS:id,SUPABASE_URL:'https://session.example',SUPABASE_PUBLISHABLE_KEY:'public-key',ADMIN_REQUIRE_MFA:'true'});try{await fn();}finally{process.env=env;global.fetch=fetch;}}
 test('expired admin access refreshes a verified AAL2 session and rotates persistent HttpOnly cookies',()=>isolated(async()=>{
  const token=jwt();let refresh=0;

@@ -192,7 +192,7 @@ Jangan commit .env, token, service role key, sesi WhatsApp, database lama, backu
 1. Fondasi bisnis, folder/repository, produk awal, dan arah brand.
 2. Bootstrap Next.js, NestJS, Supabase development, tooling, dan CI.
 3. Katalog, login, peran, dan pengujian akses.
-4. Checkout dan pembayaran sandbox, RPC atomik, idempotensi, dan antrean.
+4. Checkout dan pembayaran produksi, RPC atomik, idempotensi, dan antrean.
 5. Dashboard, audit, refund, rekonsiliasi, dan bantuan.
 6. Staging: uji kegagalan/duplikasi, akses lintas pengguna, backup/restore, dan monitoring.
 7. Migrasi bertahap. Jangan biarkan dua sistem memproses transaksi yang sama.

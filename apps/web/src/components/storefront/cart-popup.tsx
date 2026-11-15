@@ -1,13 +1,16 @@
 "use client";
 import { publicOrderDetails } from "@/lib/catalog";
 import { useEffect, useState } from "react";
+import dynamic from "next/dynamic";
 import { ArrowRight, ChevronDown, Minus, Pencil, Plus, ShoppingCart, Trash2 } from "lucide-react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { Button } from "@anres/ui";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { initCart, readCart, refreshGuestCart, writeCart, type CartItem } from "@/lib/cart";
-import { PaymentCheckout } from "./payment-checkout";
+const PaymentCheckout = dynamic(() => import("./payment-checkout").then(module => module.PaymentCheckout), {
+ loading: () => <p role="status">Memuat pembayaran...</p>,
+});
 import "./catalog-flow.css";
 import "./catalog-system.css";
 import "./cart.css";

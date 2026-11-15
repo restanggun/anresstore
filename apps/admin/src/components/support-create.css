@@ -1,0 +1,76 @@
+.support-admin-dialog[aria-labelledby="create-ticket-title"] {
+  position: fixed;
+  inset: 0;
+  margin: auto;
+  box-sizing: border-box;
+  width: min(560px, calc(100vw - 32px));
+  max-height: calc(100dvh - 48px);
+  padding: 36px 32px 32px;
+}
+.support-admin-dialog[aria-labelledby="create-ticket-title"] > .panel-heading {
+  display: block;
+  margin: 0;
+  padding: 0 48px;
+  text-align: center;
+}
+.support-admin-dialog #create-ticket-title {
+  margin: 0;
+  font-size: 24px;
+  line-height: 1.35;
+}
+.support-admin-dialog[aria-labelledby="create-ticket-title"] > .panel-heading > button {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  min-height: 36px;
+  padding: 8px 12px;
+}
+.support-admin-dialog[aria-labelledby="create-ticket-title"] > form.ops-detail {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 20px;
+  width: 100%;
+  max-width: 420px;
+  margin: 28px auto 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+.support-admin-dialog[aria-labelledby="create-ticket-title"] form label {
+  display: grid;
+  min-width: 0;
+  gap: 8px;
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.5;
+  font-weight: 650;
+}
+.support-admin-dialog[aria-labelledby="create-ticket-title"] form input {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 48px;
+  margin: 0;
+  padding: 13px 14px;
+  border: 1px solid #cfd8df;
+  border-radius: 13px;
+  background: #fff;
+  color: inherit;
+  font: inherit;
+  font-size: 16px;
+}
+.support-admin-dialog[aria-labelledby="create-ticket-title"] form > button {
+  justify-self: center;
+  width: 100%;
+  min-height: 48px;
+  margin-top: 4px;
+}
+.support-admin-dialog[aria-labelledby="create-ticket-title"] > [role="status"] {
+  max-width: 420px;
+  margin: 16px auto 0;
+}
+@media (max-width: 600px) {
+  .support-admin-dialog[aria-labelledby="create-ticket-title"] { padding: 56px 20px 24px; }
+  .support-admin-dialog[aria-labelledby="create-ticket-title"] > .panel-heading { padding-inline: 0; }
+  .support-admin-dialog #create-ticket-title { font-size: 23px; }
+  .support-admin-dialog[aria-labelledby="create-ticket-title"] > form.ops-detail { margin-top: 24px; gap: 18px; }
+}

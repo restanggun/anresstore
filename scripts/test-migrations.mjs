@@ -12,18 +12,29 @@ try {
   const files=(await readdir('supabase/migrations')).filter(f=>f.endsWith('.sql')).sort();
   assert.equal(new Set(files.map(f=>f.split('_')[0])).size,files.length,'Duplicate migration versions');
   for(const file of files) {
+    if (file === '20261118140000_production_only.sql') await db.exec(await readFile('supabase/tests/production-cutover-fixtures.sql','utf8'));
     try { await db.exec(await readFile('supabase/migrations/'+file,'utf8')); }
     catch(error) { throw new Error('Migration failed: '+file,{cause:error}); }
+    if (file === '20261118150000_remove_nonproduction_history.sql') {
+      await db.exec(await readFile('supabase/tests/production-cutover.sql','utf8'));
+      console.log('Production cutover preserves real invoices and audit, removes nonproduction data and retires old RPCs');
+    }
   }
   console.log(`Replayed ${files.length} migrations on a clean PostgreSQL database`);
+  await db.exec(await readFile('supabase/tests/invoice-numbers.sql','utf8'));
+  console.log('ARNS invoice format, date, uniqueness, replay, projection and immutability passed');
   if (process.argv.includes('--snapshot')) {
     const snapshot = await db.query(await readFile('scripts/schema-snapshot.sql','utf8'));
     await writeFile('output/schema-expected.json',JSON.stringify(snapshot.rows,null,2));
   }
   await db.exec(await readFile('supabase/tests/payment-pipeline.sql','utf8'));
-  console.log('Payment modes, reservation, immutable metadata, RLS and fulfillment tests passed');
+  console.log('Production reservations, immutable metadata, RLS and fulfillment tests passed');
+  await db.exec(await readFile('supabase/tests/fulfillment-limits.sql','utf8'));
+  console.log('Fulfillment pause, per-order/hour/day budgets, count limits and durable reservations passed');
   await db.exec(await readFile('supabase/tests/support-workflow.sql','utf8'));
   console.log('Support tickets: waiting, acceptance, rejection, privacy and idempotent chat tests passed');
+  await db.exec(await readFile('supabase/tests/support-delivery.sql','utf8'));
+  console.log('Support unread counts, status-only email queue, exclusive claims and append-only audit passed');
   await db.exec(await readFile('supabase/tests/ai-help-sessions.sql','utf8'));
   console.log('AI sessions: history, ownership, idempotent turns and complete atomic CS handoff passed');
 } finally { await db.close(); }

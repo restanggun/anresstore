@@ -15,27 +15,22 @@ begin
   if (select payment_mode from public.live_transactions where id=pid) <> 'live' then raise exception 'Mode projection failed'; end if;
   if (select customer_email from public.live_transactions where id=pid) <> 'test@example.com' then raise exception 'Contact projection failed'; end if;
   if exists(select 1 from public.claim_live_fulfillment(pid)) then raise exception 'Unpaid order dispatched'; end if;
-  update public.sandbox_payments set status='paid',reference='LIVE-TEST',revision=revision+1 where id=pid;
+  update public.payments set status='paid',reference='LIVE-TEST',revision=revision+1 where id=pid;
   if (select count(*) from public.claim_live_fulfillment(pid)) <> 1 then raise exception 'Paid live order not claimed'; end if;
   if exists(select 1 from public.claim_live_fulfillment(pid)) then raise exception 'Duplicate dispatch'; end if;
   begin
-    update public.sandbox_payments set payment_mode='sandbox' where id=pid;
+    update public.payments set payment_mode='sandbox' where id=pid;
     raise exception 'Mutable mode accepted';
   exception when check_violation then null; end;
   begin
     perform public.reserve_payment(p || jsonb_build_object('payment_mode','sandbox'));
-    raise exception 'Cross-mode replay accepted';
-  exception when unique_violation then null; end;
-  perform public.reserve_payment(p || jsonb_build_object('id','33333333-3333-4333-8333-333333333333','payment_mode','sandbox'));
-  update public.sandbox_payments set status='paid',reference='SANDBOX-TEST',revision=revision+1 where id='33333333-3333-4333-8333-333333333333';
-  perform public.advance_sandbox_fulfillment();
-  if (select fulfillment_status from public.live_transactions where id='33333333-3333-4333-8333-333333333333') <> 'ready' then raise exception 'Fake sandbox fulfillment'; end if;
-  if exists(select 1 from public.claim_live_fulfillment('33333333-3333-4333-8333-333333333333')) then raise exception 'Sandbox dispatched'; end if;
+    raise exception 'Nonproduction reservation accepted';
+  exception when check_violation then null; end;
   perform public.reserve_payment(p || jsonb_build_object('id','44444444-4444-4444-8444-444444444444','checkout_hash',repeat('e',64),'fulfillment_mode','manual','provider_cost',null));
-  update public.sandbox_payments set status='paid',reference='MANUAL-TEST',revision=revision+1 where id='44444444-4444-4444-8444-444444444444';
+  update public.payments set status='paid',reference='MANUAL-TEST',revision=revision+1 where id='44444444-4444-4444-8444-444444444444';
   if exists(select 1 from public.claim_live_fulfillment('44444444-4444-4444-8444-444444444444')) then raise exception 'Manual service dispatched'; end if;
-  if has_table_privilege('authenticated','public.orders','insert') then raise exception 'Legacy client-priced checkout writable'; end if;
-  if has_table_privilege('anon','public.sandbox_payments','select') or has_table_privilege('authenticated','public.live_transactions','select') then raise exception 'Private payments exposed'; end if;
+  if to_regclass('public.orders') is not null then raise exception 'Retired order store remains'; end if;
+  if has_table_privilege('anon','public.payments','select') or has_table_privilege('authenticated','public.live_transactions','select') then raise exception 'Private payments exposed'; end if;
   if has_function_privilege('authenticated','public.reserve_payment(jsonb)','execute') then raise exception 'Reservation RPC exposed'; end if;
 end; $$;
 rollback;

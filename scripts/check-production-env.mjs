@@ -24,16 +24,15 @@ if (env.ADMIN_MFA_ENROLLMENT_USER_IDS?.trim()) errors.push('Kosongkan ADMIN_MFA_
 if (env.ADMIN_CATALOG_ENABLED !== 'true') errors.push('ADMIN_CATALOG_ENABLED harus true setelah migrasi katalog diverifikasi.');
 if (env.PAYMENT_RECONCILIATION_ENABLED !== 'true') errors.push('PAYMENT_RECONCILIATION_ENABLED harus true.');
 const mode = env.TRIPAY_MODE;
-if (!['sandbox', 'live'].includes(mode)) errors.push('TRIPAY_MODE harus sandbox atau live.');
-if (env.TRIPAY_BASE_URL !== (mode === 'live' ? 'https://tripay.co.id/api' : 'https://tripay.co.id/api-sandbox')) errors.push('TRIPAY_BASE_URL tidak sesuai mode.');
+if (mode !== 'live') errors.push('TRIPAY_MODE harus live.');
+if (env.TRIPAY_BASE_URL !== 'https://tripay.co.id/api') errors.push('TRIPAY_BASE_URL tidak sesuai mode.');
 if (env.TRIPAY_CALLBACK_URL !== 'https://api.anresstore.site/v1/payments/callback') errors.push('TRIPAY_CALLBACK_URL harus endpoint callback domain API produksi.');
 try {
   const url = new URL(env.TRIPAY_RETURN_URL);
   if (!['https://anresstore.site', 'https://app.anresstore.site'].includes(url.origin) || url.username || url.password || url.hash) throw new Error();
 } catch { errors.push('TRIPAY_RETURN_URL harus URL HTTPS storefront/customer yang dipercaya.'); }
-if (mode === 'sandbox' && env.VIPAYMENT_FULFILLMENT_ENABLED !== 'false') errors.push('Staging sandbox harus menonaktifkan fulfillment live.');
 if (mode === 'live') {
-  if (!args.includes('--allow-live')) errors.push('Mode live perlu --allow-live setelah checklist go-live disetujui.');
+  if (env.VIPAYMENT_STATUS_POLLING_ENABLED !== 'true') errors.push('Mode live memerlukan VIPAYMENT_STATUS_POLLING_ENABLED=true.');
   if (env.VIPAYMENT_FULFILLMENT_ENABLED !== 'true') errors.push('Mode live memerlukan VIPAYMENT_FULFILLMENT_ENABLED=true.');
 }
 for (const error of errors) console.error(`FAIL: ${error}`);

@@ -1,12 +1,42 @@
 # Monitoring dan SOP transaksi
 
-Status: perangkat dan SOP siap di repository; aktivasi VPS, penerima alert dan simulasi insiden belum dilakukan. Sebelum live, pemilik usaha menunjuk PIC operasi, pengganti, dan penanggung jawab persetujuan refund. Catat nama, kontak privat, jadwal jaga dan bukti drill di catatan release. Tanpa penerima alert aktif, jangan buka pembayaran live.
+Status: perangkat dan SOP siap di repository; aktivasi VPS, penerima alert dan latihan penanganan insiden belum dilakukan. Sebelum live, pemilik usaha menunjuk PIC operasi, pengganti, dan penanggung jawab persetujuan refund. Catat nama, kontak privat, jadwal jaga dan bukti drill di catatan release. Tanpa penerima alert aktif, jangan buka pembayaran live.
 
 Penetapan awal: pemilik usaha menjadi penanggung jawab dan approver refund; admin utama menjadi PIC operasi. Jika masih dikelola satu orang, pemilik menjalankan kedua peran dengan dua langkah terpisah: dokumentasikan keputusan sebelum mengeksekusi refund, lalu cocokkan bukti provider sesudahnya. Pengganti belum ditetapkan; saat PIC tidak tersedia, tunda pembukaan transaksi live. Kanal awal adalah journal VPS yang diperiksa PIC; kanal ini belum menyediakan notifikasi ke HP dan tidak memenuhi gerbang alert live sampai penerusan notifikasi diuji.
 
 ## Aktivasi monitor
 
-Monitor hanya membaca jumlah baris melalui HEAD/count, tanpa mengambil target pelanggan atau mengubah status. Secret memakai environment API yang sudah ada. Default mode live; untuk staging tambahkan `OPERATIONS_PAYMENT_MODE=sandbox` ke environment API lalu recreate container. Hasil JSON hanya berisi nama pemeriksaan, jumlah dan tingkat urgensi.
+### Batas pembelian supplier
+
+Migrasi `20261118090000_fulfillment_spending_limits.sql` menambah batas biaya
+supplier Rp250.000/order, Rp500.000/jam, Rp2.000.000/24 jam dan 10 pembelian/jam.
+Ini batas awal konservatif untuk biaya supplier. Reservasi biaya dan klaim dispatch
+berada dalam transaksi database yang sama dengan lock singleton lintas worker.
+Pembelian timeout tetap memakai budget; jangan menghapus reservasi untuk retry.
+Batas dihitung rolling. Order melewati batas ditahan dengan review_required;
+admin memeriksa sebelum melepas review, dan worker memeriksa limit lagi.
+Invoice lunas dapat tertahan; informasikan pelanggan dan ikuti SOP refund.
+
+Pengelola database berwenang dapat mengubah baris `fulfillment_limits` setelah
+meninjau saldo/risiko. `paused=true` menghentikan klaim baru secara global.
+Jangan beri hak tabel ini ke anon/authenticated atau mengekspos service key.
+Saat migrasi hosted, hentikan pembelian baru dan rekonsiliasi order in-flight;
+backfill memakai created_at sehingga waktu pembelian historis yang terlambat
+tetap perlu dicocokkan manual sebelum melanjutkan pembelian.
+
+`VIPAYMENT_FULFILLMENT_ENABLED=false` kini menghentikan pembelian baru;
+polling status dan pendeteksian dispatch macet tetap berjalan. Gunakan
+`VIPAYMENT_STATUS_POLLING_ENABLED=false` hanya untuk menghentikan seluruh worker.
+Pause tidak membatalkan request yang sudah terkirim atau klaim yang sudah diambil.
+
+Checkout/invoice memakai refresh sesi dan rotasi cookie server yang sama dengan
+login. Kegagalan Auth tidak menurunkan transaksi akun menjadi guest.
+Pemulihan guest yang kehilangan cookie tetap melalui CS. Email checkout belum
+diverifikasi saat pembelian; jangan mengalihkan invoice otomatis berdasarkan
+kesamaan email dengan akun. Pemulihan otomatis membutuhkan bukti kepemilikan
+tambahan/alur kontak terverifikasi sejak checkout dan belum diaktifkan.
+
+Monitor hanya membaca jumlah baris melalui HEAD/count, tanpa mengambil target pelanggan atau mengubah status. Secret memakai environment API yang sudah ada. Monitor hanya menerima mode live. Hasil JSON hanya berisi nama pemeriksaan, jumlah dan tingkat urgensi.
 
 Di VPS dengan repository pada `/opt/anres-store`, salin kedua file `infra/monitor/anres-operations.*` ke `/etc/systemd/system/`, lalu:
 
@@ -29,7 +59,7 @@ Pasang pula pemeriksaan HTTPS eksternal kelima domain tiap menit, notifikasi set
 PIC acknowledge critical dalam 5 menit dan warning dalam 30 menit pada jam operasi; sebelum live tetapkan penjagaan di luar jam itu. Buat catatan insiden: waktu UTC, mode, invoice/order ID, referensi gateway/supplier, status sebelum/sesudah, bukti provider yang disunting, tindakan dan operator. Jangan mencatat secret, guest token, atau data target penuh.
 
 1. Verifikasi pemilik melalui sesi akun/order atau bukti kepemilikan yang diverifikasi tim support. Jangan membagikan invoice berdasarkan ID saja.
-2. Jika pembelian supplier unknown/dispatching macet, tandai review di admin untuk order paid. Flag review tidak membatalkan request yang sudah terkirim. Untuk insiden luas, nonaktifkan `VIPAYMENT_FULFILLMENT_ENABLED` lalu recreate API; ini juga menghentikan polling, jadi lanjutkan pengecekan provider secara manual. Jangan ganti mode Tripay sebagai tombol stop.
+2. Jika pembelian supplier unknown/dispatching macet, tandai review di admin untuk order paid. Flag review tidak membatalkan request yang sudah terkirim. Untuk insiden luas, nonaktifkan `VIPAYMENT_FULFILLMENT_ENABLED` lalu recreate API; pertahankan `VIPAYMENT_STATUS_POLLING_ENABLED=true` agar order yang sudah dikirim tetap dipantau. Jangan ganti mode Tripay sebagai tombol stop.
 3. Cocokkan referensi order dan provider, cek status di portal/API status supplier. Worker tidak mengambil unknown untuk pembelian ulang. Timeout dapat terjadi setelah supplier menerima request; jangan reset ke ready atau membuat invoice/pembelian pengganti.
 4. Jika processing, tunggu sesuai SLA dan cek status kembali. Jika completed, simpan bukti; jika failed, pastikan tidak ada pengiriman/biaya tertunda sebelum refund. Jika hasil tidak pasti, eskalasi supplier dan pertahankan review.
 5. UI pembaruan manual hanya untuk fulfillment_mode=manual. Koreksi order supplier harus ditangani teknis lewat prosedur terkontrol dengan snapshot status, bukti provider, persetujuan PIC dan pencatatan audit; belum tersedia tombol retry/koreksi supplier otomatis. Jangan menulis SQL ad hoc.
@@ -37,7 +67,7 @@ PIC acknowledge critical dalam 5 menit dan warning dalam 30 menit pada jam opera
 
 ## Rekonsiliasi harian
 
-Setiap hari pukul 09:00 Asia/Bangkok, PIC mencocokkan hari kalender sebelumnya (02:00 UTC hari sebelumnya sampai 02:00 UTC hari berjalan) dan seluruh kasus terbuka hari sebelumnya. Pisahkan sandbox/live. Gunakan ekspor privat gateway, laporan supplier dan daftar transaksi admin; paginasi seluruh hasil. Monitor jumlah bukan laporan keuangan lengkap.
+Setiap hari pukul 09:00 Asia/Bangkok, PIC mencocokkan hari kalender sebelumnya (02:00 UTC hari sebelumnya sampai 02:00 UTC hari berjalan) dan seluruh kasus terbuka hari sebelumnya. Gunakan ekspor privat gateway, laporan supplier dan daftar transaksi admin; paginasi seluruh hasil. Monitor jumlah bukan laporan keuangan lengkap.
 
 Cocokkan invoice/reference, nominal, fee, status pembayaran, pembelian supplier, biaya supplier dan refund. Periksa pembayaran paid tanpa fulfillment, unknown/manual_review, duplikat reference, satu invoice dengan lebih dari satu pembelian, serta selisih settlement. Cocokkan saldo awal + pemasukan/topup - pengeluaran/refund/fee = saldo akhir, terpisah gateway dan supplier. Status paid tidak selalu berarti dana sudah settled. Buat daftar selisih dengan PIC dan tenggat; eskalasi selisih uang atau pembelian ganda segera. Simpan laporan privat dengan tanggal, total jumlah/nominal, bukti, operator dan reviewer; reviewer menandatangani meski selisih nol.
 

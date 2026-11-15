@@ -4,11 +4,13 @@ import {createHmac,randomUUID} from 'node:crypto';
 import {PaymentsController} from '../dist/payments/payments.controller.js';
 import {parsePayment,ownsPayment,paymentHash,validatePaymentDetail} from '../dist/payments/payment-contract.js';
 
-Object.assign(process.env,{TRIPAY_API_KEY:'sandbox-key',TRIPAY_PRIVATE_KEY:'private-key',TRIPAY_MERCHANT_CODE:'T123',TRIPAY_BASE_URL:'https://tripay.co.id/api-sandbox',CORS_ORIGINS:'http://localhost:3000',TRIPAY_CALLBACK_URL:'https://tunnel.example/v1/payments/callback',TRIPAY_RETURN_URL:'http://localhost:3000'});
+Object.assign(process.env,{TRIPAY_API_KEY:'test-key',TRIPAY_PRIVATE_KEY:'private-key',TRIPAY_MERCHANT_CODE:'T123',TRIPAY_BASE_URL:'https://tripay.co.id/api',CORS_ORIGINS:'http://localhost:3000',TRIPAY_CALLBACK_URL:'https://tunnel.example/v1/payments/callback',TRIPAY_RETURN_URL:'http://localhost:3000'});
 const id='f623c4ef-1eb2-49fb-ae0d-123456789012';
 const identity={userId:null,guestHash:'a'.repeat(64)};
 const req={headers:{origin:'http://localhost:3000'},method:'POST',socket:{remoteAddress:'127.0.0.1'}};
 const res={setHeader(){}};
+// Live checkout is exercised with mocked gateway/supplier transports only.
+Object.assign(process.env, { TRIPAY_MODE: 'live', VIPAYMENT_FULFILLMENT_ENABLED: 'true', VIPAYMENT_API_ID: 'test-id', VIPAYMENT_API_KEY: 'test-key' });
 const input={id,source:'game',code:'SKU',target:'12345',method:'BRIVA',name:'Test customer',email:'test@example.com',phone:'081234567890',expectedAmount:20000};
 const detail={reference:'T123PAY',merchant_ref:id,payment_method:'BRIVA',payment_name:'BRI VA',amount:20500,fee_customer:500,status:'UNPAID',checkout_url:'https://tripay.co.id/checkout/T123PAY',pay_code:'123',expired_time:2000000000,order_items:[{sku:'SKU',price:20000,quantity:1}]};
 const copy=value=>structuredClone(value);
@@ -25,7 +27,7 @@ function setup() {
  controller.tripay={channels:async()=>[{code:'BRIVA',minimum_amount:10000,maximum_amount:1000000}],create:async value=>{creates++;await new Promise(resolve=>setTimeout(resolve,2));return {...copy(detail),merchant_ref:value.id};},detail:async()=>({...copy(detail),status:'PAID'})};
  controller.store={request:async()=>[],rpc:async(name,args)=>{
   if(name==='consume_payment_rate') {const count=(rates.get(args.p_key)||0)+1;rates.set(args.p_key,count);return count<=args.p_limit;}
-  if(name==='claim_sandbox_payment_check') {if(leases.has(args.p_id))return false;leases.add(args.p_id);return true;}
+  if(name==='claim_payment_check') {if(leases.has(args.p_id))return false;leases.add(args.p_id);return true;}
   if(name==='reserve_payment') {
    const value=args.p_payment,owner=value.owner_user_id??value.guest_session_hash;
    let row=rows.get(value.id);
@@ -38,7 +40,8 @@ function setup() {
   throw new Error('Unexpected RPC');
  }};
  controller.db=async(query,method='GET',body)=>{
-  const rowId=/[?&]id=eq\.([a-f0-9-]+)/.exec(query)?.[1];
+  const invoice=/[?&]invoice_number=eq\.([A-Z0-9-]+)/.exec(query)?.[1];
+  const rowId=/[?&]id=eq\.([a-f0-9-]+)/.exec(query)?.[1] ?? (invoice ? [...rows.values()].find(row=>row.invoice_number===invoice)?.id : undefined);
   if(!rowId)return [];
   let row=rows.get(rowId);if(!row)return [];
   if(method==='PATCH') {
@@ -51,6 +54,51 @@ function setup() {
  };
  return {controller,read:(rowId=id)=>rows.get(rowId),rows,creates:()=>creates,leases,beforePatch:hook=>{beforePatch=hook;}};
 }
+
+test('dashboard history requires an account and only returns verified owner invoices',async()=>{
+ const {controller,read}=setup(),userId=randomUUID();
+ const account={...req,testIdentity:{userId,guestHash:identity.guestHash,email:'account@example.com'}};
+ await controller.create(input,account,res);
+ const row=copy(read()),queries=[];
+ controller.db=async query=>{queries.push(query);return [{...row,id:randomUUID(),owner_user_id:randomUUID()},row];};
+ const history=await controller.history('0',account,res,'account');
+ assert.equal(history.userId,userId);assert.equal(history.payments.length,1);assert.equal(history.payments[0].id,id);
+ assert.ok(queries[0].includes(`owner_user_id=eq.${userId}`));assert.ok(queries[0].includes('order=created_at.desc'));assert.ok(!queries[0].includes('guest_session_hash'));
+ assert.doesNotMatch(JSON.stringify(history.payments),/access_hash|request_hash|guest_session_hash|owner_user_id/);
+ await assert.rejects(controller.history('0',req,res,'account'),error=>error.getStatus()===401);
+ await assert.rejects(controller.history('0',account,res,'other'),error=>error.getStatus()===400);
+ await assert.rejects(controller.history('-1',account,res,'account'),error=>error.getStatus()===400);
+ controller.db=async query=>{assert.ok(query.includes('offset=50'));return Array.from({length:51},(_,i)=>({...row,id:`invoice-${i}`}));};
+ const next=await controller.history('1',account,res,'account');assert.equal(next.payments.length,50);assert.equal(next.hasMore,true);
+});
+
+test('ARNS number is shared by checkout, return URL, invoice lookup and verified callback',async()=>{
+ const {controller,rows}=setup();
+ const number='ARNS-SKU-GAME-20261115-0123456789ABCDEF';
+ const rpc=controller.store.rpc;
+ controller.store.rpc=async(name,args)=>{
+  const result=await rpc(name,args);
+  if(name==='reserve_payment'){
+   const row=rows.get(result.payment.id);row.invoice_number=number;row.merchant_ref=number;
+   result.payment=copy(row);
+  }
+  return result;
+ };
+ controller.tripay.create=async value=>{
+  assert.equal(value.id,number);
+  assert.equal(value.returnUrl,`http://localhost:3000/invoice/${number}`);
+  return {...copy(detail),merchant_ref:number};
+ };
+ controller.tripay.detail=async()=>({...copy(detail),merchant_ref:number,status:'PAID'});
+ const payment=await controller.create(input,req,res);
+ assert.equal(payment.invoiceNumber,number);
+ const invoice=await controller.detail(number.toLowerCase(),req,res);
+ assert.equal(invoice.id,id);assert.equal(invoice.invoiceNumber,number);
+ await assert.rejects(controller.detail(number,{...req,testIdentity:{userId:null,guestHash:'f'.repeat(64)}},res),e=>e.getStatus()===404);
+ assert.deepEqual(await controller.callback(signed({...event,merchant_ref:number})),{success:true});
+ assert.equal(rows.get(id).status,'paid');
+ assert.equal(rows.get(id).invoice_number,number);
+});
 
 test('server price and strict request schema reject tampering before the gateway is called',async()=>{
  const {controller,creates}=setup();
@@ -83,9 +131,9 @@ test('database reservation failure prevents sending a payment to the provider',a
  await assert.rejects(controller.create(input,req,res));assert.equal(creates(),0);
 });
 test('account payments bind to verified session identity and cannot be opened by a guest or another account',async()=>{
- const {controller,read}=setup();const userId=randomUUID();const account={...req,testIdentity:{userId,guestHash:identity.guestHash}};
+ const {controller,read}=setup();const userId=randomUUID();const account={...req,testIdentity:{userId,guestHash:identity.guestHash,email:'account@example.com'}};
  await controller.create(input,account,res);assert.equal(read().owner_user_id,userId);assert.equal(read().guest_session_hash,null);
- for(const stranger of [req,{...req,testIdentity:{userId:randomUUID(),guestHash:identity.guestHash}}]) {
+ for(const stranger of [req,{...req,testIdentity:{userId:randomUUID(),guestHash:identity.guestHash,email:'other@example.com'}}]) {
   await assert.rejects(controller.detail(id,stranger,res),error=>error.getStatus()===404);
   await assert.rejects(controller.create(input,stranger,res),error=>error.getStatus()===404);
  }
@@ -178,11 +226,12 @@ test('no provider match leaves an ambiguous payment unknown instead of falsely f
  await controller.create(input,req,res);const payment=await controller.detail(id,req,res);
  assert.equal(payment.status,'unknown');assert.equal(payment.refreshDelayed,true);assert.equal(read().reference,null);
 });
-test('guest and legacy capability expiry are checked on the server, not just in browser cookie settings',async()=>{
+test('guest expiry and removal of bearer-only invoice access are enforced by the server',async()=>{
  const {controller,read}=setup();await controller.create(input,req,res);const row=read();
  assert.equal(ownsPayment({...row,created_at:new Date(Date.now()-31*86400000).toISOString()},identity,null),false);
  const legacy={...row,guest_session_hash:null,created_at:new Date(Date.now()-8*86400000).toISOString()};
  assert.equal(ownsPayment(legacy,identity,row.access_hash),false);
+ assert.equal(ownsPayment({...legacy,created_at:new Date().toISOString()},identity,row.access_hash),false);
  assert.equal(ownsPayment({...row,created_at:'invalid'},identity,null),false);
 });
 
@@ -224,4 +273,28 @@ test('social checkout rejects a changed package quantity before creating any gat
  const s=setup();s.controller.catalog={list:async()=>({items:[{code:'SKU',price:20000,product:'TikTok',name:'Likes',serviceQuantity:1000,providerServiceCode:'17',providerCost:6500,fulfillmentMode:'vipayment'}]})};
  await assert.rejects(s.controller.create({...input,source:'social',expectedQuantity:500},req,res),e=>e.getStatus()===409);assert.equal(s.creates(),0);
  await s.controller.create({...input,source:'social',expectedQuantity:1000},req,res);assert.equal(s.read().service_quantity,1000);assert.equal(s.read().provider_service_code,'17');assert.equal(s.read().provider_cost,6500);
+});
+
+test('guest game checkout requires email but allows empty WhatsApp',async()=>{
+ for(const email of ['',undefined]){
+  const s=setup();
+  await assert.rejects(s.controller.create({...input,email,phone:''},req,res),e=>e.getStatus()===400);
+  assert.equal(s.creates(),0);assert.equal(s.rows.size,0);
+ }
+ const s=setup();await s.controller.create({...input,phone:''},req,res);
+ assert.equal(s.read().customer_email,input.email);assert.equal(s.read().customer_phone,'');
+});
+test('account checkout uses verified account email instead of browser email',async()=>{
+ for(const email of ['', 'forged@example.com']){
+  const s=setup();
+  const account={...req,testIdentity:{userId:randomUUID(),guestHash:null,email:'verified@example.com'}};
+  await s.controller.create({...input,email,phone:''},account,res);
+  assert.equal(s.read().customer_email,'verified@example.com');
+  assert.equal(s.creates(),1);
+ }
+});
+test('account without verified email cannot fall back to browser email',async()=>{
+ const s=setup();
+ await assert.rejects(s.controller.create(input,{...req,testIdentity:{userId:randomUUID(),guestHash:null}},res),e=>e.getStatus()===400);
+ assert.equal(s.creates(),0);assert.equal(s.rows.size,0);
 });

@@ -22,6 +22,12 @@ export class ConversationsController {
   const rows=await adminDb("support_conversations",`?user_id=eq.${user}&select=*&order=created_at.desc,id.desc&limit=51&offset=${index*50}`);
   return {rows:rows.slice(0,50),hasMore:rows.length>50};
  }
+ @Get("notifications") async notifications(@Req() req:Request,@Res({passthrough:true}) res:Response) {
+  const user=await this.user(req,res);
+  const [summary]=await adminDb<{unread_count:number;recent:unknown[]}>("rpc/support_customer_notifications","","POST",{p_user:user});
+  if(!summary) throw new HttpException("Notifikasi belum tersedia.",503);
+  return {count:Number(summary.unread_count),recent:summary.recent};
+ }
  @Post() async create(@Body() input:{id?:unknown;subject?:unknown;body?:unknown},@Req() req:Request,@Res({passthrough:true}) res:Response) {
   const user=await this.user(req,res,true);
   if(!input || !uuid(input.id) || typeof input.subject!=="string" || input.subject.trim().length<3 || input.subject.length>160) throw new HttpException("Isi subjek 3–160 karakter.",400);
@@ -31,11 +37,13 @@ export class ConversationsController {
   await adminDb("rpc/create_support_ticket","","POST",{p_id:input.id,p_user:user,p_subject:input.subject.trim(),p_body:typeof input.body==="string"?input.body.trim():null}); return {id:input.id};
  }
  @Get(":id/messages") async messages(@Param("id") id:string,@Query("page") page:string,@Req() req:Request,@Res({passthrough:true}) res:Response) {
+  const readAt=new Date().toISOString();
   const user=await this.user(req,res),index=pageIndex(page);
   if(!uuid(id)) throw new HttpException("Percakapan tidak valid.",400);
   const [room]=await adminDb("support_conversations",`?id=eq.${id}&user_id=eq.${user}&select=*`);
   if(!room) throw new HttpException("Percakapan tidak ditemukan.",404);
   const rows=await adminDb("support_messages",`?conversation_id=eq.${id}&select=id,body,author_role,created_at&order=created_at.desc,id.desc&limit=51&offset=${index*50}`);
+  if(index===0) await adminDb("support_conversations",`?id=eq.${id}&user_id=eq.${user}`,"PATCH",{customer_read_at:readAt});
   return {room,rows:rows.slice(0,50).reverse(),hasMore:rows.length>50};
  }
  @Post(":id/messages") async send(@Param("id") id:string,@Body() input:{id?:unknown;body?:unknown},@Req() req:Request,@Res({passthrough:true}) res:Response) {

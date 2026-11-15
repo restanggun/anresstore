@@ -26,6 +26,6 @@ Worker hanya dapat mengklaim transaksi live, lunas, dan bermode `vipayment`. Pes
 
 Migrasi `20261118040000_catalog_services_and_manual_fulfillment.sql` dan `20261118050000_order_customer_contacts.sql` diperlukan untuk lima kategori dan snapshot kontak. Keduanya diterapkan pada project yang terhubung. Pengaturan katalog memerlukan `ADMIN_CATALOG_ENABLED=true` pada lingkungan server. Perbarui cakupan role lama bila operator memerlukan akses kategori baru.
 
-Build menggunakan origin HTTPS produksi yang telah ditetapkan. Payment gateway yang ada tetap merupakan integrasi Tripay sandbox; jangan menyatakan transaksi live siap dipakai sebelum integrasi pembayaran produksi dikonfigurasi dan diverifikasi. Membaca katalog supplier tidak membuat order supplier. UI ini tidak mengaktifkan pemotongan saldo atau pembayaran live.
+Build menggunakan origin HTTPS produksi. Checkout memakai Tripay produksi dengan harga yang divalidasi server; pemenuhan pesanan berjalan setelah pembayaran terverifikasi. Membaca katalog supplier tidak membuat pesanan supplier.
 
 Referensi provider: https://vip-reseller.co.id/page/api/game-feature dan https://vip-reseller.co.id/page/api/social-media.

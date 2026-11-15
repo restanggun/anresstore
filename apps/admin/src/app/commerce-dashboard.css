@@ -97,7 +97,6 @@ button:disabled { cursor:default; }
 .order-product { display:block; margin-top:7px; color:#3b5160; font-size:11px; max-width:260px; }
 .order-target { color:#526979; font-size:11px; }
 .mode-tag { display:inline-flex; color:#7f8fa2; font-size:8px; border:1px solid #e3eaf0; border-radius:4px; padding:0 4px; margin-left:6px; }
-.mode-tag.sandbox { background:#f6f1fa; color:#9484a6; border-color:#eee6f4; }
 .order-status { display:inline-flex; align-items:center; gap:5px; color:#8798a6; font-size:9px; font-weight:650; white-space:nowrap; border-radius:5px; padding:5px 7px; background:#f0f4f7; }
 .order-status i { width:4px; height:4px; background:currentColor; border-radius:50%; }
 .status-paid,.status-completed { color:#43866b; background:#ecf7f0; }
@@ -144,7 +143,6 @@ button:disabled { cursor:default; }
 .detail-status-grid { display:grid; grid-template-columns:1fr 1fr; gap:15px; background:#f8fafc; padding:17px; border-radius:10px; }
 .detail-status-grid>div { display:flex; flex-direction:column; align-items:flex-start; gap:10px; }
 .detail-status-grid>div>span:first-child { font-size:10px; color:#8b9ba8; }
-.sandbox-notice { background:#f7f2fb; color:#9581a8; padding:12px 15px; border-radius:8px; font-size:11px; line-height:1.7; }
 .detail-section { padding:23px 0; border-bottom:1px solid #e8eef3; }
 .detail-section h3 { font-size:12px; font-weight:750; margin:0 0 16px; }
 .detail-section dl { margin:0; display:grid; gap:15px; }
@@ -293,11 +291,10 @@ html,body,.admin-shell *, .anres-select-content { scrollbar-width:thin; scrollba
 .admin-shell .commerce-table th { font-size:11px; color:var(--muted); background:var(--primary-soft); padding-block:15px; }
 .admin-shell .commerce-table td { padding-block:18px; }
 .admin-shell .commerce-table small { font-size:11px; color:var(--muted); }
-.admin-shell .invoice-link { font-size:12px; color:var(--focus); }
+.admin-shell .invoice-link { font-size:12px; color:var(--focus); max-width:300px; text-align:left; overflow-wrap:anywhere; line-height:1.7; }
 .admin-shell .order-product,.admin-shell .variant-name,.admin-shell .order-target { font-size:13px; color:var(--foreground); }
 .admin-shell .order-product { max-width:300px; }
 .admin-shell .mode-tag { font-size:9px; padding:1px 5px; background:var(--primary-soft); border:0; }
-.admin-shell .mode-tag.sandbox { background:var(--pink-soft); color:var(--pink-ink); }
 .admin-shell .order-status { font-size:11px; padding:5px 8px; border-radius:7px; }
 .admin-shell .status-ready,.admin-shell .status-dispatching,.admin-shell .status-processing { background:var(--primary-soft); color:var(--focus); }
 .admin-shell .status-refunded,.admin-shell .status-manual_review { background:var(--pink-soft); color:var(--pink-ink); }
@@ -333,10 +330,11 @@ html,body,.admin-shell *, .anres-select-content { scrollbar-width:thin; scrollba
 .admin-shell .overview-links,.admin-shell .overview-links button { font-size:11px; }
 .admin-shell .overview-links button { color:var(--focus); }
 .order-dialog { font-family:var(--font-sans); color:var(--foreground); }
-.drawer-header h2 { font-size:24px; }
+.drawer-header h2 { font-size:clamp(17px,3vw,22px); line-height:1.5; }
+@media(max-width:400px) { .order-dialog .detail-status-grid { grid-template-columns:1fr; } }
 .drawer-header span { font-size:12px; color:var(--muted); }
 .detail-product h3 { font-size:15px; }
-.detail-product p,.detail-section dl>div,.copy-value span,.review-box p,.sandbox-notice { font-size:12px; }
+.detail-product p,.detail-section dl>div,.copy-value span,.review-box p { font-size:12px; }
 .detail-section dt { color:var(--muted); }
 .detail-section h3,.review-box h3,.variant-form legend,.variant-promotion h3 { font-size:14px; color:var(--foreground); }
 .variant-form label { font-size:12px; color:var(--foreground); }

@@ -1,6 +1,6 @@
-import { SandboxPaymentPage } from "@/components/storefront/payment-checkout";
+import { PaymentInvoicePage } from "@/components/storefront/payment-checkout";
 export const metadata = { title: "Pembayaran | Anres Store" };
 export default async function Page({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  return <SandboxPaymentPage id={id}/>;
+  return <PaymentInvoicePage id={id}/>;
 }

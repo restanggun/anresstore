@@ -1,6 +1,6 @@
 # Dashboard operasional
 
-Lingkup: produk dan promo, akun pelanggan, transaksi produksi dan simulasi yang terpisah, penanganan pesanan, tiket dan percakapan CS, laporan dari agregasi database.
+Lingkup: produk dan promo, akun pelanggan, transaksi produksi, penanganan pesanan, tiket dan percakapan CS, laporan dari agregasi database.
 
 ## Arah UI
 

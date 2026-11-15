@@ -16,7 +16,8 @@ Domain admin menggunakan `.site`, bukan `.sie`.
 
 - Domain publik: landing, tentang, bantuan. Landing tidak bergantung pada sesi API untuk tampil.
 - Auth: `/login`, `/daftar`, `/lupa-password`, `/auth/*`. Root auth diarahkan ke login.
-- App: root dashboard pelanggan, `/profil`, `/katalog/*`, `/keranjang`, `/invoice/*`, `/pesanan/*`, `/pembayaran/*`. Katalog dan checkout tamu tetap dapat diakses tanpa login. Akses data akun tetap diverifikasi API.
+- App: `/dashboard` sebagai tujuan login pelanggan (juga pada mode satu origin), root dashboard pelanggan pada subdomain app, `/profil`, `/katalog/*`, `/keranjang`, `/invoice/*`, `/pesanan/*`, `/pembayaran/*`. Katalog dan checkout tamu tetap dapat diakses tanpa login. Akses data akun tetap diverifikasi API.
+- Dashboard memuat riwayat dari `GET /v1/payments/transactions?page=0&scope=account` dengan cookie sesi. API mewajibkan akun terverifikasi, memfilter `owner_user_id` di database, dan menyediakan pagination. Kartu transaksi membuka detail `/invoice/:id` melalui API transaksi yang sama. Riwayat akun tidak beralih ke riwayat tamu jika sesi login hilang.
 - URL lama pada domain yang salah diarahkan ke origin kanonis dengan path dan query tetap dipertahankan. Host tidak dikenal ditolak saat mode subdomain aktif.
 - Login admin menggunakan auth terpusat saat `NEXT_PUBLIC_AUTH_URL` tersedia. MFA dan otorisasi admin tetap dilaksanakan oleh admin/API. Parameter `app=admin` memilih tujuan tetap dari konfigurasi, bukan URL redirect bebas.
 
@@ -49,6 +50,6 @@ Nilai `NEXT_PUBLIC_*` dimasukkan pada **build time** dan runtime lewat Compose. 
 
 ## Batas kesiapan
 
-Konfigurasi ini menyiapkan routing dan deployment; DNS, sertifikat publik, OAuth provider, secret, migrasi database, backup, dan uji akun nyata harus diverifikasi di lingkungan tujuan. Tidak ada deployment publik otomatis dari pekerjaan lokal ini. Integrasi pembayaran tetap mengikuti batas sandbox yang sudah ada; perubahan domain tidak mengaktifkan transaksi live.
+Konfigurasi ini menyiapkan routing dan deployment; DNS, sertifikat publik, OAuth provider, secret, migrasi database, backup, dan uji akun nyata harus diverifikasi di lingkungan tujuan. Tidak ada deployment publik otomatis dari pekerjaan lokal ini. Pembayaran memakai konfigurasi produksi yang diverifikasi saat startup.
 
 Pemeriksaan: `npm run test:domains`, `npm run typecheck`, `npm test`, serta production build dengan kelima variabel URL terisi. Gunakan `ANRES_NEXT_DIST_DIR=.next-subdomains` untuk build/preview terisolasi dari server development yang aktif.

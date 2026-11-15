@@ -205,9 +205,9 @@ export class AdminController {
   async records(@Param("kind") kind: string, @Query("page") page: string, @Req() req: Request, @Res({ passthrough: true }) res: Response) {
     const access = await this.authorize(req, res);
     const tables: Record<string, [string, string]> = {
-      orders: ["orders", "id,user_id,created_at,payment_method,items"],
-      payments: ["sandbox_payments", "id,created_at,source,product_name,provider_code,target,amount,method,reference,status"],
-      fulfillment: ["live_transactions", "id,created_at,updated_at,category,product_name,provider_code,target,target_zone,amount,payment_method,payment_reference,payment_status,fulfillment_status,provider_reference,provider_note,payment_mode,review_required,fulfillment_mode,service_quantity,customer_name,customer_email,customer_phone"],
+      orders: ["live_transactions", "id,invoice_number,user_id,created_at,product_name,amount,payment_method,payment_status,fulfillment_status"],
+      payments: ["payments", "id,invoice_number,created_at,source,product_name,provider_code,target,amount,method,reference,status"],
+      fulfillment: ["live_transactions", "id,invoice_number,created_at,updated_at,category,product_name,provider_code,target,target_zone,amount,payment_method,payment_reference,payment_status,fulfillment_status,provider_reference,provider_note,payment_mode,review_required,fulfillment_mode,service_quantity,customer_name,customer_email,customer_phone"],
       support: ["support_requests", "id,created_at,name,email,message,status"],
       products: ["managed_products", "*"],
       customers: ["users", "id,full_name,created_at,updated_at"],
@@ -222,7 +222,8 @@ export class AdminController {
     if (kind !== "products" && (access.categories.length < 5 || access.productSlugs.length)) throw new HttpException("Data ini memerlukan akses semua layanan.", 403);
     const scope = kind === "products" ? `&category=in.(${access.categories.filter(c => ["game", "prepaid", "apps", "social", "tasks"].includes(c)).join(",")})${access.productSlugs.length ? `&product_slug=in.(${access.productSlugs.join(",")})` : ""}` : "";
     if (kind === "products" && !access.categories.length) return { rows: [], hasMore: false, page: index };
-    const rows = await adminDb(table[0], `?select=${table[1]}${scope}&order=created_at.desc&limit=51&offset=${index * 50}`);
+    const paymentScope = kind === "payments" || kind === "fulfillment" ? "&payment_mode=eq.live" : "";
+    const rows = await adminDb(table[0], `?select=${table[1]}${scope}${paymentScope}&order=created_at.desc&limit=51&offset=${index * 50}`);
     return { rows: rows.slice(0, 50), hasMore: rows.length > 50, page: index };
   }
 
@@ -257,6 +258,14 @@ export class AdminController {
     return { items, managed, providerAvailable: !!source, published: process.env.ADMIN_CATALOG_ENABLED === "true", canWrite: access.permissions.includes("*") || access.permissions.includes("products.write") };
   }
 
+  @Get("conversations/notifications")
+  async supportNotifications(@Req() req:Request,@Res({passthrough:true}) res:Response) {
+    const access=await this.authorize(req,res); this.permit(access,"support.read"); this.allServices(access);
+    const [summary]=await adminDb<{new_count:number;unread_count:number;recent:unknown[];recent_messages:unknown[]}>("rpc/support_ticket_notifications","","POST",{});
+    if(!summary) throw new HttpException("Notifikasi tiket belum tersedia.",503);
+    return {count:Number(summary.new_count),unreadCount:Number(summary.unread_count),recent:summary.recent,recentMessages:summary.recent_messages};
+  }
+
   @Post("conversations")
   async createConversation(@Body() input:{id?:unknown;user_id?:unknown;subject?:unknown;body?:unknown},@Req() req:Request,@Res({passthrough:true}) res:Response) {
     const access=await this.authorize(req,res,true); this.permit(access,"support.write"); this.allServices(access);
@@ -271,12 +280,14 @@ export class AdminController {
 
   @Get("conversations/:id/messages")
   async conversationMessages(@Param("id") id:string,@Query("page") page:string,@Req() req:Request,@Res({passthrough:true}) res:Response) {
+    const readAt=new Date().toISOString();
     const access=await this.authorize(req,res); this.permit(access,"support.read"); this.allServices(access);
     if(!uuid(id)) throw new HttpException("Percakapan tidak valid.",400);
     const index=pageIndex(page);
     const [room]=await adminDb("support_conversations",`?id=eq.${id}&select=*`);
     if(!room) throw new HttpException("Percakapan tidak ditemukan.",404);
     const rows=await adminDb("support_messages",`?conversation_id=eq.${id}&select=id,body,author_role,created_at&order=created_at.desc,id.desc&limit=51&offset=${index*50}`);
+    if(index===0) await adminDb("support_conversations",`?id=eq.${id}`,"PATCH",{staff_read_at:readAt});
     return {room,rows:rows.slice(0,50).reverse(),hasMore:rows.length>50};
   }
 
@@ -319,13 +330,8 @@ export class AdminController {
     if(!order) throw new HttpException("Pesanan tidak ditemukan.",404);
     if(order.payment_status!=="paid") throw new HttpException("Pesanan belum lunas. Pembayaran hanya dapat diperbarui oleh gateway.",409);
     await this.audit(access.id,input.review?"order.review":"order.review_clear",id);
-    if(order.payment_mode==="sandbox") {
-      const [row]=await adminDb("sandbox_payments",`?id=eq.${id}`,"PATCH",{review_required:input.review});
-      if(!row) throw new HttpException("Pesanan simulasi tidak ditemukan.",404);
-    } else {
       const [row]=await adminDb("live_transactions",`?id=eq.${id}&payment_mode=eq.live&payment_status=eq.paid`,"PATCH",{review_required:input.review,updated_at:new Date().toISOString()});
       if(!row) throw new HttpException("Pesanan berubah. Muat ulang lalu coba lagi.",409);
-    }
     return {ok:true,review_required:input.review};
   }
 
@@ -334,7 +340,7 @@ export class AdminController {
     const access=await this.authorize(req,res,true); this.permit(access,"orders.write"); this.allServices(access);
     if(!uuid(id) || !["processing","completed","failed"].includes(String(body?.status)) || typeof body.note!=="string" || !body.note.trim() || body.note.length>2000 || /[<>\u0000-\u001f]/.test(body.note)) throw new HttpException("Isi status dan catatan pengerjaan yang valid.",400);
     const [order]=await adminDb<{fulfillment_status:string}>("live_transactions",`?id=eq.${id}&fulfillment_mode=eq.manual&payment_mode=eq.live&payment_status=eq.paid&select=fulfillment_status`);
-    if(!order || !["ready","processing","manual_review"].includes(order.fulfillment_status)) throw new HttpException("Pesanan manual belum lunas, masih sandbox, atau sudah berstatus akhir.",409);
+    if(!order || !["ready","processing","manual_review"].includes(order.fulfillment_status)) throw new HttpException("Pesanan manual belum lunas atau sudah berstatus akhir.",409);
     await this.audit(access.id,"order.manual_update",id);
     const [row]=await adminDb("live_transactions",`?id=eq.${id}&fulfillment_mode=eq.manual&payment_mode=eq.live&payment_status=eq.paid&fulfillment_status=eq.${order.fulfillment_status}`,"PATCH",{fulfillment_status:body.status,provider_note:body.note.trim(),updated_at:new Date().toISOString()});
     if(!row) throw new HttpException("Pesanan berubah. Muat ulang sebelum mencoba lagi.",409);

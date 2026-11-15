@@ -3,13 +3,12 @@ import type { OnModuleInit, OnModuleDestroy, RawBodyRequest } from "@nestjs/comm
 import { randomBytes } from "node:crypto";
 import type { Request, Response } from "express";
 import { CatalogController } from "../catalog/catalog.controller";
-import { digestGuestToken } from "./guest-access";
 import { verifyTripayCallback } from "./tripay-signature";
 import { applyPaymentEvent, type PaymentEvent } from "./transaction-state";
-import { TripayClient, tripayConfig, type TripayTransaction } from "./tripay-client";
+import { TripayClient, tripayConfig, tripayCustomerEmail, type TripayTransaction } from "./tripay-client";
 import { PaymentStore } from "./payment-store";
 import { PaymentIdentityService, type PaymentIdentity } from "./payment-identity";
-import { ownsPayment, parsePayment, paymentHash, paymentId, validatePaymentDetail, type PaymentRow } from "./payment-contract";
+import { ownsPayment, parsePayment, paymentHash, paymentId, invoiceNumber, validatePaymentDetail, type PaymentRow } from "./payment-contract";
 
 @Controller("payments")
 export class PaymentsController implements OnModuleInit, OnModuleDestroy {
@@ -44,26 +43,20 @@ export class PaymentsController implements OnModuleInit, OnModuleDestroy {
     const allowed = (process.env.CORS_ORIGINS ?? "http://localhost:3000,http://localhost:3001").split(",").map(value => value.trim());
     if (!req.headers.origin || !allowed.includes(req.headers.origin)) throw new HttpException("Origin tidak diizinkan.", 403);
   }
-  private legacyAccess(req: Request) {
-    if (!req.headers.authorization) return null;
-    const token = /^Bearer ([A-Za-z0-9_-]{43})$/.exec(req.headers.authorization)?.[1];
-    const digest = digestGuestToken(token);
-    if (!digest) throw new HttpException("Akses pembayaran tidak valid.", 401);
-    return digest.toString("hex");
-  }
-  private db(query: string, method = "GET", body?: unknown) { return this.store.request<PaymentRow[]>(`sandbox_payments${query}`, method, body); }
+  private db(query: string, method = "GET", body?: unknown) { return this.store.request<PaymentRow[]>(`payments${query}${query.includes("payment_mode=") ? "" : `${query.includes("?") ? "&" : "?"}payment_mode=eq.live`}`, method, body); }
   private async row(id: string) {
-    if (!paymentId.test(id)) throw new HttpException("Pembayaran tidak ditemukan.", 404);
-    const [row] = await this.db(`?id=eq.${id}`);
+    const key = paymentId.test(id.toLowerCase()) ? "id" : invoiceNumber.test(id.toUpperCase()) ? "invoice_number" : null;
+    if (!key) throw new HttpException("Pembayaran tidak ditemukan.", 404);
+    const [row] = await this.db(`?${key}=eq.${key === "id" ? id.toLowerCase() : id.toUpperCase()}`);
     if (!row) throw new HttpException("Pembayaran tidak ditemukan.", 404);
     return row;
   }
-  private authorize(row: PaymentRow, identity: PaymentIdentity, legacy: string | null) {
-    if (!ownsPayment(row, identity, legacy)) throw new HttpException("Pembayaran tidak ditemukan.", 404);
+  private authorize(row: PaymentRow, identity: PaymentIdentity) {
+    if (!ownsPayment(row, identity)) throw new HttpException("Pembayaran tidak ditemukan.", 404);
   }
   private publicPayment(row: PaymentRow, refreshDelayed = false) {
     const detail = row.details;
-    return { id: row.id, sandbox: (row.payment_mode ?? "sandbox") === "sandbox", mode: row.payment_mode ?? "sandbox", createdAt: row.created_at, product: row.product_name, amount: row.amount, status: row.status, target: row.target, targetZone: row.target_zone ?? null,
+    return { id: row.id, invoiceNumber: row.invoice_number ?? null, mode: row.payment_mode, createdAt: row.created_at, product: row.product_name, amount: row.amount, status: row.status, target: row.target, targetZone: row.target_zone ?? null,
       method: detail?.payment_name ?? row.method, reference: row.reference,
       total: detail?.amount ?? row.amount, fee: detail?.fee_customer ?? 0,
       payCode: detail?.pay_code ?? null, checkoutUrl: detail?.checkout_url ?? null, expiresAt: detail?.expired_time ?? null,
@@ -109,11 +102,11 @@ export class PaymentsController implements OnModuleInit, OnModuleDestroy {
   }
   private async refresh(row: PaymentRow): Promise<{ row: PaymentRow; delayed: boolean }> {
     // Credentials belong to one environment. Old invoices remain readable after cutover.
-    if ((row.payment_mode ?? "sandbox") !== tripayConfig().mode) return { row, delayed: true };
+    if ((row.payment_mode) !== tripayConfig().mode) return { row, delayed: true };
     if (!["pending", "unknown", "paid"].includes(row.status)) return { row, delayed: false };
-    if (!await this.store.rpc<boolean>("claim_sandbox_payment_check", { p_id: row.id })) return { row, delayed: false };
+    if (!await this.store.rpc<boolean>("claim_payment_check", { p_id: row.id })) return { row, delayed: false };
     try {
-      const reference = row.reference ?? await this.tripay.findByMerchantRef(row.id);
+      const reference = row.reference ?? await this.tripay.findByMerchantRef(row.merchant_ref ?? row.id);
       if (!reference) {
         await this.db(`?id=eq.${row.id}`, "PATCH", { provider_checked_at: new Date().toISOString() });
         return { row: await this.row(row.id), delayed: true };
@@ -142,7 +135,7 @@ export class PaymentsController implements OnModuleInit, OnModuleDestroy {
     res.setHeader("Cache-Control", "no-store"); this.coarseLimit(req, "channels", 120);
     await this.throttle(`channels:${paymentHash(this.ip(req))}`, 60);
     const channels = await this.tripay.channels();
-    return { sandbox: tripayConfig().mode === "sandbox", channels: channels.map(({ code, name, group, icon_url, minimum_amount, maximum_amount, fee_customer }) => ({ code, name, group, iconUrl: safeChannelIcon(icon_url), minimum: minimum_amount, maximum: maximum_amount, fee: fee_customer })) };
+    return { mode: tripayConfig().mode, channels: channels.map(({ code, name, group, icon_url, minimum_amount, maximum_amount, fee_customer }) => ({ code, name, group, iconUrl: safeChannelIcon(icon_url), minimum: minimum_amount, maximum: maximum_amount, fee: fee_customer })) };
   }
   @Post("transactions") @HttpCode(200)
   async create(@Body() input: unknown, @Req() req: Request, @Res({ passthrough: true }) res: Response) {
@@ -150,15 +143,16 @@ export class PaymentsController implements OnModuleInit, OnModuleDestroy {
     await this.throttle(`create-ip:${paymentHash(this.ip(req))}`, 20);
     const { mode } = tripayConfig();
     const body = parsePayment(input);
-    const identity = await this.identities.resolve(req);
+    const identity = await this.identities.resolve(req, res);
+    body.email = tripayCustomerEmail(identity.userId ? identity.email ?? "" : body.email);
     const owner = identity.userId ?? identity.guestHash;
     if (!owner) throw new HttpException("Sesi checkout belum siap. Muat ulang checkout.", 401);
     await this.throttle(`create-owner:${paymentHash(owner)}`, 10);
     const requestHash = paymentHash(JSON.stringify(body));
     const [existing] = await this.db(`?id=eq.${body.id}`);
     if (existing) {
-      this.authorize(existing, identity, this.legacyAccess(req));
-      if ((existing.payment_mode ?? "sandbox") !== mode) throw new HttpException("Invoice berasal dari mode pembayaran lain. Buka invoice tersebut untuk memeriksa statusnya.", 409);
+      this.authorize(existing, identity);
+      if ((existing.payment_mode) !== mode) throw new HttpException("Invoice berasal dari mode pembayaran lain. Buka invoice tersebut untuk memeriksa statusnya.", 409);
       if (existing.request_hash !== requestHash) throw new HttpException("ID pembayaran sudah digunakan untuk pesanan lain.", 409);
       return this.publicPayment(existing);
     }
@@ -182,8 +176,11 @@ export class PaymentsController implements OnModuleInit, OnModuleDestroy {
     if (product.price !== body.expectedAmount) throw new HttpException("Harga telah berubah. Muat ulang katalog dan periksa harga sebelum melanjutkan.", 409);
     const channel = (await this.tripay.channels()).find(item => item.code === body.method);
     if (!channel || product.price < channel.minimum_amount || product.price > channel.maximum_amount) throw new HttpException("Metode pembayaran tidak tersedia untuk nominal ini.", 400);
+    const gatewayEmail = tripayCustomerEmail(body.email);
     const reservation = await this.store.rpc<{ payment: PaymentRow; claimed: boolean }>("reserve_payment", { p_payment: {
       payment_mode: mode,
+      invoice_product_code: product.productSlug || product.product,
+      invoice_subproduct_code: product.providerServiceCode || body.code,
       id: body.id, source: body.source, provider_code: body.code, product_name: `${product.product} - ${product.name}`, target: body.target,
       target_zone: body.targetZone ?? null, provider_cost: product.providerCost ?? null,
       customer_name: body.name, customer_email: body.email, customer_phone: body.phone,
@@ -194,10 +191,10 @@ export class PaymentsController implements OnModuleInit, OnModuleDestroy {
     } });
     if (!reservation?.payment || typeof reservation.claimed !== "boolean") throw new HttpException("Reservasi pembayaran belum dapat dipastikan.", 503);
     let row = reservation.payment;
-    this.authorize(row, identity, null);
+    this.authorize(row, identity);
     if (!reservation.claimed) return this.publicPayment(row);
     try {
-      const detail = await this.tripay.create({ id: row.id, method: row.method, amount: row.amount, name: body.name, email: body.email, phone: body.phone, product: row.product_name, code: row.provider_code, callback: callback!, returnUrl: new URL(`/pembayaran/${row.id}`, returnUrl!).href });
+      const detail = await this.tripay.create({ id: row.merchant_ref ?? row.id, method: row.method, amount: row.amount, name: body.name, email: gatewayEmail, phone: body.phone, product: row.product_name, code: row.provider_code, callback: callback!, returnUrl: new URL(`/invoice/${row.invoice_number ?? row.id}`, returnUrl!).href });
       row = await this.saveDetail(row, detail);
       return this.publicPayment(row);
     } catch {
@@ -207,23 +204,25 @@ export class PaymentsController implements OnModuleInit, OnModuleDestroy {
     }
   }
   @Get("transactions")
-  async history(@Query("page") page: string, @Req() req: Request, @Res({ passthrough: true }) res: Response) {
+  async history(@Query("page") page: string, @Req() req: Request, @Res({ passthrough: true }) res: Response, @Query("scope") scope?: string) {
     res.setHeader("Cache-Control", "no-store"); this.coarseLimit(req, "history", 60);
-    const identity = await this.identities.resolve(req);
+    const identity = await this.identities.resolve(req, res);
+    if (scope !== undefined && scope !== "account") throw new HttpException("Jenis riwayat tidak valid.", 400);
+    if (scope === "account" && !identity.userId) throw new HttpException("Silakan masuk kembali untuk melihat riwayat akun.", 401);
     const index = Number(page || 0);
     if (!Number.isSafeInteger(index) || index < 0 || index > 10000) throw new HttpException("Halaman tidak valid.", 400);
     if (!identity.userId && !identity.guestHash) return { payments: [], hasMore: false, userId: null };
     const owner = identity.userId ? "owner_user_id=eq." + identity.userId : "guest_session_hash=eq." + identity.guestHash + "&created_at=gte." + encodeURIComponent(new Date(Date.now()-30*86400000).toISOString());
     const rows = await this.db("?" + owner + "&order=created_at.desc&limit=51&offset=" + index*50);
-    return { payments: rows.slice(0,50).filter(row => ownsPayment(row,identity,null)).map(row=>this.publicPayment(row)), hasMore: rows.length>50, userId: identity.userId };
+    return { payments: rows.slice(0,50).filter(row => ownsPayment(row,identity)).map(row=>this.publicPayment(row)), hasMore: rows.length>50, userId: identity.userId };
   }
   @Get("transactions/:id")
   async detail(@Param("id") id: string, @Req() req: Request, @Res({ passthrough: true }) res: Response) {
     res.setHeader("Cache-Control", "no-store"); this.coarseLimit(req, "read", 180);
     await this.throttle(`read:${paymentHash(this.ip(req))}`, 120);
-    const identity = await this.identities.resolve(req);
-    let row = await this.row(id.toLowerCase());
-    this.authorize(row, identity, this.legacyAccess(req));
+    const identity = await this.identities.resolve(req, res);
+    let row = await this.row(id);
+    this.authorize(row, identity);
     if (row.status === "creating" && Date.parse(row.created_at) < Date.now() - 120000) row = await this.markUnknown(row);
     const refreshed = await this.refresh(row);
     const [fulfillment] = await this.store.request<{ fulfillment_status: string; provider_note: string | null; payment_mode: string }[]>("live_transactions?id=eq." + refreshed.row.id + "&select=fulfillment_status,provider_note,payment_mode");
@@ -238,10 +237,10 @@ export class PaymentsController implements OnModuleInit, OnModuleDestroy {
     const body: unknown = req.body;
     if (!body || typeof body !== "object" || Array.isArray(body)) throw new HttpException("Callback tidak valid.", 400);
     const event = body as Record<string, unknown>;
-    if (typeof event.merchant_ref !== "string" || !paymentId.test(event.merchant_ref) || typeof event.reference !== "string" || !/^[A-Za-z0-9-]{1,100}$/.test(event.reference) || event.is_closed_payment !== 1 || !["PAID", "FAILED", "EXPIRED", "REFUND"].includes(String(event.status)) || !Number.isSafeInteger(event.total_amount)) throw new HttpException("Callback tidak valid.", 400);
+    if (typeof event.merchant_ref !== "string" || (!paymentId.test(event.merchant_ref) && !invoiceNumber.test(event.merchant_ref)) || typeof event.reference !== "string" || !/^[A-Za-z0-9-]{1,100}$/.test(event.reference) || event.is_closed_payment !== 1 || !["PAID", "FAILED", "EXPIRED", "REFUND"].includes(String(event.status)) || !Number.isSafeInteger(event.total_amount)) throw new HttpException("Callback tidak valid.", 400);
     await this.throttle(`callback:${event.merchant_ref}`, 60);
     const row = await this.row(event.merchant_ref);
-    if ((row.payment_mode ?? "sandbox") !== tripayConfig().mode) throw new HttpException("Mode callback tidak sesuai invoice.", 409);
+    if ((row.payment_mode) !== tripayConfig().mode) throw new HttpException("Mode callback tidak sesuai invoice.", 409);
     const detail = await this.tripay.detail(event.reference);
     if (detail.amount !== event.total_amount || detail.payment_method !== event.payment_method_code) throw new HttpException("Callback tidak sesuai transaksi.", 400);
     await this.saveDetail(row, detail);

@@ -1,0 +1,23 @@
+"use client";
+import {useEffect,useRef,useState} from "react";
+import {useQuery} from "@tanstack/react-query";
+import {Bell,MessageCircle,X} from "lucide-react";
+import {adminRequest} from "./workspace-api";
+import "./support-notifications.css";
+type Entry={id:string;subject:string;created_at:string};
+type Summary={count:number;unreadCount?:number;recent:Entry[];recentMessages?:Entry[]};
+function useTickets(){return useQuery<Summary>({queryKey:["support-notifications"],queryFn:()=>adminRequest("conversations/notifications"),refetchInterval:5000,retry:false});}
+export function SupportTicketBadge(){const {data}=useTickets();const total=(data?.count||0)+(data?.unreadCount||0);return total>0?<span className="cs-count-badge" aria-label={`${data?.count||0} tiket baru, ${data?.unreadCount||0} chat belum dibaca`}>{total>99?"99+":total}</span>:null;}
+export function SupportNotifications({onNavigate,systemAlerts=0}:{onNavigate:(section:string)=>void;systemAlerts?:number}){
+ const query=useTickets(),count=query.data?.count||0,unread=query.data?.unreadCount||0;
+ const [open,setOpen]=useState(false),[arrivals,setArrivals]=useState(0);
+ const host=useRef<HTMLDivElement>(null),previous=useRef<number|null>(null),lastChat=useRef<string|null>(null);
+ useEffect(()=>{if(!query.data)return;const next=query.data.count+(query.data.unreadCount||0),latest=query.data.recentMessages?.map(t=>`${t.id}:${t.created_at}`).join("|")||"";if(previous.current!==null&&next>previous.current)setArrivals(next-previous.current);else if(lastChat.current!==null&&latest&&latest!==lastChat.current)setArrivals(1);previous.current=next;lastChat.current=latest;},[query.data]);
+ useEffect(()=>{if(!arrivals)return;const timer=setTimeout(()=>setArrivals(0),7000);return()=>clearTimeout(timer);},[arrivals]);
+ useEffect(()=>{if(!open)return;const outside=(e:PointerEvent)=>{if(!host.current?.contains(e.target as Node))setOpen(false);};const escape=(e:KeyboardEvent)=>{if(e.key==="Escape")setOpen(false);};document.addEventListener("pointerdown",outside);document.addEventListener("keydown",escape);return()=>{document.removeEventListener("pointerdown",outside);document.removeEventListener("keydown",escape);};},[open]);
+ function navigate(section:string){setOpen(false);setArrivals(0);onNavigate(section);}
+ return <div className="cs-notifications" ref={host}><button className="notification-button" aria-label={`Notifikasi, ${count} tiket baru, ${unread} chat baru${systemAlerts?`, ${systemAlerts} masalah sistem`:""}`} aria-expanded={open} aria-controls="cs-notifications-panel" onClick={()=>setOpen(v=>!v)}><Bell size={20}/>{count+unread+systemAlerts>0&&<span className="cs-count-badge">{count+unread+systemAlerts>99?"99+":count+unread+systemAlerts}</span>}</button>
+  {open&&<section className="cs-notification-panel" id="cs-notifications-panel" aria-label="Notifikasi dashboard"><header><div><h2>Notifikasi</h2><p>{count} tiket menunggu CS · {unread} chat baru</p></div><button aria-label="Tutup notifikasi" onClick={()=>setOpen(false)}><X size={18}/></button></header>{query.isPending?<p className="cs-notification-empty" role="status">Memuat notifikasi...</p>:query.error?<div className="cs-notification-empty"><p>Notifikasi tiket belum dapat dimuat.</p><button onClick={()=>void query.refetch()}>Coba lagi</button></div>:count+unread===0?<div className="cs-notification-empty"><MessageCircle size={24}/><p>Semua tiket sudah ditangani.</p></div>:<div className="cs-notification-list">{[...(query.data?.recent||[]).map(t=>({...t,kind:"Tiket baru"})),...(query.data?.recentMessages||[]).map(t=>({...t,kind:"Chat baru"}))].map(ticket=><button key={ticket.id} onClick={()=>navigate("conversations")}><span className="cs-notification-icon"><MessageCircle size={18}/></span><span><strong>{ticket.subject}</strong><small>{ticket.kind} · {new Date(ticket.created_at).toLocaleString("id-ID",{day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"})}</small></span><i aria-label="Belum diterima"/></button>)}</div>}{systemAlerts>0&&<button className="cs-system-alert" onClick={()=>navigate("system")}>{systemAlerts} masalah koneksi sistem · Periksa</button>}<footer><button onClick={()=>navigate("conversations")}>Lihat semua tiket CS</button></footer></section>}
+  {arrivals>0&&<div className="cs-ticket-toast" role="status"><MessageCircle size={21}/><div><strong>{arrivals} notifikasi CS baru</strong><p>Ada tiket atau pesan pelanggan yang perlu dibaca.</p></div><button onClick={()=>navigate("conversations")}>Lihat tiket</button><button aria-label="Tutup pemberitahuan tiket" onClick={()=>setArrivals(0)}><X size={16}/></button></div>}
+ </div>;
+}

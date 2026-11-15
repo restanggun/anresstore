@@ -2,9 +2,9 @@
 export function checks(now = Date.now(), mode = 'live') {
   const ago = minutes => new Date(now - minutes * 60000).toISOString();
   return [
-    ['payment_unknown', 'sandbox_payments', `status=eq.unknown`, 'critical'],
-    ['payment_creating_stale', 'sandbox_payments', `status=eq.creating&created_at=lt.${ago(5)}`, 'warning'],
-    ['payment_pending_stale', 'sandbox_payments', `status=eq.pending&created_at=lt.${ago(60)}`, 'warning'],
+    ['payment_unknown', 'payments', `status=eq.unknown`, 'critical'],
+    ['payment_creating_stale', 'payments', `status=eq.creating&created_at=lt.${ago(5)}`, 'warning'],
+    ['payment_pending_stale', 'payments', `status=eq.pending&created_at=lt.${ago(60)}`, 'warning'],
     ['fulfillment_unknown', 'live_transactions', 'fulfillment_status=eq.unknown', 'critical'],
     ['fulfillment_manual_review', 'live_transactions', 'fulfillment_status=eq.manual_review', 'warning'],
     ['order_review_required', 'live_transactions', 'review_required=eq.true', 'warning'],
@@ -18,7 +18,7 @@ export async function run(env = process.env, request = fetch) {
   const url = env.SUPABASE_URL;
   const key = env.SUPABASE_SECRET_KEY || env.SUPABASE_SERVICE_ROLE_KEY;
   const mode = env.OPERATIONS_PAYMENT_MODE || 'live';
-  if (!url || !key || !['live', 'sandbox'].includes(mode) || new URL(url).protocol !== 'https:') throw new Error('Invalid monitor configuration');
+  if (!url || !key || mode !== 'live' || new URL(url).protocol !== 'https:') throw new Error('Invalid monitor configuration');
   const results = [];
   for (const check of checks(Date.now(), mode)) {
     const response = await request(`${url.replace(/\/$/, '')}/rest/v1/${check.table}?select=id&${check.filter}`, {

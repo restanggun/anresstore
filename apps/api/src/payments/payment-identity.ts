@@ -3,7 +3,7 @@ import { createHash, randomBytes } from "node:crypto";
 import type { Request, Response } from "express";
 import { digestGuestToken } from "./guest-access";
 
-export type PaymentIdentity = { userId: string | null; guestHash: string | null };
+export type PaymentIdentity = { userId: string | null; guestHash: string | null; email?: string | null };
 const guestCookie = () => process.env.NODE_ENV === "production" ? "__Host-anres_payment_guest" : "anres_payment_guest";
 
 export function paymentCookies(req: Request) {
@@ -20,11 +20,19 @@ export function paymentCookies(req: Request) {
 }
 
 export class PaymentIdentityService {
-  async resolve(req: Request): Promise<PaymentIdentity> {
+  async resolve(req: Request, res?: Response): Promise<PaymentIdentity> {
     const cookies = paymentCookies(req);
     const guestHash = digestGuestToken(cookies[guestCookie()])?.toString("hex") ?? null;
     // Session cookies are verified with the auth server, never trusted as user claims.
     if (!cookies.anres_access && !cookies.anres_refresh) return { userId: null, guestHash };
+    if (res) {
+      // Reuse verified refresh/rotation; an Auth outage must never become guest checkout.
+      const { resolveSession } = await import("../auth/session.js");
+      const session = await resolveSession(req, res);
+      const userId = session.user.id;
+      if (typeof userId !== "string" || !/^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/i.test(userId)) throw new HttpException("Sesi tidak valid.", 401);
+      return { userId: userId.toLowerCase(), guestHash, email: typeof session.user.email === "string" ? session.user.email : null };
+    }
     if (!cookies.anres_access || cookies.anres_access.length > 8192) throw new HttpException("Sesi berakhir. Masuk kembali sebelum checkout.", 401);
     const url = process.env.SUPABASE_URL?.replace(/\/$/, "");
     const key = process.env.SUPABASE_PUBLISHABLE_KEY || process.env.SUPABASE_ANON_KEY;
@@ -38,7 +46,7 @@ export class PaymentIdentityService {
       if (!response.ok) throw new Error();
       const user: unknown = await response.json();
       if (!user || typeof user !== "object" || !("id" in user) || typeof user.id !== "string" || !/^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/i.test(user.id)) throw new Error();
-      return { userId: user.id.toLowerCase(), guestHash };
+      return { userId: user.id.toLowerCase(), guestHash, email: "email" in user && typeof user.email === "string" ? user.email : null };
     } catch (error) {
       if (error instanceof HttpException) throw error;
       // Auth outages must not silently downgrade an account purchase into a guest purchase.
@@ -47,7 +55,7 @@ export class PaymentIdentityService {
   }
 
   async establish(req: Request, res: Response) {
-    const identity = await this.resolve(req);
+    const identity = await this.resolve(req, res);
     if (!identity.userId && !identity.guestHash) {
       const token = randomBytes(32).toString("base64url");
       res.cookie(guestCookie(), token, { httpOnly: true, secure: process.env.NODE_ENV === "production", sameSite: "lax", path: "/", maxAge: 30 * 86400000 });

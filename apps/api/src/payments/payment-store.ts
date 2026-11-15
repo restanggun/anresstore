@@ -21,7 +21,7 @@ export class PaymentStore {
     }
   }
 
-  rpc<T>(name: "consume_payment_rate" | "reserve_payment" | "claim_sandbox_payment_check", body: unknown) {
+  rpc<T>(name: "consume_payment_rate" | "reserve_payment" | "claim_payment_check", body: unknown) {
     return this.request<T>(`rpc/${name}`, "POST", body);
   }
 }

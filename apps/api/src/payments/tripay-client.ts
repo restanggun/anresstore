@@ -12,12 +12,18 @@ export type TripayTransaction = {
 export function tripayConfig(env: NodeJS.ProcessEnv = process.env) {
   const apiKey = env.TRIPAY_API_KEY?.trim(), privateKey = env.TRIPAY_PRIVATE_KEY?.trim(), merchant = env.TRIPAY_MERCHANT_CODE?.trim();
   const base = env.TRIPAY_BASE_URL?.trim().replace(/\/$/, "");
-  const mode = env.TRIPAY_MODE?.trim() || "sandbox";
-  if (mode !== "sandbox" && mode !== "live") throw new HttpException("TRIPAY_MODE harus sandbox atau live.", 503);
+  const mode = env.TRIPAY_MODE?.trim() || "live";
+  if (mode !== "live") throw new HttpException("TRIPAY_MODE harus live.", 503);
   if (!apiKey || !privateKey || !merchant) throw new HttpException("Kredensial Tripay belum lengkap.", 503);
-  const expected = mode === "live" ? "https://tripay.co.id/api" : "https://tripay.co.id/api-sandbox";
+  const expected = "https://tripay.co.id/api";
   if (base !== expected) throw new HttpException("Endpoint Tripay tidak sesuai mode pembayaran.", 503);
   return { apiKey, privateKey, merchant, base, mode };
+}
+
+export function tripayCustomerEmail(customerEmail: string): string {
+  const email = customerEmail.trim();
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw new HttpException("Email pembayaran wajib diisi dengan alamat yang valid.", 400);
+  return email;
 }
 
 export class TripayClient {
@@ -60,9 +66,10 @@ export class TripayClient {
   async create(input: { id: string; method: string; amount: number; name: string; email: string; phone: string; product: string; code: string; callback: string; returnUrl: string }) {
     const { privateKey, merchant } = tripayConfig();
     if (!Number.isSafeInteger(input.amount) || input.amount <= 0) throw new HttpException("Nominal tidak valid.", 400);
+    const email = tripayCustomerEmail(input.email);
     return this.request<TripayTransaction>("transaction/create", {
       method: input.method, merchant_ref: input.id, amount: input.amount,
-      customer_name: input.name, customer_email: input.email, customer_phone: input.phone,
+      customer_name: input.name, customer_email: email, ...(input.phone ? { customer_phone: input.phone } : {}),
       order_items: [{ sku: input.code, name: input.product, price: input.amount, quantity: 1 }],
       callback_url: input.callback, return_url: input.returnUrl,
       signature: createHmac("sha256", privateKey).update(merchant + input.id + input.amount).digest("hex"),

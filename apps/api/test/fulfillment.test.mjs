@@ -44,7 +44,7 @@ test('durable claim allows one dispatch across workers and uncertain orders are 
   await Promise.all(workers.map(worker=>worker.run()));
   assert.equal(sends,1);assert.equal(row.fulfillment_status,'unknown');
   await workers[0].run();assert.equal(sends,1);
-  assert.ok(paths.every(path=>!path.includes('sandbox_payments')));
+  assert.ok(paths.every(path=>!path.includes('payments')));
   process.env.VIPAYMENT_FULFILLMENT_ENABLED='false';row={...order};await workers[0].run();assert.equal(sends,1);
  } finally {if(old===undefined)delete process.env.VIPAYMENT_FULFILLMENT_ENABLED;else process.env.VIPAYMENT_FULFILLMENT_ENABLED=old;}
 });
@@ -55,4 +55,18 @@ test('social orders send fixed package quantity and partial fulfillment requires
  global.fetch=async(url,init)=>{sent={url,body:init.body};return Response.json({result:true,data:{trxid:'VP17',data:social.target,quantity:500,price:3249,status:'partial',note:'Partial delivery'}});};
  try {const result=await new VipaymentClient().order(social);assert.equal(sent.url,'https://vip-reseller.co.id/api/social-media');assert.equal(sent.body.get('quantity'),'500');assert.equal(sent.body.get('data'),social.target);assert.equal(result.status,'manual_review');await assert.rejects(new VipaymentClient().order({...social,service_quantity:0}));}
  finally{global.fetch=originalFetch;process.env=env;}
+});
+
+test('purchase pause still polls in-flight orders and never claims ready orders',async()=>{
+ const old={...process.env};process.env.VIPAYMENT_FULFILLMENT_ENABLED='false';delete process.env.VIPAYMENT_STATUS_POLLING_ENABLED;
+ const worker=new FulfillmentWorker();let polls=0,claims=0,sends=0;
+ worker.store={request:async(path,method)=>{
+  if(path==='rpc/claim_live_fulfillment'){claims++;return [];}
+  if(method==='PATCH')return path.includes('updated_at=lt.')?[]:[{...order}];
+  return [{...order},{...order,id:'second',fulfillment_status:'processing',provider_reference:'VP1'}];
+ }};
+ worker.provider={order:async()=>{sends++;},status:async()=>{polls++;return {status:'completed',reference:'VP1',note:''};}};
+ try {await worker.run();assert.equal(polls,1);assert.equal(claims,0);assert.equal(sends,0);
+  process.env.VIPAYMENT_STATUS_POLLING_ENABLED='false';await worker.run();assert.equal(polls,1);
+ }finally{process.env=old;}
 });

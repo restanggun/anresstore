@@ -8,6 +8,7 @@ import { AdminController } from "./admin/admin.controller";
 import { FulfillmentWorker } from "./payments/fulfillment-worker";
 import { ConversationsController } from "./help/conversations.controller";
 import { AiSessionsController } from "./help/ai-sessions.controller";
+import {SupportEmailWorker} from "./help/support-email-worker";
 
-@Module({ controllers: [HealthController, AuthController, HelpController, ConversationsController, AiSessionsController, CatalogController, PaymentsController, AdminController], providers: [FulfillmentWorker] })
+@Module({ controllers: [HealthController, AuthController, HelpController, ConversationsController, AiSessionsController, CatalogController, PaymentsController, AdminController], providers: [FulfillmentWorker,SupportEmailWorker] })
 export class AppModule {}

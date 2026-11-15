@@ -1,2 +1,0 @@
--- Data sintetis saja. Belum ada tabel domain atau data seed pada tahap fondasi.
--- Jangan mengimpor data pelanggan, kredensial, atau database proyek lama.

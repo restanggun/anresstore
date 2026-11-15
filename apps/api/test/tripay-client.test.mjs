@@ -3,19 +3,19 @@ import assert from 'node:assert/strict';
 import {createHmac} from 'node:crypto';
 import {TripayClient,tripayConfig} from '../dist/payments/tripay-client.js';
 
-const config={TRIPAY_API_KEY:'sandbox-api',TRIPAY_PRIVATE_KEY:'sandbox-private',TRIPAY_MERCHANT_CODE:'T123',TRIPAY_BASE_URL:'https://tripay.co.id/api-sandbox'};
+const config={TRIPAY_API_KEY:'test-api',TRIPAY_PRIVATE_KEY:'test-private',TRIPAY_MERCHANT_CODE:'T123',TRIPAY_BASE_URL:'https://tripay.co.id/api'};
 Object.assign(process.env,config);
-test('sandbox cannot send credentials to production or arbitrary hosts',()=>{
-  assert.equal(tripayConfig(config).base,'https://tripay.co.id/api-sandbox');
-  for(const base of ['https://tripay.co.id/api','https://evil.example/api-sandbox','https://tripay.co.id/api-sandbox?other=1']) assert.throws(()=>tripayConfig({...config,TRIPAY_BASE_URL:base}));
+test('production credentials only go to the exact provider endpoint',()=>{
+  assert.equal(tripayConfig(config).base,'https://tripay.co.id/api');
+  for(const base of ['https://tripay.co.id/api-sandbox','https://evil.example/api','https://tripay.co.id/api?other=1']) assert.throws(()=>tripayConfig({...config,TRIPAY_BASE_URL:base}));
   assert.throws(()=>tripayConfig({...config,TRIPAY_PRIVATE_KEY:''}));
 });
 
 test('live requires explicit matching mode and exact production endpoint',()=>{
  const live={...config,TRIPAY_MODE:'live',TRIPAY_BASE_URL:'https://tripay.co.id/api'};
  assert.equal(tripayConfig(live).mode,'live');
- assert.throws(()=>tripayConfig({...live,TRIPAY_BASE_URL:config.TRIPAY_BASE_URL}));
- assert.throws(()=>tripayConfig({...live,TRIPAY_MODE:'production'}));
+ assert.throws(()=>tripayConfig({...live,TRIPAY_BASE_URL:'https://tripay.co.id/api-sandbox'}));
+ assert.throws(()=>tripayConfig({...live,TRIPAY_MODE:'sandbox'}));
 });
 test('create signs the merchant, reference and authoritative amount and sends one line item',async()=>{
   let captured;
@@ -25,10 +25,10 @@ test('create signs the merchant, reference and authoritative amount and sends on
   });
   const input={id:'invoice-1',method:'BRIVA',amount:20000,name:'Test',email:'test@example.com',phone:'081234567890',product:'Test product',code:'SKU1',callback:'https://test.example/v1/payments/callback',returnUrl:'http://localhost:3000'};
   await client.create(input);
-  assert.equal(captured.url,'https://tripay.co.id/api-sandbox/transaction/create');
-  assert.equal(captured.options.headers.Authorization,'Bearer sandbox-api');
+  assert.equal(captured.url,'https://tripay.co.id/api/transaction/create');
+  assert.equal(captured.options.headers.Authorization,'Bearer test-api');
   assert.equal(captured.options.redirect,'error');
-  assert.equal(captured.body.signature,createHmac('sha256','sandbox-private').update('T123invoice-120000').digest('hex'));
+  assert.equal(captured.body.signature,createHmac('sha256','test-private').update('T123invoice-120000').digest('hex'));
   assert.deepEqual(captured.body.order_items,[{sku:'SKU1',name:'Test product',price:20000,quantity:1}]);
   await assert.rejects(client.create({...input,amount:1.5}));
 });
@@ -37,8 +37,8 @@ test('only active payment channels are exposed',async()=>{
   assert.deepEqual((await client.channels()).map(x=>x.code),['BRIVA']);
 });
 test('provider and network errors do not leak secrets or customer information',async()=>{
-  for(const transport of [async()=>{throw new Error('sandbox-private test@example.com');},async()=>Response.json({success:false,message:'sandbox-api'})]) {
-    await assert.rejects(new TripayClient(transport).channels(),error=>error.getStatus()===502&&!JSON.stringify(error.getResponse()).includes('sandbox-api')&&!JSON.stringify(error.getResponse()).includes('test@example.com'));
+  for(const transport of [async()=>{throw new Error('test-private test@example.com');},async()=>Response.json({success:false,message:'test-api'})]) {
+    await assert.rejects(new TripayClient(transport).channels(),error=>error.getStatus()===502&&!JSON.stringify(error.getResponse()).includes('test-api')&&!JSON.stringify(error.getResponse()).includes('test@example.com'));
   }
 });
 test('merchant invoice lookup is bounded and refuses ambiguous or unrelated records',async()=>{

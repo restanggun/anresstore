@@ -20,6 +20,7 @@ export function readEnvironment(env: NodeJS.ProcessEnv = process.env) {
     throw new Error("Production memerlukan origin web/API HTTPS eksplisit.");
   }
   if (env.NODE_ENV === "production") {
+    validateProductionPayments(env);
     for (const name of ["AUTH_WEB_ORIGIN", "AUTH_AUTH_ORIGIN", "AUTH_APP_ORIGIN", "AUTH_API_ORIGIN", "AUTH_ADMIN_ORIGIN"] as const) {
       const value = env[name];
       try {
@@ -33,4 +34,30 @@ export function readEnvironment(env: NodeJS.ProcessEnv = process.env) {
     }
   }
   return { port, origins, trustedProxies };
+}
+
+/** Validate before opening the HTTP listener; never print credential values. */
+export function validateProductionPayments(env: NodeJS.ProcessEnv) {
+  const mode = env.TRIPAY_MODE;
+  if (mode !== "live") throw new Error("Production memerlukan TRIPAY_MODE=live.");
+  const expected = "https://tripay.co.id/api";
+  if (env.TRIPAY_BASE_URL !== expected) throw new Error("TRIPAY_BASE_URL tidak sesuai mode.");
+  for (const name of ["TRIPAY_API_KEY", "TRIPAY_PRIVATE_KEY", "TRIPAY_MERCHANT_CODE", "SUPABASE_URL", "SUPABASE_SECRET_KEY"] as const) {
+    if (!env[name]?.trim()) throw new Error(`${name} wajib diisi.`);
+  }
+  if (env.TRIPAY_CALLBACK_URL !== `${env.AUTH_API_ORIGIN}/v1/payments/callback`) throw new Error("Callback pembayaran harus menggunakan origin API produksi.");
+  try {
+    const url = new URL(env.TRIPAY_RETURN_URL || "");
+    if (url.protocol !== "https:" || url.username || url.password || url.hash ||
+        ![env.AUTH_WEB_ORIGIN, env.AUTH_APP_ORIGIN].includes(url.origin)) throw new Error();
+  } catch { throw new Error("TRIPAY_RETURN_URL harus mengarah ke storefront HTTPS yang dipercaya."); }
+  if (env.PAYMENT_RECONCILIATION_ENABLED !== "true") throw new Error("Rekonsiliasi pembayaran wajib aktif di production.");
+  if (mode === "live") {
+    // false is an operational purchase pause; already submitted orders must still be polled.
+    if (!["true", "false"].includes(env.VIPAYMENT_FULFILLMENT_ENABLED || "")) throw new Error("Status pengiriman VIPayment harus eksplisit.");
+    if (env.VIPAYMENT_STATUS_POLLING_ENABLED !== "true") throw new Error("Polling VIPayment wajib aktif untuk transaksi live.");
+    for (const name of ["VIPAYMENT_API_ID", "VIPAYMENT_API_KEY"] as const) {
+      if (!env[name]?.trim()) throw new Error(`${name} wajib diisi untuk transaksi live.`);
+    }
+  }
 }

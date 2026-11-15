@@ -2,6 +2,7 @@ import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {ConversationsController} from '../dist/help/conversations.controller.js';
 import {AdminController} from '../dist/admin/admin.controller.js';
+import {AiSessionsController} from '../dist/help/ai-sessions.controller.js';
 const customer='aaaaaaaa-0000-4000-8000-000000000001',id='bbbbbbbb-0000-4000-8000-000000000001';
 const req={},res={setHeader(){}};
 async function isolated(fn){const oldFetch=global.fetch,env={...process.env};Object.assign(process.env,{SUPABASE_URL:'https://support.example',SUPABASE_SECRET_KEY:'sb_secret_test'});try{await fn();}finally{global.fetch=oldFetch;process.env=env;}}
@@ -30,4 +31,13 @@ test('ticket rejection requires a reason and records it',()=>isolated(async()=>{
 test('admin creation validates customer existence',()=>isolated(async()=>{
  global.fetch=async()=>Response.json([]);
  await assert.rejects(admin().createConversation({id,user_id:customer,subject:'Bantuan'},req,res),e=>e.getStatus()===404);
+}));
+test('explicit AI handoff stays available when the AI provider is unavailable',()=>isolated(async()=>{
+ const controller=new AiSessionsController();
+ const room={id,owner_key:'a'.repeat(64),user_id:customer,subject:'Bantuan',messages:[],ticket_id:null};
+ controller.owner=async()=>({key:room.owner_key,keys:[room.owner_key],userId:customer});controller.room=async()=>room;
+ controller.ai.chat=async()=>{throw Error('Handoff must not call AI provider');};
+ global.fetch=async(url,options)=>{assert.ok(String(url).includes('append_ai_help_turn'));const body=JSON.parse(options.body);assert.ok(body.p_answer.includes('mengalihkan'));return Response.json([{...room,messages:[{id:customer,role:'user',content:body.p_question}]}]);};
+ const saved=await controller.send(id,{id:customer,content:'AI kurang membantu, hubungkan saya ke CS'},req,res);
+ assert.equal(saved.messages[0].content,'AI kurang membantu, hubungkan saya ke CS');
 }));

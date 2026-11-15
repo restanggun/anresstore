@@ -74,7 +74,8 @@ export class AiSessionsController {
    if(size+length>48000) break;
    history.unshift(...pair);size+=length;
   }
-  const {answer}=await this.ai.chat({messages:[...history.map(({role,content})=>({role,content})),{role:"user",content}]},req);
+  const handoff=/(?:hubung|bicara|ngobrol|sambung|alih|switch|convert|ubah|buat).*(?:cs|manusia|human|admin|tiket|ticket)|(?:cs|agen|agent)\s*(?:langsung|manusia|real)|(?:kurang|tidak|ga|gak|nggak) membantu|(?:mau|ingin|minta) (?:cs|tiket)/i.test(content);
+  const {answer}=handoff?{answer:"Saya akan mengalihkan percakapan ini ke tiket CS. Login diperlukan agar tim CS dapat melanjutkan bantuan."}:await this.ai.chat({messages:[...history.map(({role,content})=>({role,content})),{role:"user",content}]},req);
   const [saved]=await adminDb<Session>("rpc/append_ai_help_turn","","POST",{p_id:id,p_owner:room.owner_key,p_version:room.messages.length,p_turn:input.id,p_question:content,p_answer:answer});
   if(!saved) throw new HttpException("Pesan belum dapat disimpan.",503);
   if(!saved) throw new HttpException("Sesi berubah. Muat ulang sebelum mengirim ulang.",409);

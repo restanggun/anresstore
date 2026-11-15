@@ -6,5 +6,5 @@ export const domains = {
 
 export function loginDestination() {
   const admin = process.env.NEXT_PUBLIC_ADMIN_URL;
-  return typeof window !== "undefined" && new URLSearchParams(window.location.search).get("app") === "admin" && admin ? admin : domains.app;
+  return typeof window !== "undefined" && new URLSearchParams(window.location.search).get("app") === "admin" && admin ? admin : `${domains.app.replace(/\/$/, "")}/dashboard`;
 }

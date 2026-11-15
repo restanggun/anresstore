@@ -12,7 +12,7 @@ Isi `ADMIN_ALLOWED_ORIGINS` dengan origin dashboard yang tepat (pisahkan koma), 
 
 Jalankan migrasi `20261114000000_admin_access.sql` sebelum memberikan role atau melakukan perubahan admin. `ADMIN_USER_IDS` adalah daftar super admin awal dan jalur pemulihan yang dikelola lewat konfigurasi server; super admin ini tidak bisa dicabut dari dashboard. Super admin dapat membuat role dan menetapkan akun lain termasuk super admin. Role memiliki izin operasi, kategori `game`, `prepaid`, `apps`, dan pembatasan slug produk opsional. Daftar slug kosong berarti semua produk di kategori yang diizinkan. Data pesanan, pembayaran dan bantuan belum punya kategori yang dapat dipercaya dan karena itu memerlukan semua kategori tanpa batas slug. Percobaan perubahan admin dicatat sebelum operasi dan operasi ditolak jika log tidak tersedia; log ini tidak membuktikan perubahan berhasil dan tidak mencakup pembacaan atau perubahan langsung di database. Siapkan juga monitoring dan audit infrastruktur. `NEXT_PUBLIC_ADMIN_URL` pada web harus menunjuk origin dashboard yang benar.
 
-1. Jalankan migrasi `supabase/migrations/20261113120000_admin_catalog.sql` setelah migrasi akun, orders, support_requests, dan sandbox_payments.
+1. Jalankan migrasi `supabase/migrations/20261113120000_admin_catalog.sql` setelah migrasi akun, orders, support_requests, dan payments.
 2. Di env API, isi `ADMIN_USER_IDS` dengan UUID akun administrator Supabase yang dipercaya (pisahkan koma). Identitas diverifikasi ulang lewat `/auth/v1/user`; metadata pengguna tidak dapat memberi akses admin.
 3. Isi konfigurasi Supabase server yang sudah dipakai web: URL, publishable/anon key, secret/service role key. Jangan letakkan secret di env publik dashboard.
 4. Aktifkan `ADMIN_CATALOG_ENABLED=true` setelah migrasi berhasil. Default false mempertahankan katalog lama. Bila aktif dan tabel tidak tersedia, API menampilkan error, bukan mengabaikan pengaturan admin.
@@ -21,7 +21,7 @@ Jalankan migrasi `20261114000000_admin_access.sql` sebelum memberikan role atau 
 
 ## Perilaku
 
-- Pesanan akun/simulasi berasal dari `orders`; pembayaran Tripay berasal dari `sandbox_payments`. Keduanya punya tampilan terpisah, paginasi 50 catatan, pencarian/filter pada halaman aktif, dan detail.
+- Pesanan, pembayaran dan status pemenuhan berasal dari `payments` dan `live_transactions`, dengan paginasi dan kontrol akses admin.
 - Status pembayaran hanya mengikuti mekanisme verifikasi gateway yang sudah ada. Admin tidak dapat menandai pembayaran lunas dari browser. Data akses tamu, hash permintaan, dan detail gateway tidak dikirim melalui daftar admin.
 - Produk manual/provider bebas tersimpan di `managed_products`. Provider+category+provider_code unik. Kode publik provider selain VIPayment memakai `managed.<UUID>` sehingga SKU sama dari provider berbeda tidak berbenturan. Identitas provider tidak membuat koneksi API otomatis.
 - Untuk VIPayment, pilih varian dari katalog web di dashboard lalu simpan pengaturan dengan kode SKU yang sama. Pengaturan menggantikan atribut/harga dasar; nonaktif menyembunyikan SKU. Harga promo web yang masih aktif tetap berlaku di atas harga dasar admin.

@@ -9,7 +9,7 @@ export async function adminDb<T = Record<string, unknown>>(table: string, query:
   try {
     const response = await fetch(`${url}/rest/v1/${table}${query}`, {
       method, redirect: "error", signal: AbortSignal.timeout(10000),
-      headers: { apikey: key, ...(key.startsWith("sb_secret_") ? {} : { Authorization: `Bearer ${key}` }), "Content-Type": "application/json", Prefer: "return=representation,resolution=merge-duplicates" },
+      headers: { apikey: key, ...(key.startsWith("sb_secret_") ? {} : { Authorization: `Bearer ${key}` }), "Content-Type": "application/json", Prefer: table === "admin_audit_log" ? "return=representation" : "return=representation,resolution=merge-duplicates" },
       ...(body === undefined ? {} : { body: JSON.stringify(body) }),
     });
     if (!response.ok) throw new Error();

@@ -27,7 +27,7 @@ Review: avoid the previous generic big-slogan + nested cards hero. Use service-s
 - Screenshots: initial desktop/mobile, scrolled catalog, dialog, FAQ, expanded mobile menu. Review them rather than relying solely on numeric bounds.
 - Console: inspect errors, missing logo/font/favicon requests.
 
-Playwright Interactive cannot run because js_repl is absent in this session. QA uses the installed Playwright CLI without changing session sandbox settings.
+Playwright Interactive cannot run because js_repl is absent in this session. QA uses the installed Playwright CLI with the existing session permissions.
 
 ## QA results
 - Production builds for web and admin pass TypeScript and static generation.
