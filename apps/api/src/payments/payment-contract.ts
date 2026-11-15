@@ -8,7 +8,7 @@ export const paymentId = /^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3
 export const invoiceNumber = /^ARNS-(?:[0-9]{6}-[A-F0-9]{14}|[A-Z0-9]{1,12}-[A-Z0-9]{1,12}-[0-9]{8}-[A-F0-9]{16})$/;
 export const paymentHash = (value: string) => createHash("sha256").update(value).digest("hex");
 export type PaymentRow = {
-  invoice_number?: string; merchant_ref?: string;
+  invoice_number?: string; merchant_ref?: string; claimed_user_id?: string | null; claimed_at?: string | null;
   payment_mode?: "live" | "sandbox";
   target_zone?: string | null; provider_cost?: number | null;
   id: string; access_hash: string; request_hash: string; created_at: string;
@@ -54,6 +54,7 @@ export function parsePayment(input: unknown): PaymentInput {
 
 export function ownsPayment(row: PaymentRow, identity: PaymentIdentity): boolean {
   if (row.owner_user_id) return identity.userId === row.owner_user_id;
+  if (row.claimed_user_id) return identity.userId === row.claimed_user_id;
   const age = Date.now() - Date.parse(row.created_at);
   if (!Number.isFinite(age) || age < -60000) return false;
   if (row.guest_session_hash) return age <= 30 * 86400000 && identity.guestHash !== null && equalHash(identity.guestHash, row.guest_session_hash);

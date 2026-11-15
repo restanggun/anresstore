@@ -23,3 +23,5 @@
 @media(max-width:360px){.ticket-state-pair{grid-template-columns:1fr}}
 
 @media print{.ticket-resolution a,.refund-request button,.refund-request a,.refund-request form{display:none!important}.ticket-resolution{break-inside:avoid}}
+
+.ticket-pdf-hint{font-size:10px;line-height:1.7;color:var(--muted)}@media print{.invoice-guest-notice,.ticket-pdf-hint{display:none!important}}

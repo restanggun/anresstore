@@ -4,7 +4,7 @@ import type { Request, Response } from "express";
 import { tripayMode } from "./tripay-client";
 import { digestGuestToken } from "./guest-access";
 
-export type PaymentIdentity = { userId: string | null; guestHash: string | null; email?: string | null };
+export type PaymentIdentity = { userId: string | null; guestHash: string | null; email?: string | null; emailVerified?: boolean };
 const guestCookie = () => process.env.NODE_ENV === "production" ? "__Host-anres_payment_guest" : "anres_payment_guest";
 
 export function paymentCookies(req: Request) {
@@ -32,7 +32,7 @@ export class PaymentIdentityService {
       const session = await resolveSession(req, res);
       const userId = session.user.id;
       if (typeof userId !== "string" || !/^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/i.test(userId)) throw new HttpException("Sesi tidak valid.", 401);
-      return { userId: userId.toLowerCase(), guestHash, email: typeof session.user.email === "string" ? session.user.email : null };
+      return { userId: userId.toLowerCase(), guestHash, email: typeof session.user.email === "string" ? session.user.email : null, emailVerified: Boolean(session.user.email_confirmed_at) };
     }
     if (!cookies.anres_access || cookies.anres_access.length > 8192) throw new HttpException("Sesi berakhir. Masuk kembali sebelum checkout.", 401);
     const url = process.env.SUPABASE_URL?.replace(/\/$/, "");
@@ -47,7 +47,7 @@ export class PaymentIdentityService {
       if (!response.ok) throw new Error();
       const user: unknown = await response.json();
       if (!user || typeof user !== "object" || !("id" in user) || typeof user.id !== "string" || !/^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/i.test(user.id)) throw new Error();
-      return { userId: user.id.toLowerCase(), guestHash, email: "email" in user && typeof user.email === "string" ? user.email : null };
+      return { userId: user.id.toLowerCase(), guestHash, email: "email" in user && typeof user.email === "string" ? user.email : null, emailVerified: "email_confirmed_at" in user && Boolean(user.email_confirmed_at) };
     } catch (error) {
       if (error instanceof HttpException) throw error;
       // Auth outages must not silently downgrade an account purchase into a guest purchase.

@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { Menu, X, ChevronRight } from "lucide-react";
+import { paymentRequest } from "@/lib/payment-api";
 import { authRequest } from "@/lib/auth-api";
 import { CartPopup } from "./cart-popup";
 import { Brand } from "./brand";
@@ -38,6 +39,7 @@ export function SiteShell({ children }: { children: React.ReactNode }) {
         if (current !== revision) return;
         setAccount(user?.name || user?.email || null);
         if (!user) return;
+        void paymentRequest<{attachedCount:number}>("guest/attach",{method:"POST",headers:{"Content-Type":"application/json"},body:"{}"}).then(result=>{if(current===revision&&result.attachedCount>0)window.dispatchEvent(new CustomEvent("invoice-ownership-updated",{detail:{attachedCount:result.attachedCount}}));}).catch(()=>{});
         const profile = await authRequest<{fullName:string}>("profile").catch(() => null);
         if (current === revision && profile?.fullName) setAccount(profile.fullName);
       } catch { if (current === revision) setAccount(null); }

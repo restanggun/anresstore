@@ -6,6 +6,7 @@ import { Button } from "@anres/ui";
 import Link from "./domain-link";
 import { forgetPaymentIntent, paymentRequest } from "@/lib/payment-api";
 import { invoicePath, tripayCheckoutUrl } from "@/lib/payment-navigation";
+import { InvoiceRecovery } from "./invoice-recovery";
 import { RefundRequest } from "./refund-request";
 import { orderStatus } from "@/lib/order-status";
 import type { PaymentRecord } from "./payment-checkout";
@@ -77,6 +78,7 @@ export function PaymentInvoice({ id }: { id: string }) {
           {status!.needsHelp && <section className="ticket-resolution" aria-label="Bantuan pesanan"><h3>{status!.reason ? "Alasan pengiriman gagal" : "Langkah berikutnya"}</h3>{status!.reason && <p>{status!.reason}</p>}<p>Sertakan nomor invoice saat menghubungi CS. Tim akan memeriksa pesanan sebelum menentukan penyelesaiannya.</p><Button asChild variant="outline"><Link href="/bantuan">Hubungi CS</Link></Button></section>}
           {payment.fulfillment?.status === "completed" && payment.fulfillment.note && <section className="ticket-fulfillment"><h3>Informasi produk</h3><p>{payment.fulfillment.note}</p></section>}
           {(payment.refund || payment.status === "paid" && status!.needsHelp) && <RefundRequest payment={payment} onUpdated={()=>void refresh()}/>}
+          {payment.ownership === "guest" && <div className="invoice-guest-notice"><span>Invoice ini masih mengikuti browser pemesan. Simpan ke akun untuk akses dari perangkat lain.</span><InvoiceRecovery invoiceNumber={payment.invoiceNumber||payment.id} label="Simpan ke akun"/></div>}
           <footer className="ticket-footer"><span>Status diperiksa otomatis{payment.lastVerifiedAt ? ` · ${date(payment.lastVerifiedAt)}` : ""}</span><Link href="/bantuan">Butuh bantuan?</Link></footer>
         </div>
         <aside className="ticket-stub" aria-label="Ringkasan pembayaran"><div><h3>Ringkasan pembayaran</h3><dl className="ticket-totals"><div><dt>Harga produk</dt><dd>{money(payment.amount)}</dd></div><div><dt>Biaya admin</dt><dd>{payment.reference ? money(payment.fee) : "Menunggu Tripay"}</dd></div><div className="ticket-total"><dt>Total pembayaran</dt><dd>{payment.reference ? money(payment.total) : "Belum tersedia"}</dd></div></dl>
@@ -87,7 +89,7 @@ export function PaymentInvoice({ id }: { id: string }) {
           {["creating", "unknown"].includes(payment.status) && <p className="ticket-hint">Jangan buat pesanan baru. Periksa kembali status atau hubungi bantuan dengan nomor invoice ini.</p>}
           <Button variant="outline" className="ticket-refresh" disabled={busy} onClick={() => void refresh()}><RefreshCw size={16} aria-hidden="true"/>{busy ? "Memeriksa..." : "Periksa status"}</Button>
           <p className="ticket-verification"><ShieldCheck size={15} aria-hidden="true"/>Status pembayaran diverifikasi oleh server.</p>
-        </div><div className="ticket-stub-bottom"><Button variant="outline" onClick={() => window.print()}><Printer size={16} aria-hidden="true"/>Cetak invoice</Button>{["paid", "failed", "expired", "refunded"].includes(payment.status) && <Link href="/katalog" onClick={() => { try { forgetPaymentIntent(payment.id); } catch { /* Next checkout remains guarded by the database. */ } }}>Kembali ke katalog</Link>}</div></aside>
+        </div><div className="ticket-stub-bottom"><Button variant="outline" onClick={() => window.print()}><Printer size={16} aria-hidden="true"/>Simpan PDF / cetak</Button><small className="ticket-pdf-hint">Pilih Simpan sebagai PDF pada jendela cetak untuk mengunduh salinan invoice.</small>{["paid", "failed", "expired", "refunded"].includes(payment.status) && <Link href="/katalog" onClick={() => { try { forgetPaymentIntent(payment.id); } catch { /* Next checkout remains guarded by the database. */ } }}>Kembali ke katalog</Link>}</div></aside>
       </article>
     </>}
   </main>;

@@ -37,6 +37,8 @@ try {
   console.log('Support unread counts, status-only email queue, exclusive claims and append-only audit passed');
   await db.exec(await readFile('supabase/tests/refund-requests.sql','utf8'));
   console.log('Refund ownership, duplicate protection, 50k threshold, sandbox exclusion, review/evidence and gateway-state integrity passed');
+  await db.exec(await readFile('supabase/tests/invoice-account-claims.sql','utf8'));
+  console.log('Guest linking, verified email/cookie isolation, account projection, pending-intent deduplication and recovery attempt/expiry/replay protection passed');
   await db.exec(await readFile('supabase/tests/ai-help-sessions.sql','utf8'));
   console.log('AI sessions: history, ownership, idempotent turns and complete atomic CS handoff passed');
 } finally { await db.close(); }

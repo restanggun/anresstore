@@ -6,6 +6,9 @@ import { CatalogController } from "../catalog/catalog.controller";
 import { verifyTripayCallback } from "./tripay-signature";
 import { applyPaymentEvent, type PaymentEvent } from "./transaction-state";
 import { TripayClient, TripayRejectedError, tripayConfig, tripayCustomerEmail, type TripayTransaction } from "./tripay-client";
+import { writeSession } from "../auth/session";
+import { InvoiceAccountService } from "./invoice-account-service";
+import { invoiceCsv } from "./invoice-export";
 import { PaymentStore } from "./payment-store";
 import { PaymentIdentityService, type PaymentIdentity } from "./payment-identity";
 import { ownsPayment, parsePayment, paymentHash, paymentId, invoiceNumber, validatePaymentDetail, type PaymentRow } from "./payment-contract";
@@ -16,6 +19,7 @@ export class PaymentsController implements OnModuleInit, OnModuleDestroy {
   private readonly catalog = new CatalogController();
   private readonly store = new PaymentStore();
   private readonly identities = new PaymentIdentityService();
+  private readonly accounts = new InvoiceAccountService();
   private attempts = new Map<string, { count: number; until: number }>();
   private timer?: ReturnType<typeof setInterval>;
   private reconciling = false;
@@ -56,7 +60,7 @@ export class PaymentsController implements OnModuleInit, OnModuleDestroy {
   }
   private publicPayment(row: PaymentRow, refreshDelayed = false) {
     const detail = row.details;
-    return { id: row.id, invoiceNumber: row.invoice_number ?? null, mode: row.payment_mode, sandboxRealFulfillment: process.env.VIPAYMENT_SANDBOX_FULFILLMENT_ENABLED === "true" && process.env.VIPAYMENT_FULFILLMENT_ENABLED === "true", createdAt: row.created_at, product: row.product_name, amount: row.amount, status: row.status, target: row.target, targetZone: row.target_zone ?? null,
+    return { ownership: row.owner_user_id || row.claimed_user_id ? "account" : "guest", id: row.id, invoiceNumber: row.invoice_number ?? null, mode: row.payment_mode, sandboxRealFulfillment: process.env.VIPAYMENT_SANDBOX_FULFILLMENT_ENABLED === "true" && process.env.VIPAYMENT_FULFILLMENT_ENABLED === "true", createdAt: row.created_at, product: row.product_name, amount: row.amount, status: row.status, target: row.target, targetZone: row.target_zone ?? null,
       method: detail?.payment_name ?? row.method, reference: row.reference,
       total: detail?.amount ?? row.amount, fee: detail?.fee_customer ?? 0,
       payCode: detail?.pay_code ?? null, checkoutUrl: detail?.checkout_url ?? null, expiresAt: detail?.expired_time ?? null,
@@ -144,6 +148,7 @@ export class PaymentsController implements OnModuleInit, OnModuleDestroy {
     const { mode } = tripayConfig();
     const body = parsePayment(input);
     const identity = await this.identities.resolve(req, res);
+    await this.accounts.attach(identity);
     body.email = tripayCustomerEmail(identity.userId ? identity.email ?? "" : body.email);
     const owner = identity.userId ?? identity.guestHash;
     if (!owner) throw new HttpException("Sesi checkout belum siap. Muat ulang checkout.", 401);
@@ -211,26 +216,73 @@ export class PaymentsController implements OnModuleInit, OnModuleDestroy {
   async history(@Query("page") page: string, @Req() req: Request, @Res({ passthrough: true }) res: Response, @Query("scope") scope?: string) {
     res.setHeader("Cache-Control", "no-store"); this.coarseLimit(req, "history", 60);
     const identity = await this.identities.resolve(req, res);
-    if (scope !== undefined && scope !== "account") throw new HttpException("Jenis riwayat tidak valid.", 400);
+    if (scope !== undefined && scope !== "account" && scope !== "guest") throw new HttpException("Jenis riwayat tidak valid.", 400);
     if (scope === "account" && !identity.userId) throw new HttpException("Silakan masuk kembali untuk melihat riwayat akun.", 401);
     const index = Number(page || 0);
     if (!Number.isSafeInteger(index) || index < 0 || index > 10000) throw new HttpException("Halaman tidak valid.", 400);
     if (!identity.userId && !identity.guestHash) return { payments: [], hasMore: false, userId: null };
-    const owner = identity.userId ? "owner_user_id=eq." + identity.userId : "guest_session_hash=eq." + identity.guestHash + "&created_at=gte." + encodeURIComponent(new Date(Date.now()-30*86400000).toISOString());
+    const attachedCount = scope === "guest" ? 0 : await this.accounts.attach(identity);
+    if(scope === "guest" && !identity.guestHash) return {payments:[],hasMore:false,userId:identity.userId,attachedCount};
+    const owner = identity.userId && scope !== "guest" ? `or=(owner_user_id.eq.${identity.userId},claimed_user_id.eq.${identity.userId})` : "owner_user_id=is.null&claimed_user_id=is.null&guest_session_hash=eq." + identity.guestHash + "&created_at=gte." + encodeURIComponent(new Date(Date.now()-30*86400000).toISOString());
     const rows = await this.db("?" + owner + "&order=created_at.desc&limit=51&offset=" + index*50);
-    const visible = rows.slice(0,50).filter(row => ownsPayment(row,identity));
+    const visible = rows.slice(0,50).filter(row => ownsPayment(row,identity) && (identity.userId && scope !== "guest" ? row.owner_user_id===identity.userId || row.claimed_user_id===identity.userId : !row.owner_user_id && !row.claimed_user_id));
     const ids = visible.map(row=>row.id).join(",");
     const [deliveries,refunds] = visible.length ? await Promise.all([
       this.store.request<{id:string;fulfillment_status:string;provider_note:string|null;payment_mode:string}[]>(`live_transactions?id=in.(${ids})&payment_mode=eq.${tripayConfig().mode}&select=id,fulfillment_status,provider_note,payment_mode&limit=50`),
       this.store.request<{id:string;payment_id:string;refund_status:string;refund_requires_admin:boolean;refund_resolution:string|null;refund_reference:string|null}[]>(`support_conversations?payment_id=in.(${ids})&kind=eq.refund&select=id,payment_id,refund_status,refund_requires_admin,refund_resolution,refund_reference&limit=50`),
     ]) : [[],[]];
-    return { payments: visible.map(row=>{const delivery=deliveries.find(item=>item.id===row.id),refund=refunds.find(item=>item.payment_id===row.id);return {...this.publicPayment(row),refund:refund??null,fulfillment:delivery?{status:delivery.fulfillment_status,note:delivery.provider_note,mode:delivery.payment_mode}:null};}), hasMore: rows.length>50, userId: identity.userId };
+    return { payments: visible.map(row=>{const delivery=deliveries.find(item=>item.id===row.id),refund=refunds.find(item=>item.payment_id===row.id);return {...this.publicPayment(row),refund:refund??null,fulfillment:delivery?{status:delivery.fulfillment_status,note:delivery.provider_note,mode:delivery.payment_mode}:null};}), hasMore: rows.length>50, userId: identity.userId, attachedCount };
+  }
+  @Post("guest/attach") @HttpCode(200)
+  async attachGuest(@Req() req:Request,@Res({passthrough:true}) res:Response) {
+    res.setHeader("Cache-Control","no-store");this.origin(req);this.coarseLimit(req,"claim",20);
+    const identity=await this.identities.resolve(req,res);
+    if(!identity.userId)throw new HttpException("Masuk untuk menyimpan invoice.",401);
+    await this.throttle(`claim:${paymentHash(identity.userId)}`,10);
+    return {attachedCount:await this.accounts.attach(identity)};
+  }
+  @Post("recovery/request") @HttpCode(200)
+  async requestRecovery(@Body() body:{invoice?:unknown},@Req() req:Request,@Res({passthrough:true}) res:Response) {
+    res.setHeader("Cache-Control","no-store");this.origin(req);this.coarseLimit(req,"recovery",10);
+    const identity=await this.identities.resolve(req,res);
+    if(!identity.userId)throw new HttpException("Masuk dengan email checkout untuk memulihkan invoice.",401);
+    await this.throttle(`recovery-ip:${paymentHash(this.ip(req))}`,10,900);
+    await this.throttle(`recovery-user:${paymentHash(identity.userId)}`,3,900);
+    if(!body||Object.keys(body).some(key=>key!=="invoice"))throw new HttpException("Permintaan pemulihan tidak valid.",400);
+    return this.accounts.request(identity,body.invoice);
+  }
+  @Post("recovery/verify") @HttpCode(200)
+  async verifyRecovery(@Body() body:{challengeId?:unknown;code?:unknown},@Req() req:Request,@Res({passthrough:true}) res:Response) {
+    res.setHeader("Cache-Control","no-store");this.origin(req);this.coarseLimit(req,"recovery-check",20);
+    const identity=await this.identities.resolve(req,res);
+    if(!identity.userId)throw new HttpException("Masuk untuk memulihkan invoice.",401);
+    await this.throttle(`recovery-check:${paymentHash(identity.userId)}`,15,900);
+    if(!body||Object.keys(body).some(key=>!["challengeId","code"].includes(key)))throw new HttpException("Permintaan pemulihan tidak valid.",400);
+    return this.accounts.verify(identity,body.challengeId,body.code,data=>writeSession(req,res,data));
+  }
+  @Get("export.csv")
+  async exportInvoices(@Req() req:Request,@Res() res:Response) {
+    res.setHeader("Cache-Control","no-store");this.coarseLimit(req,"export",10);
+    const identity=await this.identities.resolve(req,res);
+    if(!identity.userId)throw new HttpException("Masuk untuk mengekspor riwayat akun.",401);
+    await this.throttle(`invoice-export:${paymentHash(identity.userId)}`,5,60);
+    await this.accounts.attach(identity);
+    const rows:PaymentRow[]=[];
+    for(let offset=0;offset<=5000;offset+=1000){
+      const page=await this.db(`?or=(owner_user_id.eq.${identity.userId},claimed_user_id.eq.${identity.userId})&order=created_at.desc,id.desc&limit=1000&offset=${offset}`);
+      rows.push(...page.filter(row=>ownsPayment(row,identity)&&(row.owner_user_id===identity.userId||row.claimed_user_id===identity.userId)));
+      if(rows.length>5000)throw new HttpException("Ekspor dibatasi 5.000 invoice per permintaan. Hubungi CS untuk riwayat lebih besar.",413);
+      if(page.length<1000)break;
+    }
+    res.setHeader("Content-Type","text/csv; charset=utf-8");res.setHeader("Content-Disposition",'attachment; filename="invoice-anres-store.csv"');res.setHeader("X-Content-Type-Options","nosniff");
+    res.send(invoiceCsv(rows));
   }
   @Get("transactions/:id")
   async detail(@Param("id") id: string, @Req() req: Request, @Res({ passthrough: true }) res: Response) {
     res.setHeader("Cache-Control", "no-store"); this.coarseLimit(req, "read", 180);
     await this.throttle(`read:${paymentHash(this.ip(req))}`, 120);
     const identity = await this.identities.resolve(req, res);
+    await this.accounts.attach(identity);
     let row = await this.row(id);
     this.authorize(row, identity);
     if (row.status === "creating" && Date.parse(row.created_at) < Date.now() - 120000) row = await this.markUnknown(row);

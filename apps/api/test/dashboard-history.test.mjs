@@ -39,7 +39,7 @@ test('login and dashboard history connect through HTTP API with account-isolated
   const response=await fetch(`${base}/payments/transactions?page=0&scope=account&userId=forged`,{headers:{cookie}});
   assert.equal(response.status,200);assert.equal(response.headers.get('cache-control'),'no-store');
   const history=await response.json();assert.equal(history.userId,userId);assert.equal(history.payments.length,1);assert.equal(history.payments[0].id,invoice);assert.equal(history.payments[0].status,'paid');assert.equal(history.payments[0].total,20500);
-  assert.ok(queries[0].includes(`owner_user_id=eq.${userId}`));assert.ok(!queries[0].includes('forged'));
+  assert.ok(queries[0].includes(`owner_user_id.eq.${userId}`));assert.ok(!queries[0].includes('forged'));
   assert.doesNotMatch(JSON.stringify(history.payments),/access_hash|request_hash|owner_user_id/);
   const guest=await fetch(`${base}/payments/transactions?scope=account`);assert.equal(guest.status,401);
   const expired=await fetch(`${base}/payments/transactions?scope=account`,{headers:{cookie:'anres_access=expired'}});assert.equal(expired.status,401);
