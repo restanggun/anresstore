@@ -2,9 +2,9 @@ import { Injectable, type OnModuleInit, type OnModuleDestroy } from "@nestjs/com
 import { PaymentStore } from "./payment-store";
 import { VipaymentClient, type VipOrder } from "./vipayment-client";
 
-type Order = VipOrder & { id: string; payment_status: string; fulfillment_status: string; payment_reference: string | null };
+type Order = VipOrder & { id: string; payment_status: string; fulfillment_status: string; payment_reference: string | null; payment_mode?: "live" | "sandbox" };
 
-/** Dispatch only verified, paid production orders through an atomic claim. */
+/** Real supplier dispatch requires an atomic claim; sandbox dispatch also requires explicit opt-in. */
 @Injectable()
 export class FulfillmentWorker implements OnModuleInit, OnModuleDestroy {
   private store = new PaymentStore();
@@ -22,9 +22,10 @@ export class FulfillmentWorker implements OnModuleInit, OnModuleDestroy {
     try {
       if (process.env.VIPAYMENT_STATUS_POLLING_ENABLED === "false") return;
       // A crash after claiming may have sent the order. Never reclaim it for sending.
-      await this.store.request("live_transactions?payment_mode=eq.live&fulfillment_status=eq.dispatching&updated_at=lt." + encodeURIComponent(new Date(Date.now() - 120000).toISOString()), "PATCH", { fulfillment_status: "unknown", updated_at: new Date().toISOString() });
+      await this.store.request("live_transactions?payment_mode=in.(live,sandbox)&fulfillment_status=eq.dispatching&updated_at=lt." + encodeURIComponent(new Date(Date.now() - 120000).toISOString()), "PATCH", { fulfillment_status: "unknown", updated_at: new Date().toISOString() });
       const states = process.env.VIPAYMENT_FULFILLMENT_ENABLED === "true" ? "in.(ready,processing)" : "eq.processing";
-      const rows = await this.store.request<Order[]>(`live_transactions?payment_mode=eq.live&fulfillment_mode=eq.vipayment&review_required=eq.false&payment_status=eq.paid&fulfillment_status=${states}&order=updated_at.asc&limit=20`);
+      const sandboxFilter = process.env.VIPAYMENT_SANDBOX_FULFILLMENT_ENABLED === "true" ? "" : "&or=(payment_mode.eq.live,fulfillment_status.eq.processing)";
+      const rows = await this.store.request<Order[]>(`live_transactions?payment_mode=in.(live,sandbox)${sandboxFilter}&fulfillment_mode=eq.vipayment&review_required=eq.false&payment_status=eq.paid&fulfillment_status=${states}&order=updated_at.asc&limit=20`);
       for (const row of rows) {
         try { await this.process(row); } catch { console.warn("fulfillment.order_requires_check"); }
       }
@@ -33,7 +34,8 @@ export class FulfillmentWorker implements OnModuleInit, OnModuleDestroy {
   private async process(row: Order) {
     if (row.fulfillment_status === "ready") {
       if (process.env.VIPAYMENT_FULFILLMENT_ENABLED !== "true") return;
-      const [claimed] = await this.store.request<Order[]>("rpc/claim_live_fulfillment", "POST", { p_id: row.id });
+      if (row.payment_mode === "sandbox" && process.env.VIPAYMENT_SANDBOX_FULFILLMENT_ENABLED !== "true") return;
+      const [claimed] = await this.store.request<Order[]>(`rpc/${row.payment_mode === "sandbox" ? "claim_sandbox_fulfillment" : "claim_live_fulfillment"}`, "POST", { p_id: row.id });
       if (!claimed) return;
       try {
         const result = await this.provider.order(claimed);

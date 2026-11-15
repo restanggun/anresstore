@@ -7,3 +7,8 @@ VIPAYMENT_FULFILLMENT_ENABLED=true mengizinkan pembelian produk. Nilai false men
 Identitas SKU, tujuan, zona, jumlah paket dan biaya provider berasal dari snapshot server. Hasil provider diperiksa terhadap identitas pesanan. Status pembayaran dan pemenuhan adalah dua status terpisah; lunas belum berarti produk terkirim.
 
 Layanan manual tidak dikirim ke supplier. Admin mencatat pengerjaan setelah pembayaran terverifikasi. Operasi memerlukan rekonsiliasi pembayaran/provider dan penanganan status unknown atau manual_review.
+
+
+## Format tujuan game
+
+Sesuai dokumentasi resmi https://vip-reseller.co.id/page/api/game-feature, pesanan top-up mengirim `service` sebagai kode layanan, `data_no` sebagai ID pemain, dan `data_zone` sebagai server/zone bila diperlukan. ID dan zone disimpan sebagai string terpisah; angka nol di depan tidak dihapus dan tidak ada penggabungan dengan tanda kurung. Mobile Legends divalidasi sebagai dua kolom numerik sebelum invoice pembayaran dibuat. Tes API, proyeksi database, dan adapter supplier melindungi format ini.

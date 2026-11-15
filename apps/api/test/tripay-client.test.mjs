@@ -1,7 +1,7 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {createHmac} from 'node:crypto';
-import {TripayClient,tripayConfig} from '../dist/payments/tripay-client.js';
+import {TripayClient,tripayConfig,TripayRejectedError} from '../dist/payments/tripay-client.js';
 
 const config={TRIPAY_API_KEY:'test-api',TRIPAY_PRIVATE_KEY:'test-private',TRIPAY_MERCHANT_CODE:'T123',TRIPAY_BASE_URL:'https://tripay.co.id/api'};
 Object.assign(process.env,config);
@@ -15,7 +15,9 @@ test('live requires explicit matching mode and exact production endpoint',()=>{
  const live={...config,TRIPAY_MODE:'live',TRIPAY_BASE_URL:'https://tripay.co.id/api'};
  assert.equal(tripayConfig(live).mode,'live');
  assert.throws(()=>tripayConfig({...live,TRIPAY_BASE_URL:'https://tripay.co.id/api-sandbox'}));
- assert.throws(()=>tripayConfig({...live,TRIPAY_MODE:'sandbox'}));
+ assert.throws(()=>tripayConfig({...live,TRIPAY_MODE:'invalid'}));
+ assert.equal(tripayConfig({...live,TRIPAY_MODE:'sandbox',TRIPAY_BASE_URL:undefined}).base,'https://tripay.co.id/api-sandbox');
+ assert.equal(tripayConfig({...live,TRIPAY_BASE_URL:undefined}).base,'https://tripay.co.id/api');
 });
 test('create signs the merchant, reference and authoritative amount and sends one line item',async()=>{
   let captured;
@@ -51,4 +53,14 @@ test('merchant invoice lookup is bounded and refuses ambiguous or unrelated reco
 test('oversized gateway responses are rejected before JSON decoding',async()=>{
  const client=new TripayClient(async()=>new Response('x'.repeat(1024*1024+1)));
  await assert.rejects(client.channels(),error=>error.getStatus()===502);
+});
+
+
+test('explicit gateway rejection is classified without leaking provider content, while network failures stay uncertain',async()=>{
+ const rejected=new TripayClient(async()=>Response.json({success:false,message:'Undefined parameter customer phone'},{status:400}));
+ await assert.rejects(rejected.channels(),error=>error instanceof TripayRejectedError&&error.code==='phone_required');
+ const uncertain=new TripayClient(async()=>{throw new Error('timeout with secret');});
+ await assert.rejects(uncertain.channels(),error=>!(error instanceof TripayRejectedError)&&error.getStatus()===502);
+ const serverError=new TripayClient(async()=>Response.json({success:false},{status:500}));
+ await assert.rejects(serverError.channels(),error=>!(error instanceof TripayRejectedError));
 });

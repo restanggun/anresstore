@@ -2,7 +2,7 @@ type NavigablePayment = { id: string; status: string; needsReview: boolean; chec
 
 export function invoicePath(id: string, invoiceNumber?: string | null) {
   const code = invoiceNumber ?? id;
-  if (!/^ARNS-[A-Z0-9]{1,12}-[A-Z0-9]{1,12}-[0-9]{8}-[A-F0-9]{16}$/.test(code) && !/^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/.test(code)) throw new Error("Nomor invoice tidak valid.");
+  if (!/^ARNS-(?:[0-9]{6}-[A-F0-9]{14}|[A-Z0-9]{1,12}-[A-Z0-9]{1,12}-[0-9]{8}-[A-F0-9]{16})$/.test(code) && !/^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/.test(code)) throw new Error("Nomor invoice tidak valid.");
   return `/invoice/${code}`;
 }
 

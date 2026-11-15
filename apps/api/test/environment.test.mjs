@@ -6,6 +6,8 @@ const payments = { TRIPAY_MODE: 'live', TRIPAY_BASE_URL: 'https://tripay.co.id/a
 
 test('production payment startup rejects incomplete, cross-mode and unsafe callback configurations', () => {
   validateProductionPayments(payments);
+  validateProductionPayments({...payments, TRIPAY_MODE:'sandbox', TRIPAY_BASE_URL:'https://tripay.co.id/api-sandbox'});
+  validateProductionPayments({...payments, TRIPAY_BASE_URL:''});
   validateProductionPayments({...payments, VIPAYMENT_FULFILLMENT_ENABLED: 'false'});
   for (const name of ['TRIPAY_MODE', 'TRIPAY_API_KEY', 'TRIPAY_PRIVATE_KEY', 'TRIPAY_MERCHANT_CODE', 'SUPABASE_SECRET_KEY', 'VIPAYMENT_API_KEY', 'VIPAYMENT_API_ID', 'VIPAYMENT_STATUS_POLLING_ENABLED', 'PAYMENT_RECONCILIATION_ENABLED']) {
     assert.throws(() => validateProductionPayments({...payments, [name]: undefined}), name);

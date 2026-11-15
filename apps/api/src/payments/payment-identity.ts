@@ -1,6 +1,7 @@
 import { HttpException } from "@nestjs/common";
 import { createHash, randomBytes } from "node:crypto";
 import type { Request, Response } from "express";
+import { tripayMode } from "./tripay-client";
 import { digestGuestToken } from "./guest-access";
 
 export type PaymentIdentity = { userId: string | null; guestHash: string | null; email?: string | null };
@@ -61,6 +62,6 @@ export class PaymentIdentityService {
       res.cookie(guestCookie(), token, { httpOnly: true, secure: process.env.NODE_ENV === "production", sameSite: "lax", path: "/", maxAge: 30 * 86400000 });
       identity.guestHash = digestGuestToken(token)!.toString("hex");
     }
-    return { mode: identity.userId ? "account" : "guest", scope: createHash("sha256").update(identity.userId ?? identity.guestHash!).digest("hex") };
+    return { mode: identity.userId ? "account" : "guest", scope: createHash("sha256").update(tripayMode() + ":" + (identity.userId ?? identity.guestHash!)).digest("hex") };
   }
 }

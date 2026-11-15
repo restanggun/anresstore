@@ -9,13 +9,18 @@ export type TripayTransaction = {
   order_items: { sku?: string | null; price: number; quantity: number }[];
 };
 
+export function tripayMode(env: NodeJS.ProcessEnv = process.env): "live" | "sandbox" {
+  const mode = env.TRIPAY_MODE?.trim() || "live";
+  if (mode !== "live" && mode !== "sandbox") throw new HttpException("TRIPAY_MODE harus sandbox atau live.", 503);
+  return mode;
+}
+
 export function tripayConfig(env: NodeJS.ProcessEnv = process.env) {
   const apiKey = env.TRIPAY_API_KEY?.trim(), privateKey = env.TRIPAY_PRIVATE_KEY?.trim(), merchant = env.TRIPAY_MERCHANT_CODE?.trim();
-  const base = env.TRIPAY_BASE_URL?.trim().replace(/\/$/, "");
-  const mode = env.TRIPAY_MODE?.trim() || "live";
-  if (mode !== "live") throw new HttpException("TRIPAY_MODE harus live.", 503);
+  const mode = tripayMode(env);
   if (!apiKey || !privateKey || !merchant) throw new HttpException("Kredensial Tripay belum lengkap.", 503);
-  const expected = "https://tripay.co.id/api";
+  const expected = mode === "sandbox" ? "https://tripay.co.id/api-sandbox" : "https://tripay.co.id/api";
+  const base = env.TRIPAY_BASE_URL?.trim().replace(/\/$/, "") || expected;
   if (base !== expected) throw new HttpException("Endpoint Tripay tidak sesuai mode pembayaran.", 503);
   return { apiKey, privateKey, merchant, base, mode };
 }
@@ -24,6 +29,13 @@ export function tripayCustomerEmail(customerEmail: string): string {
   const email = customerEmail.trim();
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw new HttpException("Email pembayaran wajib diisi dengan alamat yang valid.", 400);
   return email;
+}
+
+/** An explicit rejection is different from a timeout with an uncertain outcome. */
+export class TripayRejectedError extends HttpException {
+  constructor(readonly code: "phone_required" | "provider_rejected" = "provider_rejected") {
+    super(code === "phone_required" ? "Tripay menolak permintaan: nomor HP untuk metode pembayaran ini wajib diisi." : "Tripay menolak pembuatan pembayaran. Periksa data pelanggan dan metode pembayaran, lalu coba lagi.",502);
+  }
 }
 
 export class TripayClient {
@@ -48,10 +60,16 @@ export class TripayClient {
         if (size > 1024 * 1024) { await reader.cancel(); throw new Error("Response too large"); }
         parts.push(part.value);
       }
-      const result = JSON.parse(Buffer.concat(parts).toString("utf8")) as { success?: unknown; data?: T };
+      const result = JSON.parse(Buffer.concat(parts).toString("utf8")) as { success?: unknown; message?: unknown; data?: T };
+      if (response.status < 500 && result.success === false && !(result.data && typeof result.data === "object" && "reference" in result.data)) {
+        // Map only a known validation category; never echo raw provider payloads.
+        const phoneRequired = typeof result.message === "string" && /customer[ _]phone|phone.*required|nomor.*(wajib|kosong)|no\.?\s*h[pP].*(wajib|kosong)/i.test(result.message);
+        throw new TripayRejectedError(phoneRequired ? "phone_required" : "provider_rejected");
+      }
       if (!response.ok || result.success !== true || !result.data) throw new Error("Provider rejected request");
       return result.data;
-    } catch {
+    } catch (error) {
+      if (error instanceof TripayRejectedError) throw error;
       // Never echo provider payloads, credentials, customer details or fetch errors.
       throw new HttpException("Tripay tidak dapat dihubungi atau menolak permintaan. Periksa konfigurasi dan channel merchant.", 502);
     }

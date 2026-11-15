@@ -1,7 +1,17 @@
 .payment-methods { min-width:0; margin:24px 0; padding:0; border:0; }
 .payment-methods > legend { padding:0; font-size:16px; font-weight:800; color:var(--foreground); }
-.payment-method-group { margin-top:20px; }
-.payment-method-group > h3 { margin:0 0 10px; font-size:12px; font-weight:700; color:var(--muted); }
+.payment-method-group { margin-top:12px; border:1px solid var(--border); border-radius:16px; overflow:clip; }
+.payment-method-group > summary { display:flex; align-items:center; justify-content:space-between; gap:16px; padding:16px; cursor:pointer; list-style:none; background:var(--primary-soft); }
+.payment-method-group > summary::-webkit-details-marker { display:none; }
+.payment-method-group > summary > span { display:flex; flex-direction:column; gap:4px; }
+.payment-method-group > summary strong { font-size:14px; color:var(--foreground); }
+.payment-method-group > summary small { font-size:12px; color:var(--muted); }
+.payment-method-group > summary > svg { flex-shrink:0; transition:transform .15s; }
+.payment-method-group[open] > summary > svg { transform:rotate(180deg); }
+.payment-method-group > summary:focus-visible { outline:2px solid var(--focus); outline-offset:-3px; }
+.payment-method-group > .payment-method-grid { padding:12px; }
+.payment-methods:disabled summary { cursor:wait; }
+@media(prefers-reduced-motion:reduce) { .payment-method-group > summary > svg { transition:none; } }
 .payment-method-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; }
 .payment-method-grid > .payment-method { position:relative; display:flex; flex-direction:column; align-items:flex-start; gap:10px; min-width:0; margin:0; padding:16px; border:1px solid var(--border); border-radius:16px; background:var(--surface); cursor:pointer; transition:background .15s,border-color .15s; }
 .payment-method:hover { border-color:var(--field-focus); }
@@ -18,3 +28,5 @@
 .payment-method[data-selected="true"] .payment-method-check { background:var(--pink-ink); color:white; border-color:var(--pink-ink); }
 @media(max-width:380px) { .payment-method-grid { grid-template-columns:1fr; } .payment-method-grid > .payment-method { flex-direction:row; align-items:center; padding-right:36px; } .payment-method-logo { width:76px; flex-shrink:0; } .payment-method-check { top:50%; transform:translateY(-50%); } }
 @media(prefers-reduced-motion:reduce) { .payment-method { transition:none; } }
+
+.checkout-existing-invoice{padding:18px;margin:18px 0;border-radius:16px;background:var(--primary-soft)}.checkout-existing-invoice h3{font-size:16px;font-weight:800;margin:0 0 10px}.checkout-existing-invoice p{font-size:12px;line-height:1.8;overflow-wrap:anywhere}.checkout-existing-invoice a{display:block;margin:12px 0}.checkout-existing-invoice button{margin-top:12px}

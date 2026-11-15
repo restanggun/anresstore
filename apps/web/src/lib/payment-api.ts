@@ -34,7 +34,22 @@ export async function submitPayment<T extends { id: string }>(body: Record<strin
     const digest = Array.from(new Uint8Array(bytes), byte => byte.toString(16).padStart(2, "0")).join("");
     const key = `${prefix}${session.scope}:${digest}`;
     const saved = localStorage.getItem(key);
-    const id = saved && /^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/.test(saved) ? saved : crypto.randomUUID();
+    const savedId = saved && /^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/.test(saved) ? saved : null;
+    if (savedId) {
+      onReserved(savedId);
+      // Recover the authoritative invoice before resubmitting a stored intent.
+      // A paid or uncertain invoice must never silently become a second payment.
+      try {
+        const existing = await paymentRequest<T>(`transactions/${encodeURIComponent(savedId)}`);
+        onReserved(existing.id);
+        return existing;
+      } catch (error) {
+        // No row may exist when an earlier request was rejected before reservation.
+        // Retry with the SAME ID so an in-flight reservation cannot be duplicated.
+        if (!(error instanceof PaymentRequestError) || error.status !== 404) throw error;
+      }
+    }
+    const id = savedId ?? crypto.randomUUID();
     // Only a non-secret ID and hashed fingerprint persist in JavaScript storage.
     // A failed save stops checkout before any request to the gateway.
     localStorage.setItem(key, id);

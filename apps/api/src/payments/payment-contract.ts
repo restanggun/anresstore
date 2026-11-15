@@ -5,11 +5,11 @@ import type { PaymentStatus } from "./transaction-state";
 import type { TripayTransaction } from "./tripay-client";
 
 export const paymentId = /^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/;
-export const invoiceNumber = /^ARNS-[A-Z0-9]{1,12}-[A-Z0-9]{1,12}-[0-9]{8}-[A-F0-9]{16}$/;
+export const invoiceNumber = /^ARNS-(?:[0-9]{6}-[A-F0-9]{14}|[A-Z0-9]{1,12}-[A-Z0-9]{1,12}-[0-9]{8}-[A-F0-9]{16})$/;
 export const paymentHash = (value: string) => createHash("sha256").update(value).digest("hex");
 export type PaymentRow = {
   invoice_number?: string; merchant_ref?: string;
-  payment_mode?: "live";
+  payment_mode?: "live" | "sandbox";
   target_zone?: string | null; provider_cost?: number | null;
   id: string; access_hash: string; request_hash: string; created_at: string;
   source: string; product_name: string; provider_code: string; target: string;
@@ -40,6 +40,7 @@ export function parsePayment(input: unknown): PaymentInput {
       result.code.length > 100 || result.target.length > 200 || result.name.length > 100 ||
       (!!result.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(result.email)) || (!!result.phone && !/^\+?\d{8,15}$/.test(result.phone)) ||
       !/^[A-Z0-9_]{1,50}$/.test(result.method) || !Number.isSafeInteger(result.expectedAmount) || result.expectedAmount < 1 || result.expectedAmount > 100000000) throw invalid();
+  if (result.method === "OVO" && !result.phone) throw new HttpException("Nomor HP yang terdaftar di OVO wajib diisi untuk metode OVO.",400);
   if (body.expectedQuantity !== undefined) {
     if (result.source !== "social" || !Number.isSafeInteger(body.expectedQuantity) || Number(body.expectedQuantity) < 1 || Number(body.expectedQuantity) > 10000000) throw invalid();
     result.expectedQuantity = Number(body.expectedQuantity);

@@ -6,21 +6,13 @@ import { Button } from "@anres/ui";
 import Link from "./domain-link";
 import { forgetPaymentIntent, paymentRequest } from "@/lib/payment-api";
 import { invoicePath, tripayCheckoutUrl } from "@/lib/payment-navigation";
+import { RefundRequest } from "./refund-request";
+import { orderStatus } from "@/lib/order-status";
 import type { PaymentRecord } from "./payment-checkout";
 import "./payment-invoice.css";
 
 const money = (value: number) => `Rp${value.toLocaleString("id-ID")}`;
 const date = (value: string | number) => `${new Intl.DateTimeFormat("id-ID", { dateStyle: "medium", timeStyle: "short", timeZone: "Asia/Jakarta" }).format(new Date(value))} WIB`;
-const labels: Record<string, string> = { creating: "Menyiapkan pembayaran", pending: "Menunggu pembayaran", paid: "Pembayaran berhasil", failed: "Pembayaran gagal", expired: "Pembayaran kedaluwarsa", refunded: "Pembayaran dikembalikan", unknown: "Status perlu diperiksa" };
-const descriptions: Record<string, string> = {
-  creating: "Invoice sudah dibuat. Kami sedang menyiapkan rincian pembayarannya.",
-  pending: "Selesaikan pembayaran melalui Tripay. Status invoice diperbarui otomatis.",
-  paid: "Pembayaranmu sudah terverifikasi. Pantau pemrosesan pesanan di invoice ini.",
-  failed: "Pembayaran belum berhasil. Periksa rincian sebelum membuat pesanan baru.",
-  expired: "Batas waktu pembayaran sudah lewat. Buat pesanan baru untuk melanjutkan.",
-  refunded: "Penyedia telah mengonfirmasi pengembalian pembayaran ini.",
-  unknown: "Kami sedang mencocokkan status dengan Tripay. Jangan buat pembayaran pengganti.",
-};
 
 export function PaymentInvoice({ id }: { id: string }) {
   const router = useRouter();
@@ -55,12 +47,10 @@ export function PaymentInvoice({ id }: { id: string }) {
     return () => { clearInterval(timer); window.removeEventListener("focus", update); window.removeEventListener("pageshow", update); document.removeEventListener("visibilitychange", update); };
   }, [payment?.status, payment?.fulfillment?.status, refresh]);
 
-  const paid = payment?.status === "paid";
-  const completed = paid && payment?.fulfillment?.status === "completed";
-  const problem = !!payment && (payment.needsReview || ["unknown", "failed", "expired", "refunded"].includes(payment.status));
-  const step = completed ? 4 : paid ? 3 : 2;
+  const status = payment ? orderStatus(payment) : null;
+  const completed = status?.step === 4;
+  const step = status?.step ?? 1;
   const checkoutUrl = payment ? tripayCheckoutUrl(payment) : null;
-  const fulfillmentLabels: Record<string, string> = { not_ready: "Menunggu pembayaran", ready: "Menunggu pemrosesan", processing: "Pesanan sedang diproses", completed: "Pesanan selesai", failed: "Pemrosesan perlu ditinjau", unknown: "Status pengiriman sedang diperiksa", manual_review: "Pesanan dalam tinjauan", dispatching: "Pesanan sedang dikirim" };
 
   async function copyNumber() {
     if (!payment?.invoiceNumber) return;
@@ -70,19 +60,23 @@ export function PaymentInvoice({ id }: { id: string }) {
 
   return <main id="main" className="container payment-invoice-page">
     <div className="invoice-toolbar"><Link href="/invoice"><ArrowLeft size={16} aria-hidden="true"/>Semua invoice</Link><span><ShieldCheck size={16} aria-hidden="true"/>Pembayaran melalui Tripay</span></div>
-    <header className="invoice-page-heading"><h1>Invoice pesanan</h1><p>Simpan invoice ini untuk melihat pembayaran dan perkembangan pesananmu.</p></header>
+    <header className="invoice-page-heading"><h1>Invoice pesanan</h1><p>Pantau pembayaran, pengiriman produk, dan bantuan untuk pesananmu di sini.</p></header>
     <ol className="invoice-steps" aria-label="Progres pesanan">
-      {["Pesanan dibuat", "Pembayaran", "Diproses", "Selesai"].map((label, index) => <li key={label} data-state={index + 1 < step || completed ? "done" : index + 1 === step ? "current" : "next"} aria-current={index + 1 === step ? "step" : undefined}><span className="invoice-step-number" aria-hidden="true">{index + 1}</span><span>{label}</span></li>)}
+      {["Pesanan dibuat", "Pembayaran", "Diproses", "Selesai"].map((label, index) => <li key={label} data-state={index + 1 === step && status?.needsHelp ? "problem" : index + 1 < step || completed ? "done" : index + 1 === step ? "current" : "next"} aria-current={index + 1 === step ? "step" : undefined}><span className="invoice-step-number" aria-hidden="true">{index + 1}</span><span>{index === 3 && payment?.refund?.refund_status === "completed" ? "Penanganan selesai" : index === 2 && payment?.status === "paid" && status?.needsHelp ? "Perlu penanganan" : label}</span></li>)}
     </ol>
     {error && <div className="invoice-notice" role="alert"><TriangleAlert size={20} aria-hidden="true"/><p>{error}{payment && " Status terakhir tetap ditampilkan."}</p></div>}
+    {payment?.mode === "sandbox" && !payment.sandboxRealFulfillment && <p className="invoice-notice" role="status">Mode sandbox: pembayaran uji coba, tanpa pengiriman produk.</p>}
     {!payment ? <section className="invoice-loading" aria-busy={busy}><ReceiptText size={32} aria-hidden="true"/><h2>{busy ? "Memuat invoice..." : "Invoice belum dapat ditampilkan"}</h2><p>{busy ? "Kami sedang memeriksa rincian pesananmu." : "Periksa nomor invoice dan gunakan akun atau browser saat pesanan dibuat."}</p>{!busy && <Button variant="outline" onClick={() => void refresh()}>Coba lagi</Button>}</section> : <>
       <article className="payment-ticket" aria-label="Rincian invoice">
         <div className="ticket-main">
           <header className="ticket-heading"><div className="ticket-brand"><ReceiptText size={23} aria-hidden="true"/><strong>Anres Store</strong></div><span className="ticket-type">Invoice pesanan</span></header>
-          <div className="ticket-status" data-tone={problem ? "review" : paid ? "paid" : "pending"} role="status" aria-live="polite"><span className="ticket-status-icon" aria-hidden="true">{problem ? <TriangleAlert size={25}/> : paid ? <CircleCheck size={27}/> : <Clock3 size={26}/>}</span><div><h2>{payment.needsReview ? "Transaksi dalam tinjauan" : labels[payment.status] || "Memeriksa status"}</h2><p>{payment.needsReview ? "Tim kami perlu memeriksa transaksi ini. Jangan membuat pembayaran pengganti." : descriptions[payment.status]}</p></div></div>
           <section className="ticket-number"><div><h3>Nomor invoice</h3><p>{payment.invoiceNumber || "Nomor invoice sedang disiapkan"}</p></div><Button variant="outline" onClick={() => void copyNumber()} disabled={!payment.invoiceNumber} aria-label={copied ? "Nomor invoice disalin" : "Salin nomor invoice"}>{copied ? <Check size={16} aria-hidden="true"/> : <Copy size={16} aria-hidden="true"/>}{copied ? "Disalin" : "Salin"}</Button></section>
-          <section className="ticket-order"><h3>Rincian pesanan</h3><h4>{payment.product}</h4><dl className="ticket-detail-grid"><div><dt>Tujuan / ID pelanggan</dt><dd>{payment.target || "—"}{payment.targetZone ? ` (${payment.targetZone})` : ""}</dd></div><div><dt>Dibuat pada</dt><dd>{date(payment.createdAt)}</dd></div><div><dt>Metode pembayaran</dt><dd>{payment.method}</dd></div>{payment.reference && <div><dt>Referensi Tripay</dt><dd>{payment.reference}</dd></div>}</dl></section>
-          {payment.fulfillment && <section className="ticket-fulfillment"><h3>Pemrosesan pesanan</h3><p><span className="ticket-dot" aria-hidden="true"/>{fulfillmentLabels[payment.fulfillment.status] || "Status sedang diperiksa"}</p>{payment.fulfillment.note && <small>{payment.fulfillment.note}</small>}</section>}
+          <div className="ticket-status" data-tone={status!.tone} role="status" aria-live="polite"><span className="ticket-status-icon" aria-hidden="true">{status!.needsHelp ? <TriangleAlert size={25}/> : completed ? <CircleCheck size={27}/> : <Clock3 size={26}/>}</span><div><h2>{status!.title}</h2><p>{status!.description}</p></div></div>
+          <dl className="ticket-state-pair"><div><dt>Pembayaran</dt><dd>{status!.paymentLabel}</dd></div><div data-problem={payment.status === "paid" && status!.needsHelp}><dt>Pengiriman produk</dt><dd>{status!.deliveryLabel}</dd></div></dl>
+          <section className="ticket-order"><h3>Rincian pesanan</h3><h4>{payment.product}</h4><dl className="ticket-detail-grid"><div><dt>{payment.targetZone ? "ID pemain" : "Tujuan / ID pelanggan"}</dt><dd>{payment.target || "-"}</dd></div>{payment.targetZone && <div><dt>Server / zone</dt><dd>{payment.targetZone}</dd></div>}<div><dt>Dibuat pada</dt><dd>{date(payment.createdAt)}</dd></div><div><dt>Metode pembayaran</dt><dd>{payment.method}</dd></div>{payment.reference && <div><dt>Referensi Tripay</dt><dd>{payment.reference}</dd></div>}</dl></section>
+          {status!.needsHelp && <section className="ticket-resolution" aria-label="Bantuan pesanan"><h3>{status!.reason ? "Alasan pengiriman gagal" : "Langkah berikutnya"}</h3>{status!.reason && <p>{status!.reason}</p>}<p>Sertakan nomor invoice saat menghubungi CS. Tim akan memeriksa pesanan sebelum menentukan penyelesaiannya.</p><Button asChild variant="outline"><Link href="/bantuan">Hubungi CS</Link></Button></section>}
+          {payment.fulfillment?.status === "completed" && payment.fulfillment.note && <section className="ticket-fulfillment"><h3>Informasi produk</h3><p>{payment.fulfillment.note}</p></section>}
+          {(payment.refund || payment.status === "paid" && status!.needsHelp) && <RefundRequest payment={payment} onUpdated={()=>void refresh()}/>}
           <footer className="ticket-footer"><span>Status diperiksa otomatis{payment.lastVerifiedAt ? ` · ${date(payment.lastVerifiedAt)}` : ""}</span><Link href="/bantuan">Butuh bantuan?</Link></footer>
         </div>
         <aside className="ticket-stub" aria-label="Ringkasan pembayaran"><div><h3>Ringkasan pembayaran</h3><dl className="ticket-totals"><div><dt>Harga produk</dt><dd>{money(payment.amount)}</dd></div><div><dt>Biaya admin</dt><dd>{payment.reference ? money(payment.fee) : "Menunggu Tripay"}</dd></div><div className="ticket-total"><dt>Total pembayaran</dt><dd>{payment.reference ? money(payment.total) : "Belum tersedia"}</dd></div></dl>

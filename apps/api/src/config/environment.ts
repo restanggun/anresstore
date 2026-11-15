@@ -39,9 +39,9 @@ export function readEnvironment(env: NodeJS.ProcessEnv = process.env) {
 /** Validate before opening the HTTP listener; never print credential values. */
 export function validateProductionPayments(env: NodeJS.ProcessEnv) {
   const mode = env.TRIPAY_MODE;
-  if (mode !== "live") throw new Error("Production memerlukan TRIPAY_MODE=live.");
-  const expected = "https://tripay.co.id/api";
-  if (env.TRIPAY_BASE_URL !== expected) throw new Error("TRIPAY_BASE_URL tidak sesuai mode.");
+  if (mode !== "live" && mode !== "sandbox") throw new Error("TRIPAY_MODE harus sandbox atau live.");
+  const expected = mode === "sandbox" ? "https://tripay.co.id/api-sandbox" : "https://tripay.co.id/api";
+  if (env.TRIPAY_BASE_URL?.trim() && env.TRIPAY_BASE_URL.replace(/\/$/, "") !== expected) throw new Error("TRIPAY_BASE_URL tidak sesuai mode.");
   for (const name of ["TRIPAY_API_KEY", "TRIPAY_PRIVATE_KEY", "TRIPAY_MERCHANT_CODE", "SUPABASE_URL", "SUPABASE_SECRET_KEY"] as const) {
     if (!env[name]?.trim()) throw new Error(`${name} wajib diisi.`);
   }
@@ -52,7 +52,7 @@ export function validateProductionPayments(env: NodeJS.ProcessEnv) {
         ![env.AUTH_WEB_ORIGIN, env.AUTH_APP_ORIGIN].includes(url.origin)) throw new Error();
   } catch { throw new Error("TRIPAY_RETURN_URL harus mengarah ke storefront HTTPS yang dipercaya."); }
   if (env.PAYMENT_RECONCILIATION_ENABLED !== "true") throw new Error("Rekonsiliasi pembayaran wajib aktif di production.");
-  if (mode === "live") {
+  if (mode === "live" || env.VIPAYMENT_SANDBOX_FULFILLMENT_ENABLED === "true") {
     // false is an operational purchase pause; already submitted orders must still be polled.
     if (!["true", "false"].includes(env.VIPAYMENT_FULFILLMENT_ENABLED || "")) throw new Error("Status pengiriman VIPayment harus eksplisit.");
     if (env.VIPAYMENT_STATUS_POLLING_ENABLED !== "true") throw new Error("Polling VIPayment wajib aktif untuk transaksi live.");

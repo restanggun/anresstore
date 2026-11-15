@@ -2,6 +2,7 @@ import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {createHmac,randomUUID} from 'node:crypto';
 import {PaymentsController} from '../dist/payments/payments.controller.js';
+import {TripayRejectedError} from '../dist/payments/tripay-client.js';
 import {parsePayment,ownsPayment,paymentHash,validatePaymentDetail} from '../dist/payments/payment-contract.js';
 
 Object.assign(process.env,{TRIPAY_API_KEY:'test-key',TRIPAY_PRIVATE_KEY:'private-key',TRIPAY_MERCHANT_CODE:'T123',TRIPAY_BASE_URL:'https://tripay.co.id/api',CORS_ORIGINS:'http://localhost:3000',TRIPAY_CALLBACK_URL:'https://tunnel.example/v1/payments/callback',TRIPAY_RETURN_URL:'http://localhost:3000'});
@@ -297,4 +298,26 @@ test('account without verified email cannot fall back to browser email',async()=
  const s=setup();
  await assert.rejects(s.controller.create(input,{...req,testIdentity:{userId:randomUUID(),guestHash:null}},res),e=>e.getStatus()===400);
  assert.equal(s.creates(),0);assert.equal(s.rows.size,0);
+});
+
+
+test('OVO requires a payment phone before any reservation and definitive rejection returns a usable error instead of unknown',async()=>{
+ const {controller,read,creates}=setup();
+ await assert.rejects(controller.create({...input,source:'game',method:'OVO',phone:''},req,res),error=>error.getStatus()===400&&/OVO/.test(error.message));
+ assert.equal(creates(),0);assert.equal(read(),undefined);
+ controller.tripay.create=async()=>{throw new TripayRejectedError('phone_required');};
+ await assert.rejects(controller.create(input,req,res),error=>error.getStatus()===502&&/nomor HP/.test(error.message));
+ assert.equal(read().status,'failed');assert.equal(read().reference,null);
+});
+
+
+test('Mobile Legends preserves separate numeric player/zone strings and rejects combined pasted IDs before payment',async()=>{
+ const {controller,read,creates}=setup();
+ controller.catalog={list:async()=>({items:[{code:'SKU',price:20000,providerCost:15000,product:'Mobile Legends',productSlug:'mobile-legends',name:'Diamonds'}]})};
+ for(const invalid of [{target:'123456(1234)',targetZone:'1234'},{target:'123456',targetZone:'12A4'},{target:'123456',targetZone:''}]){
+  await assert.rejects(controller.create({...input,...invalid},req,res),error=>error.getStatus()===400);
+ }
+ assert.equal(creates(),0);assert.equal(read(),undefined);
+ await controller.create({...input,target:'0012345678',targetZone:'01234'},req,res);
+ assert.equal(read().target,'0012345678');assert.equal(read().target_zone,'01234');
 });

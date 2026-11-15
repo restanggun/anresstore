@@ -201,6 +201,19 @@ export class AdminController {
     return { ok: true };
   }
 
+  @Patch("conversations/:id/refund")
+  async reviewRefund(@Param("id") id:string,@Body() body:{status?:unknown;resolution?:unknown;reference?:unknown},@Req() req:Request,@Res({passthrough:true}) res:Response) {
+    const access=await this.authorize(req,res,true);
+    // All refunds are manual until Tripay documents an initiation API. Only full admins may attest a payout.
+    if(!access.superAdmin) throw new HttpException("Pengembalian dana harus ditangani administrator utama, termasuk transaksi di atas Rp50.000.",403);
+    if(!uuid(id)||!body||!["in_review","completed","rejected"].includes(String(body.status))||typeof body.resolution!=="string"||body.resolution.trim().length<10||body.resolution.length>1000||body.reference!==undefined&&(typeof body.reference!=="string"||body.reference.length>160)) throw new HttpException("Isi status, catatan pemeriksaan, dan referensi transfer yang valid.",400);
+    if(body.status==="completed"&&(typeof body.reference!=="string"||body.reference.trim().length<6)) throw new HttpException("Referensi transfer wajib diisi setelah transfer benar-benar selesai.",400);
+    await this.audit(access.id,"refund."+body.status,id);
+    const [room]=await adminDb("rpc/review_payment_refund","","POST",{p_room:id,p_actor:access.id,p_status:body.status,p_resolution:body.resolution.trim(),p_reference:typeof body.reference==="string"?body.reference.trim():null});
+    if(!room) throw new HttpException("Pengajuan tidak ditemukan.",404);
+    return room;
+  }
+
   @Get("records/:kind")
   async records(@Param("kind") kind: string, @Query("page") page: string, @Req() req: Request, @Res({ passthrough: true }) res: Response) {
     const access = await this.authorize(req, res);

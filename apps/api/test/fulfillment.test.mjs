@@ -70,3 +70,35 @@ test('purchase pause still polls in-flight orders and never claims ready orders'
   process.env.VIPAYMENT_STATUS_POLLING_ENABLED='false';await worker.run();assert.equal(polls,1);
  }finally{process.env=old;}
 });
+
+
+test('sandbox real fulfillment requires explicit opt-in and stops new dispatch while still polling',async()=>{
+ const env={...process.env};
+ Object.assign(process.env,{VIPAYMENT_FULFILLMENT_ENABLED:'true',VIPAYMENT_SANDBOX_FULFILLMENT_ENABLED:'false'});
+ delete process.env.VIPAYMENT_STATUS_POLLING_ENABLED;
+ let row={...order,payment_mode:'sandbox'},claims=0,sends=0,polls=0;
+ const worker=new FulfillmentWorker();
+ worker.store={request:async(path,method,body)=>{
+  if(path==='rpc/claim_sandbox_fulfillment'){claims++;assert.equal(row.fulfillment_status,'ready');row={...row,fulfillment_status:'dispatching'};return [{...row}];}
+  if(path==='rpc/claim_live_fulfillment')throw new Error('Sandbox must not use live claim');
+  if(method==='PATCH'){if(path.includes('updated_at=lt.'))return [];row={...row,...body};return [{...row}];}
+  return [{...row}];
+ }};
+ worker.provider={order:async()=>{sends++;return {status:'processing',reference:'SANDBOX-REAL',note:''};},status:async()=>{polls++;return {status:'completed',reference:'SANDBOX-REAL',note:''};}};
+ try {
+  await worker.run();assert.equal(sends,0);assert.equal(claims,0);
+  process.env.VIPAYMENT_SANDBOX_FULFILLMENT_ENABLED='true';
+  await worker.run();assert.equal(sends,1);assert.equal(claims,1);
+  process.env.VIPAYMENT_SANDBOX_FULFILLMENT_ENABLED='false';
+  await worker.run();assert.equal(polls,1);assert.equal(sends,1);assert.equal(row.fulfillment_status,'completed');
+ }finally{process.env=env;}
+});
+
+
+test('game adapter sends leading-zero IDs and zones unchanged in separate documented fields',async()=>{
+ const env={...process.env},original=global.fetch;
+ Object.assign(process.env,{VIPAYMENT_API_ID:'test',VIPAYMENT_API_KEY:'secret',VIPAYMENT_FULFILLMENT_ENABLED:'true'});
+ const destination={...order,target:'0012345678',target_zone:'01234'};let sent;
+ global.fetch=async(_url,init)=>{sent=init.body;return Response.json({result:true,data:{trxid:'VP-ZERO',data:destination.target,zone:destination.target_zone,price:destination.provider_cost,status:'waiting',note:''}});};
+ try{await new VipaymentClient().order(destination);assert.equal(sent.get('data_no'),'0012345678');assert.equal(sent.get('data_zone'),'01234');assert.equal(sent.get('service'),order.provider_code);assert.equal(sent.get('data'),null);assert.equal(sent.get('target'),null);}finally{global.fetch=original;process.env=env;}
+});

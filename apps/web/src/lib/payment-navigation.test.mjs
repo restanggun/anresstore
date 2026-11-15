@@ -12,6 +12,7 @@ test('checkout opens Tripay only for pending payments with a trusted URL', () =>
 test('invoice destination contains only a validated payment ID', () => {
   assert.equal(invoicePath(id), `/invoice/${id}`);
   const number = 'ARNS-ML5-MOBILELEGEND-20261115-1234567890ABCDEF';
+  assert.equal(invoicePath(id, 'ARNS-261115-7E3074A1BFBC4A'), '/invoice/ARNS-261115-7E3074A1BFBC4A');
   assert.equal(invoicePath(id, number), `/invoice/${number}`);
   assert.equal(invoicePath(number), `/invoice/${number}`);
   assert.throws(() => invoicePath('../other'));

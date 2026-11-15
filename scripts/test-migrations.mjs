@@ -35,6 +35,8 @@ try {
   console.log('Support tickets: waiting, acceptance, rejection, privacy and idempotent chat tests passed');
   await db.exec(await readFile('supabase/tests/support-delivery.sql','utf8'));
   console.log('Support unread counts, status-only email queue, exclusive claims and append-only audit passed');
+  await db.exec(await readFile('supabase/tests/refund-requests.sql','utf8'));
+  console.log('Refund ownership, duplicate protection, 50k threshold, sandbox exclusion, review/evidence and gateway-state integrity passed');
   await db.exec(await readFile('supabase/tests/ai-help-sessions.sql','utf8'));
   console.log('AI sessions: history, ownership, idempotent turns and complete atomic CS handoff passed');
 } finally { await db.close(); }
