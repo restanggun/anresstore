@@ -26,7 +26,7 @@ function setup() {
  const controller=new PaymentsController();
  controller.identities={resolve:async request=>request.testIdentity??copy(identity)};
  controller.catalog={list:async()=>({items:[{code:'SKU',price:20000,providerCost:15000,product:'Game',name:'Diamonds'}]})};
- controller.tripay={channels:async()=>[{code:'BRIVA',minimum_amount:10000,maximum_amount:1000000}],create:async value=>{creates++;await new Promise(resolve=>setTimeout(resolve,2));return {...copy(detail),merchant_ref:value.id};},detail:async()=>({...copy(detail),status:'PAID'})};
+ controller.tripay={channels:async()=>[{code:'BRIVA',minimum_amount:1,maximum_amount:1000000}],create:async value=>{creates++;await new Promise(resolve=>setTimeout(resolve,2));return {...copy(detail),merchant_ref:value.id};},detail:async()=>({...copy(detail),status:'PAID'})};
  controller.store={request:async()=>[],rpc:async(name,args)=>{
   if(name==='consume_payment_rate') {const count=(rates.get(args.p_key)||0)+1;rates.set(args.p_key,count);return count<=args.p_limit;}
   if(name==='claim_payment_check') {if(leases.has(args.p_id))return false;leases.add(args.p_id);return true;}
@@ -290,10 +290,10 @@ test('manual task checkout stores authoritative work mode and customer contact s
  assert.equal(s.read().service_quantity,1);assert.equal(s.read().amount,input.expectedAmount);
 });
 
-test('social checkout rejects a changed package quantity before creating any gateway order',async()=>{
- const s=setup();s.controller.catalog={list:async()=>({items:[{code:'SKU',price:20000,product:'TikTok',name:'Likes',serviceQuantity:1000,providerServiceCode:'17',providerCost:6500,fulfillmentMode:'vipayment'}]})};
- await assert.rejects(s.controller.create({...input,source:'social',expectedQuantity:500},req,res),e=>e.getStatus()===409);assert.equal(s.creates(),0);
- await s.controller.create({...input,source:'social',expectedQuantity:1000},req,res);assert.equal(s.read().service_quantity,1000);assert.equal(s.read().provider_service_code,'17');assert.equal(s.read().provider_cost,6500);
+test('social checkout validates quantity and calculates the authoritative amount',async()=>{
+ const s=setup();s.controller.catalog={list:async()=>({items:[{code:'SKU',price:20000,unitPrice:6500,minimum:100,maximum:50000,product:'TikTok',name:'Likes',serviceQuantity:100,providerServiceCode:'17',providerCost:6500,fulfillmentMode:'vipayment'}]})};
+ await assert.rejects(s.controller.create({...input,source:'social',expectedQuantity:50001},req,res),e=>e.getStatus()===400);assert.equal(s.creates(),0);
+ await s.controller.create({...input,source:'social',expectedQuantity:500,expectedAmount:3250},req,res);assert.equal(s.read().service_quantity,500);assert.equal(s.read().provider_service_code,'17');assert.equal(s.read().provider_cost,3250);assert.equal(s.read().amount,3250);
 });
 
 test('guest game checkout requires email but allows empty WhatsApp',async()=>{

@@ -46,6 +46,7 @@ export function parsePayment(input: unknown): PaymentInput {
     if (result.source !== "social" || !Number.isSafeInteger(body.expectedQuantity) || Number(body.expectedQuantity) < 1 || Number(body.expectedQuantity) > 10000000) throw invalid();
     result.expectedQuantity = Number(body.expectedQuantity);
   }
+  if (result.source === "social" && result.expectedQuantity === undefined) throw invalid();
   if (body.targetZone !== undefined) {
     if (typeof body.targetZone !== "string" || !/^[A-Za-z0-9_-]{0,100}$/.test(body.targetZone) || (result.source !== "game" && body.targetZone)) throw invalid();
     if (body.targetZone) result.targetZone = body.targetZone;

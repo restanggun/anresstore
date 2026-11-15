@@ -1,7 +1,7 @@
 export type CatalogKind = "Top up game" | "PPOB" | "Booster media sosial" | "Aplikasi premium" | "Joki tugas";
 export type CatalogPromotion = { id: string; startsAt: string; endsAt: string; originalPrice: number; discountPercent: number };
 export type CatalogItem = {
-  fulfillmentMode?: "manual" | "vipayment"; serviceQuantity?: number;
+  fulfillmentMode?: "manual" | "vipayment"; serviceQuantity?: number; unitPrice?: number; minimum?: number; maximum?: number;
   code: string; name: string; displayName: string; section: string; group: string; type: string; price: number;
   product: string; productSlug: string; brand: string; developer?: string; description: string; promotion: CatalogPromotion | null;
 };

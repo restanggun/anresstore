@@ -3,7 +3,7 @@ export type CatalogItem = {
   providerCost?: number;
   code: string; name: string; group: string; type: string; price: number;
   product: string; productSlug: string; brand: string; description: string; category: "game" | "prepaid" | "apps" | "social" | "tasks";
-  fulfillmentMode?: "vipayment" | "manual"; providerServiceCode?: string; serviceQuantity?: number; minimum?: number; maximum?: number;
+  fulfillmentMode?: "vipayment" | "manual"; providerServiceCode?: string; serviceQuantity?: number; unitPrice?: number; minimum?: number; maximum?: number;
   requiresManualReview?: boolean;
   displayName: string; section: string; developer?: string;
 };
@@ -234,7 +234,7 @@ function mapSocialCatalog(rows: unknown[]): CatalogItem[] {
     if (row.status !== "available" || !/^[A-Za-z0-9._-]+$/.test(code) || !name || !group || !Number.isSafeInteger(cost) || cost < 1 || !Number.isSafeInteger(minimum) || minimum < 1 || !Number.isSafeInteger(maximum) || maximum < minimum) continue;
     const platform = ["Instagram","TikTok","YouTube","Facebook","Telegram","Twitter","Spotify","WhatsApp","Threads"].find(p => group.toLowerCase().includes(p.toLowerCase())) || group;
     if (items.has(code)) duplicate.add(code);
-    items.set(code, { code, name, displayName:name, category:"social", group, type:"social", brand:platform, product:platform, productSlug:slugify(platform), section:group, price:sellingPrice(cost), providerCost:cost, providerServiceCode:code, serviceQuantity:1000, minimum, maximum, fulfillmentMode:"vipayment", description:text(row.note,2000) });
+    items.set(code, { code, name, displayName:name, category:"social", group, type:"social", brand:platform, product:platform, productSlug:slugify(platform), section:group, price:sellingPrice(cost), providerCost:cost, providerServiceCode:code, serviceQuantity:minimum, unitPrice:cost, minimum, maximum, fulfillmentMode:"vipayment", description:text(row.note,2000) });
   }
   for (const code of duplicate) items.delete(code);
   return [...items.values()].sort((a,b)=>a.product.localeCompare(b.product)||a.price-b.price);

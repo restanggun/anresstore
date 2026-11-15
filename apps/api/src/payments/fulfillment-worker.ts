@@ -2,7 +2,7 @@ import { Injectable, type OnModuleInit, type OnModuleDestroy } from "@nestjs/com
 import { PaymentStore } from "./payment-store";
 import { VipaymentClient, type VipOrder } from "./vipayment-client";
 
-type Order = VipOrder & { id: string; payment_status: string; fulfillment_status: string; payment_reference: string | null; payment_mode?: "live" | "sandbox" };
+type Order = VipOrder & { id: string; category: VipOrder["category"]; provider_code: string; target: string; target_zone: string | null; provider_cost: number; service_quantity: number; provider_reference: string | null; payment_status: string; fulfillment_status: string; payment_reference: string | null; payment_mode?: "live" | "sandbox" };
 
 /** Real supplier dispatch requires an atomic claim; sandbox dispatch also requires explicit opt-in. */
 @Injectable()

@@ -189,10 +189,11 @@ export class PaymentsController implements OnModuleInit, OnModuleDestroy {
       if (!Number.isSafeInteger(product.providerCost) || Number(product.providerCost) <= 0) throw new HttpException("Harga supplier belum terverifikasi. Muat ulang produk.", 503);
       if ((mode === "live" || process.env.VIPAYMENT_SANDBOX_FULFILLMENT_ENABLED === "true") && (process.env.VIPAYMENT_FULFILLMENT_ENABLED !== "true" || !process.env.VIPAYMENT_API_ID?.trim() || !process.env.VIPAYMENT_API_KEY?.trim())) throw new HttpException("Pengiriman produk sedang tidak tersedia. Pembayaran belum dibuat.", 503);
     }
-    if (body.source === "social" && body.expectedQuantity !== product.serviceQuantity) throw new HttpException("Jumlah paket telah berubah. Muat ulang produk sebelum melanjutkan.",409);
+    const serviceQuantity = body.source === "social" ? body.expectedQuantity : product.serviceQuantity || 1;
+    if (body.source === "social" && (!Number.isSafeInteger(serviceQuantity) || serviceQuantity! < (product.minimum ?? product.serviceQuantity ?? 1) || serviceQuantity! > (product.maximum ?? product.serviceQuantity ?? 1))) throw new HttpException("Jumlah item di luar batas layanan. Periksa kembali jumlah minimum dan maksimum.",400);
     if (product.productSlug === "mobile-legends" && (!/^[0-9]+$/.test(body.target) || !/^[0-9]+$/.test(body.targetZone ?? ""))) throw new HttpException("ID pemain dan server / zone Mobile Legends wajib berupa angka di kolom terpisah, tanpa tanda kurung.", 400);
     if (body.source === "tasks" && !/^managed\.[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/.test(body.code)) throw new HttpException("Paket tugas tidak valid.",400);
-    const quotedAmount = body.source === "tasks" && body.task ? await this.store.rpc<number>("quote_task_order", {p_product: body.code.replace(/^managed\./,""), p_pages:body.task.pages, p_days:body.task.deadline_days, p_revisions:body.task.revisions}) : product.price;
+    const quotedAmount = body.source === "tasks" && body.task ? await this.store.rpc<number>("quote_task_order", {p_product: body.code.replace(/^managed\./,""), p_pages:body.task.pages, p_days:body.task.deadline_days, p_revisions:body.task.revisions}) : body.source === "social" ? Math.ceil((product.unitPrice ?? product.price) * serviceQuantity! / 1000) : product.price;
     if (quotedAmount !== body.expectedAmount) throw new HttpException("Harga telah berubah. Muat ulang katalog dan periksa harga sebelum melanjutkan.", 409);
     const channel = (await this.tripay.channels()).find(item => item.code === body.method);
     if (!channel || quotedAmount < channel.minimum_amount || quotedAmount > channel.maximum_amount) throw new HttpException("Metode pembayaran tidak tersedia untuk nominal ini.", 400);
@@ -203,12 +204,12 @@ export class PaymentsController implements OnModuleInit, OnModuleDestroy {
       invoice_product_code: product.productSlug || product.product,
       invoice_subproduct_code: product.providerServiceCode || body.code,
       id: body.id, source: body.source, provider_code: body.code, product_name: `${product.product} - ${product.name}`, target: body.target,
-      target_zone: body.targetZone ?? null, provider_cost: product.providerCost ?? null,
+      target_zone: body.targetZone ?? null, provider_cost: body.source === "social" && product.providerCost ? Math.ceil(product.providerCost * serviceQuantity! / 1000) : product.providerCost ?? null,
       customer_name: body.name, customer_email: body.email, customer_phone: body.phone,
-      fulfillment_mode: fulfillmentMode, provider_service_code: product.providerServiceCode || body.code, service_quantity: product.serviceQuantity || 1,
+      fulfillment_mode: fulfillmentMode, provider_service_code: product.providerServiceCode || body.code, service_quantity: serviceQuantity,
       amount: quotedAmount, method: body.method, access_hash: paymentHash(randomBytes(32).toString("hex")), request_hash: requestHash,
       owner_user_id: identity.userId, guest_session_hash: identity.userId ? null : identity.guestHash,
-      checkout_hash: paymentHash(JSON.stringify([mode, body.source, body.code, body.target, body.targetZone ?? "", body.task ?? null])),
+      checkout_hash: paymentHash(JSON.stringify([mode, body.source, body.code, body.target, body.targetZone ?? "", body.expectedQuantity ?? null, body.task ?? null])),
     };
     const reservation = await this.store.rpc<{ payment: PaymentRow; claimed: boolean }>(body.source === "tasks" ? "reserve_task_payment" : "reserve_payment", body.source === "tasks" ? {p_payment:paymentSnapshot,p_task:body.task} : {p_payment:paymentSnapshot});
     if (!reservation?.payment || typeof reservation.claimed !== "boolean") throw new HttpException("Reservasi pembayaran belum dapat dipastikan.", 503);

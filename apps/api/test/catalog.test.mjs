@@ -121,7 +121,7 @@ test('catalog fails closed when provider credentials are missing', async () => {
 
 test('social catalog uses provider service IDs, quantity bounds, and price per thousand',()=>{
  const [item]=mapCatalog('social',[{id:'17',name:'TikTok Likes',category:'TikTok Likes',min:100,max:50000,price:{basic:6497},status:'available',note:'Public profile only'}]);
- assert.equal(item.category,'social');assert.equal(item.code,'17');assert.equal(item.product,'TikTok');assert.equal(item.minimum,100);assert.equal(item.maximum,50000);assert.equal(item.providerCost,6497);
+ assert.equal(item.category,'social');assert.equal(item.code,'17');assert.equal(item.product,'TikTok');assert.equal(item.minimum,100);assert.equal(item.maximum,50000);assert.equal(item.serviceQuantity,100);assert.equal(item.unitPrice,6497);assert.equal(item.providerCost,6497);
  assert.equal(mapCatalog('social',[{id:'17',name:'Likes',category:'TikTok',min:100,max:50,price:{basic:10},status:'available'}]).length,0);
 });
 
