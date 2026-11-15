@@ -632,9 +632,17 @@ export class AdminController {
       {name:"Antrean pengiriman lama",table:"live_transactions",filter:`payment_status=eq.paid&fulfillment_status=eq.ready&created_at=lt.${ago(15)}`,severity:"warning"},
       {name:"Pemrosesan lama",table:"live_transactions",filter:`fulfillment_status=eq.processing&created_at=lt.${ago(60)}`,severity:"warning"},
       {name:"Pembayaran lunas, pengiriman gagal",table:"live_transactions",filter:"payment_status=eq.paid&fulfillment_status=eq.failed",severity:"critical"},
+      {name:"Joki belum dimulai",table:"task_order_specs",filter:`workflow_status=eq.queued&created_at=lt.${ago(15)}`,severity:"warning"},
+      {name:"Joki menunggu pengerjaan terlalu lama",table:"task_order_specs",filter:`workflow_status=in.(working,revision_working)&created_at=lt.${ago(60)}`,severity:"warning"},
+      {name:"Joki menunggu keputusan revisi",table:"task_order_specs",filter:`workflow_status=eq.revision_requested&created_at=lt.${ago(60)}`,severity:"warning"},
+      {name:"Premium menunggu QRIS",table:"premium_orders",filter:`status=eq.awaiting_qr&created_at=lt.${ago(15)}`,severity:"warning"},
+      {name:"Premium menunggu verifikasi pembayaran",table:"premium_orders",filter:`status=eq.proof_submitted&updated_at=lt.${ago(30)}`,severity:"warning"},
+      {name:"Premium menunggu pengiriman akun",table:"premium_orders",filter:`status=eq.paid&paid_at=lt.${ago(60)}`,severity:"critical"},
+      {name:"Klaim garansi premium menunggu keputusan",table:"premium_guarantee_claims",filter:`status=eq.pending&created_at=lt.${ago(60)}`,severity:"warning"},
     ] as const;
     const results=await Promise.all(checks.map(async check=>{
-      const response=await boundedFetch(`${url}/rest/v1/${check.table}?select=id&payment_mode=eq.live&${check.filter}`,{method:"HEAD",headers:{apikey:key,...(key.startsWith("sb_secret_")?{}:{Authorization:`Bearer ${key}`}),Prefer:"count=exact",Range:"0-0"}});
+      const paymentModeFilter=check.table==="payments"||check.table==="live_transactions"?"&payment_mode=eq.live":check.table==="premium_orders"?"&payment_mode=eq.live":"";
+      const response=await boundedFetch(`${url}/rest/v1/${check.table}?select=id${paymentModeFilter}&${check.filter}`,{method:"HEAD",headers:{apikey:key,...(key.startsWith("sb_secret_")?{}:{Authorization:`Bearer ${key}`}),Prefer:"count=exact",Range:"0-0"}});
       const count=response.headers.get("content-range")?.split("/")[1];
       if(!response.ok||!/^\d+$/.test(count||"")) throw new HttpException("Pemeriksaan antrean database tidak tersedia.",503);
       return {name:check.name,count:Number(count),severity:check.severity};

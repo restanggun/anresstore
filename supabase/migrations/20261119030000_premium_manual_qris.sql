@@ -21,6 +21,7 @@ create table public.premium_orders (
  guarantee_days integer not null,
  guarantee_terms text not null,
  amount bigint not null check (amount between 1 and 100000000),
+ payment_mode text not null default 'live' check (payment_mode = 'live'),
  status text not null default 'awaiting_qr' check (status in ('awaiting_qr','awaiting_payment','proof_submitted','paid','delivered','closed','cancelled')),
  qr_image text check (char_length(qr_image) <= 180000),
  qr_expires_at timestamptz,

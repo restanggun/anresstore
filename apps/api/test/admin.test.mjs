@@ -65,15 +65,17 @@ test('payment listing has pagination and never selects guest hashes or gateway d
 }));
 const product={id:admin,provider:'custom',provider_code:'SKU',category:'game',product:'Test game',product_slug:'test-game',name:'10 credits',price:12000,description:'Test',active:true};
 test('system monitor reports exact live counts and fails closed when database is unavailable',()=>isolated(async()=>{
- let count=0;
+ let count=0;const urls=[];
  global.fetch=async(url,options={})=>{
+  urls.push(String(url));
   if(String(url).endsWith('/auth/v1/user'))return Response.json({id:admin});
   if(options.method==='HEAD'){count++;return new Response(null,{status:200,headers:{'content-range':`0-0/${count===1?2:0}`}});}
   throw new Error('unexpected request');
  };
  const c=new AdminController();const result=await c.operationalStatus(req,res);
- assert.equal(result.status,'attention');assert.equal(result.checks[0].count,2);assert.equal(result.checks.length,10);
- assert.equal(count,10);
+ assert.equal(result.status,'attention');assert.equal(result.checks[0].count,2);assert.equal(result.checks.length,17);
+ assert.equal(count,17);
+ assert.ok(urls.some(url=>url.includes("premium_orders?select=id&payment_mode=eq.live")));
  global.fetch=async(url,options={})=>String(url).endsWith('/auth/v1/user')?Response.json({id:admin}):new Response(null,{status:503});
  await assert.rejects(c.operationalStatus(req,res),e=>e.getStatus()===503);
 }));

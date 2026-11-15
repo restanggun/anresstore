@@ -4,6 +4,11 @@ Status dokumen: implementasi lokal dan gerbang rilis. Perubahan di repository
 belum berarti aplikasi sudah terpasang di VPS. Sesuai arahan pemilik, pengujian
 lanjutan tidak dijalankan dalam sesi penyiapan ini.
 
+Urutan migrasi fitur dalam repo berakhir di `20261119030000_premium_manual_qris.sql`.
+Sebelum deploy, bandingkan seluruh timestamp migrasi dengan history hosted dan
+schema aktual; terapkan hanya migrasi yang belum terpasang setelah backup dan
+uji restore. Runbook deployment menjadi daftar akhir rentang migrasi.
+
 ## Game, PPOB, dan media sosial
 
 - Satu jalur checkout: katalog VIPayment -> harga server -> invoice Tripay ->
