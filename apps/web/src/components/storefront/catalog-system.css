@@ -132,3 +132,5 @@
 .catalog-manual-note { padding:15px 17px; border-radius:14px; background:var(--pink-soft); color:var(--pink-ink)!important; font-size:12px!important; line-height:1.8; }
 
 .order-card .anres-select-trigger { width:100%; min-height:48px; background:white; font-size:13px; padding:12px 14px; border-radius:13px; }
+.catalog-overview-guide{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;margin-top:30px}.catalog-overview-guide>div{padding:22px;border-radius:22px;background:var(--primary-soft)}.catalog-overview-guide>div:nth-child(2){background:var(--pink-soft)}.catalog-overview-guide strong{font-weight:800}.catalog-overview-guide p{margin:8px 0 0;color:var(--muted);line-height:1.6}@media(max-width:700px){.catalog-overview-guide{grid-template-columns:1fr}}
+.task-order-options{display:grid;gap:16px;margin:20px 0}.task-order-options textarea{min-height:120px;width:100%;resize:vertical}.task-order-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}@media(max-width:600px){.task-order-grid{grid-template-columns:1fr}}

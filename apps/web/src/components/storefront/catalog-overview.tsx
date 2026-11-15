@@ -23,5 +23,6 @@ export function CatalogOverview() {
     <span className="service-category-link">Lihat kategori<ArrowUpRight size={17}/></span>
    </MotionLink>;
   })}</div>
+  <div className="catalog-overview-guide" aria-label="Cara memilih layanan"><div><strong>Temukan kategorinya</strong><p>Pilih salah satu dari lima kategori atau gunakan pencarian katalog.</p></div><div><strong>Periksa pilihan produk</strong><p>Buka kartu produk untuk melihat keterangan, pilihan, dan harga dari server.</p></div><div><strong>Lanjutkan pesanan</strong><p>Periksa data tujuan dan pembayaran sebelum menyelesaikan pesanan.</p></div></div>
  </section>;
 }

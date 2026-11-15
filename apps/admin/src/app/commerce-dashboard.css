@@ -385,6 +385,15 @@ html,body,.admin-shell *, .anres-select-content { scrollbar-width:thin; scrollba
 .admin-shell .mode-tag { color:var(--muted); }
 .admin-shell .catalog-summary .publishing-state { color:#286649; }
 .admin-shell .catalog-summary .unpublished { color:#805d21; }
+.system-monitor { display:grid; gap:20px; }
+.system-monitor .workspace-heading { margin-bottom:0; }
+.system-checks { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:0 22px; padding:18px 24px; }
+.system-check { display:flex; justify-content:space-between; gap:14px; padding:12px 0; border-bottom:1px solid var(--border); font-size:12px; }
+.system-check strong { font-size:15px; font-variant-numeric:tabular-nums; }
+.system-check.critical strong { color:#a73546; }
+.system-check.warning strong { color:#9a6a24; }
+.system-monitor-note { margin:0; padding:0 24px 22px; color:var(--muted); font-size:11px; line-height:1.6; }
+@media(max-width:767px) { .system-checks { grid-template-columns:1fr; padding:12px 18px; } .system-monitor-note { padding:0 18px 18px; } }
 .admin-shell .health-badge,.admin-shell .muted-badge,.admin-shell .ops-pagination,.admin-shell .ops-connected,.admin-shell .topbar .setup-pill { font-size:11px; }
 .admin-shell .health-badge,.admin-shell .muted-badge { border-radius:8px; }
 .admin-shell .health-chart { min-height:230px; }

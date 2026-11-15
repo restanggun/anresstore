@@ -8,11 +8,11 @@ export function presentCatalog(data: { items: CatalogItem[]; updatedAt: string; 
     const promotion = campaign ? { id: `${campaign.category}:${campaign.item_code}`, startsAt: campaign.starts_at, endsAt: campaign.ends_at, originalPrice: item.price, discountPercent: Math.floor((item.price - price) * 100 / item.price) } : null;
     return { ...item, price, promotion };
   });
-  const products = [...new Set(items.map(item => item.product))].map(name => {
-    const variants = items.filter(item => item.product === name).sort((a,b) => a.price - b.price || a.code.localeCompare(b.code));
+  const products = [...new Set(items.map(item => item.productSlug))].map(slug => {
+    const variants = items.filter(item => item.productSlug === slug).sort((a,b) => a.price - b.price || a.code.localeCompare(b.code));
     const cheapest = variants[0]!; const best = variants.find(item => item.promotion) || cheapest;
     const regularMinPrice = Math.min(...variants.map(item => item.promotion?.originalPrice ?? item.price));
-    return { name, slug: best.productSlug, pinRank: productPinRank(best.category, best.productSlug), developer: variants.find(item => item.developer)?.developer || "", count: variants.length, minPrice: best.price, regularMinPrice, promotion: best.promotion, offerName: best.promotion ? best.displayName : null, offerCode: best.promotion ? best.code : null };
+    return { name: best.product, slug: best.productSlug, pinRank: productPinRank(best.category, best.productSlug), developer: variants.find(item => item.developer)?.developer || "", count: variants.length, minPrice: best.price, regularMinPrice, promotion: best.promotion, offerName: best.promotion ? best.displayName : null, offerCode: best.promotion ? best.code : null };
   });
   return { ...data, items, products, serverTime: new Date(now).toISOString() };
 }

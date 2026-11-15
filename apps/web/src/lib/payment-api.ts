@@ -25,7 +25,7 @@ export function forgetPaymentIntent(id: string) {
 }
 
 /** Serializes session initialization and intent selection across tabs. The database is authoritative. */
-export async function submitPayment<T extends { id: string }>(body: Record<string, string | number>, onReserved: (id: string) => void): Promise<T> {
+export async function submitPayment<T extends { id: string }>(body: Record<string, unknown>, onReserved: (id: string) => void): Promise<T> {
   if (!navigator.locks) throw new PaymentRequestError("Browser ini belum mendukung checkout aman antar tab. Gunakan browser terbaru.", 0);
   return navigator.locks.request("anres-payment-checkout", async () => {
     const session = await paymentRequest<{ mode: "guest" | "account"; scope: string }>("session", { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" });

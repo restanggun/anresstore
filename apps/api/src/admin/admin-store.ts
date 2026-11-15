@@ -12,16 +12,24 @@ export async function adminDb<T = Record<string, unknown>>(table: string, query:
       headers: { apikey: key, ...(key.startsWith("sb_secret_") ? {} : { Authorization: `Bearer ${key}` }), "Content-Type": "application/json", Prefer: table === "admin_audit_log" ? "return=representation" : "return=representation,resolution=merge-duplicates" },
       ...(body === undefined ? {} : { body: JSON.stringify(body) }),
     });
-    if (!response.ok) throw new Error();
+    if (!response.ok) {
+      const failure = await response.json().catch(() => null) as { code?: string } | null;
+      if (table === "managed_products" && failure?.code === "42703") throw new HttpException("Kolom katalog belum tersedia. Terapkan migrasi database terbaru.", 503);
+      if (table === "managed_products" && failure?.code === "23505") throw new HttpException("SKU varian sudah digunakan. Perbarui varian yang ada atau gunakan SKU lain.", 409);
+      throw new Error();
+    }
     const rows: unknown = await response.json();
     if (!Array.isArray(rows)) throw new Error();
     return rows as T[];
-  } catch { throw new HttpException(`Data ${table} belum tersedia. Periksa koneksi dan migrasi database.`, 503); }
+  } catch (error) {
+    if (error instanceof HttpException) throw error;
+    throw new HttpException(`Data ${table} belum tersedia. Periksa koneksi dan migrasi database.`, 503);
+  }
 }
 
 export type ManagedProduct = {
   id: string; provider: string; provider_code: string; category: CatalogItem["category"];
-  product: string; product_slug: string; name: string; price: number; description: string; active: boolean; fulfillment_mode?: "manual" | "vipayment"; supplier_code?: string; service_quantity?: number;
+  product: string; product_slug: string; name: string; price: number; cost_price?: number | null; description: string; active: boolean; deleted_at?: string | null; fulfillment_mode?: "manual" | "vipayment"; supplier_code?: string; service_quantity?: number;
 };
 
 export function mergeProducts(items: CatalogItem[], rows: ManagedProduct[], category: string, sourceItems = items): CatalogItem[] {
@@ -29,7 +37,7 @@ export function mergeProducts(items: CatalogItem[], rows: ManagedProduct[], cate
   const sources = new Map(sourceItems.map(item => [item.code, item]));
   for (const row of rows.filter(row => row.category === category)) {
     const code = row.provider === "vipayment" && row.category !== "social" ? row.provider_code : `managed.${row.id}`;
-    if (!row.active) { result.delete(code); continue; }
+    if (!row.active || row.deleted_at) { result.delete(code); continue; }
     // An admin override may change presentation and price, never supplier availability.
     const original = sources.get(row.supplier_code || row.provider_code);
     if (row.provider === "vipayment" && !original) continue;
@@ -37,7 +45,7 @@ export function mergeProducts(items: CatalogItem[], rows: ManagedProduct[], cate
     if (category === "social" && original && (quantity < original.minimum! || quantity > original.maximum!)) continue;
     result.set(code, { ...original, code, category: row.category, name: row.name, displayName: row.name, product: row.product,
       productSlug: row.product_slug, price: row.price, description: row.description, group: original?.group ?? row.product,
-      type: original?.type ?? row.category, brand: original?.brand ?? row.product, section: original?.section ?? (row.category === "tasks" ? "Paket tugas" : row.category === "apps" ? "Pilihan akses" : row.category === "social" ? "Pilihan layanan" : "Paket lainnya"), fulfillmentMode: original?.requiresManualReview ? "manual" : row.provider === "vipayment" ? (row.fulfillment_mode || "vipayment") : "manual", providerServiceCode: row.supplier_code || row.provider_code, serviceQuantity: quantity, providerCost: category === "social" && original?.providerCost ? Math.ceil(original.providerCost * quantity / 1000) : original?.providerCost });
+      type: original?.type ?? row.category, brand: original?.brand ?? row.product, section: original?.section ?? (row.category === "tasks" ? "Paket tugas" : row.category === "apps" ? "Pilihan akses" : row.category === "social" ? "Pilihan layanan" : "Paket lainnya"), fulfillmentMode: ["tasks", "apps"].includes(row.category) || original?.requiresManualReview ? "manual" : row.provider === "vipayment" ? (row.fulfillment_mode || "vipayment") : "manual", providerServiceCode: row.supplier_code || row.provider_code, serviceQuantity: quantity, providerCost: category === "social" && original?.providerCost ? Math.ceil(original.providerCost * quantity / 1000) : original?.providerCost });
   }
   return [...result.values()].sort((a, b) => a.product.localeCompare(b.product) || a.price - b.price);
 }

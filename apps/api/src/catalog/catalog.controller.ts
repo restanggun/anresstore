@@ -18,7 +18,7 @@ export class CatalogController {
   @Get(":category")
   async list(@Param("category") category: string, raw = false) {
     if (category !== "game" && category !== "prepaid" && category !== "apps" && category !== "social" && category !== "tasks") throw new HttpException("Kategori tidak tersedia.", 404);
-    if (category === "tasks") return this.present(category, { source: "vipayment", updatedAt: new Date().toISOString(), items: [], products: [] }, raw);
+    if (category === "tasks" || category === "apps") return this.present(category, { source: "vipayment", updatedAt: new Date().toISOString(), items: [], products: [] }, raw);
     const id = process.env.VIPAYMENT_API_ID?.trim(), key = process.env.VIPAYMENT_API_KEY?.trim();
     if (!id || !key) {
       if (process.env.ADMIN_CATALOG_ENABLED === "true") return this.present(category, { source: "vipayment", updatedAt: new Date().toISOString(), items: [], products: [] }, raw);
@@ -45,10 +45,13 @@ export class CatalogController {
   }
 
   private async present(category: string, value: Awaited<ReturnType<CatalogController["load"]>>, raw = false) {
-    if (raw) return presentCatalog(value);
+    if (raw) return { ...presentCatalog(value), catalogRevision: null };
+    const [version] = process.env.ADMIN_CATALOG_ENABLED === "true"
+      ? await adminDb<{version: number}>("catalog_versions", `?category=eq.${category}&select=version`) : [];
+    if (process.env.ADMIN_CATALOG_ENABLED === "true" && !version) throw new HttpException("Versi katalog belum tersedia.", 503);
     const items = await managedCatalog(value.items, category);
     const campaigns = process.env.ADMIN_CATALOG_ENABLED === "true" ? await adminDb<CatalogCampaign>("catalog_promotions", `?category=eq.${category}&active=eq.true&select=*`) : [];
-    return presentCatalog({ ...value, items }, Date.now(), campaigns);
+    return { ...presentCatalog({ ...value, items }, Date.now(), campaigns), catalogRevision: version ? String(version.version) : null };
   }
 
   private async load(category: CatalogSource | "apps", id: string, key: string) {

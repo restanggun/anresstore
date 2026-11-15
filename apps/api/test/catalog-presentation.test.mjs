@@ -20,6 +20,14 @@ test('user categories distinguish membership, currency, app duration and operato
  assert.equal(item.displayName,'86 Diamond');assert.equal(item.section,'Diamond');assert.equal(item.code,'ML86');
 });
 
+test('vipayment mojibake suffixes are stripped from display names before mapping',()=>{
+ const items=mapCatalog('game',[game({code:'ML5_0-S1A',name:'5 Diamonds ( 5 + 0 Bonus ) vipayment Ãƒâ€šÃ‚Â· ML5_0-S1A Mobile Legends'})]);
+ const item=items[0];
+ assert.equal(item.displayName,'5 Diamond');
+ assert.equal(item.product,'Mobile Legends');
+ assert.equal(item.code,'ML5_0-S1A');
+});
+
 test('sale cards and exact variants share a price and absolute expiry without mutating cache',()=>{
  const data=catalog(),during=Date.parse('2026-11-15T00:00:00+07:00');
  const feed=presentCatalog(data,during,catalogCampaigns),variant=feed.items[0],card=feed.products[0];
@@ -56,4 +64,11 @@ test('tidying identical alternatives preserves the cheapest SKU, separate region
  const boilerplate='Instant Process Masukan User ID dan Server (jika dibutuhkan). Jika Pending Lebih 5 Menit Push ke Whatsapp Admin.';
  const duplicates=mapCatalog('game',[game({code:'BASIC',description:''}),game({code:'NOTE',game:'Mobile Legends B',description:boilerplate})]);
  assert.equal(tidyVariants(duplicates).length,1);
+});
+
+
+test('public product grouping follows configured slugs after admin remapping',()=>{
+ const original=catalog();const item=original.items[0];
+ const feed=presentCatalog({...original,items:[{...item,code:'A',product:'Nama lama',productSlug:'slug-admin'},{...item,code:'B',product:'Nama baru',productSlug:'slug-admin'},{...item,code:'C',product:'Nama lama',productSlug:'slug-lain'}]});
+ assert.equal(feed.products.length,2);assert.equal(feed.products.find(product=>product.slug==='slug-admin').count,2);
 });

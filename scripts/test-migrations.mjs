@@ -29,6 +29,10 @@ try {
   }
   await db.exec(await readFile('supabase/tests/payment-pipeline.sql','utf8'));
   console.log('Production reservations, immutable metadata, RLS and fulfillment tests passed');
+  await db.exec(await readFile('supabase/tests/catalog-checkout.sql','utf8'));
+  await db.exec(await readFile('supabase/tests/product-cost-profit.sql','utf8'));
+  await db.exec(await readFile('supabase/tests/task-pricing.sql','utf8'));
+  console.log('Catalog revisions reject stale checkout and preserve reserved invoice snapshots');
   await db.exec(await readFile('supabase/tests/fulfillment-limits.sql','utf8'));
   console.log('Fulfillment pause, per-order/hour/day budgets, count limits and durable reservations passed');
   await db.exec(await readFile('supabase/tests/support-workflow.sql','utf8'));

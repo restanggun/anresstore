@@ -9,6 +9,8 @@ import { FulfillmentWorker } from "./payments/fulfillment-worker";
 import { ConversationsController } from "./help/conversations.controller";
 import { AiSessionsController } from "./help/ai-sessions.controller";
 import {SupportEmailWorker} from "./help/support-email-worker";
+import { TaskOrdersController } from "./payments/task-orders.controller";
+import { PremiumOrdersController } from "./payments/premium-orders.controller";
 
-@Module({ controllers: [HealthController, AuthController, HelpController, ConversationsController, AiSessionsController, CatalogController, PaymentsController, AdminController], providers: [FulfillmentWorker,SupportEmailWorker] })
+@Module({ controllers: [HealthController, AuthController, HelpController, ConversationsController, AiSessionsController, CatalogController, PaymentsController, TaskOrdersController, PremiumOrdersController, AdminController], providers: [FulfillmentWorker,SupportEmailWorker] })
 export class AppModule {}

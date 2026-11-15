@@ -90,7 +90,7 @@ test('signs server requests, coalesces concurrent loads and caches catalog for o
   assert.equal(first.items.length,1);assert.equal(first.products[0].name,'Mobile Legends');assert.equal(first.source,'vipayment');
   await controller.list('game');assert.equal(calls,1);
   const now=Date.now;try { Date.now=()=>now()+61000;await controller.list('game');assert.equal(calls,2); } finally {Date.now=now;}
-  const apps=await controller.list('apps');assert.equal(apps.items.length,1);assert.equal(apps.items[0].product,'Canva');
+  const apps=await controller.list('apps');assert.equal(apps.items.length,0);assert.equal(calls,2);
   assert.doesNotMatch(JSON.stringify(first),/test-key|test-id/);
  });
 });
@@ -128,6 +128,6 @@ test('social catalog uses provider service IDs, quantity bounds, and price per t
 test('unmapped supplier services are importable for manual work and stay unpublished by default',async()=>{
  const env={...process.env},original=global.fetch;
  Object.assign(process.env,{VIPAYMENT_API_ID:'test',VIPAYMENT_API_KEY:'key',ADMIN_CATALOG_ENABLED:'true',SUPABASE_URL:'https://db.example',SUPABASE_SECRET_KEY:'secret'});
- global.fetch=async url=>String(url).includes('vip-reseller')?Response.json({result:true,data:[game(),game({code:'UNKNOWN',game:'New provider flow',name:'Service with custom destination'})]}):Response.json([]);
+ global.fetch=async url=>String(url).includes('vip-reseller')?Response.json({result:true,data:[game(),game({code:'UNKNOWN',game:'New provider flow',name:'Service with custom destination'})]}):Response.json(String(url).includes('/catalog_versions')?[{version:0}]:[]);
  try{const c=new CatalogController(),raw=await c.list('game',true),live=await c.list('game');assert.equal(raw.items.find(i=>i.code==='UNKNOWN').requiresManualReview,true);assert.equal(raw.items.find(i=>i.code==='UNKNOWN').fulfillmentMode,'manual');assert.equal(live.items.some(i=>i.code==='UNKNOWN'),false);}finally{process.env=env;global.fetch=original;}
 });

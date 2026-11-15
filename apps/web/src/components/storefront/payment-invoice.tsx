@@ -8,6 +8,7 @@ import { forgetPaymentIntent, paymentRequest } from "@/lib/payment-api";
 import { invoicePath, tripayCheckoutUrl } from "@/lib/payment-navigation";
 import { InvoiceRecovery } from "./invoice-recovery";
 import { RefundRequest } from "./refund-request";
+import { TaskOrderPanel } from "./task-order-panel";
 import { orderStatus } from "@/lib/order-status";
 import type { PaymentRecord } from "./payment-checkout";
 import "./payment-invoice.css";
@@ -77,6 +78,7 @@ export function PaymentInvoice({ id }: { id: string }) {
           <section className="ticket-order"><h3>Rincian pesanan</h3><h4>{payment.product}</h4><dl className="ticket-detail-grid"><div><dt>{payment.targetZone ? "ID pemain" : "Tujuan / ID pelanggan"}</dt><dd>{payment.target || "-"}</dd></div>{payment.targetZone && <div><dt>Server / zone</dt><dd>{payment.targetZone}</dd></div>}<div><dt>Dibuat pada</dt><dd>{date(payment.createdAt)}</dd></div><div><dt>Metode pembayaran</dt><dd>{payment.method}</dd></div>{payment.reference && <div><dt>Referensi Tripay</dt><dd>{payment.reference}</dd></div>}</dl></section>
           {status!.needsHelp && <section className="ticket-resolution" aria-label="Bantuan pesanan"><h3>{status!.reason ? "Alasan pengiriman gagal" : "Langkah berikutnya"}</h3>{status!.reason && <p>{status!.reason}</p>}<p>Sertakan nomor invoice saat menghubungi CS. Tim akan memeriksa pesanan sebelum menentukan penyelesaiannya.</p><Button asChild variant="outline"><Link href="/bantuan">Hubungi CS</Link></Button></section>}
           {payment.fulfillment?.status === "completed" && payment.fulfillment.note && <section className="ticket-fulfillment"><h3>Informasi produk</h3><p>{payment.fulfillment.note}</p></section>}
+          {payment.source === "tasks" && payment.status === "paid" && <TaskOrderPanel id={payment.id}/>}
           {(payment.refund || payment.status === "paid" && status!.needsHelp) && <RefundRequest payment={payment} onUpdated={()=>void refresh()}/>}
           {payment.ownership === "guest" && <div className="invoice-guest-notice"><span>Invoice ini masih mengikuti browser pemesan. Simpan ke akun untuk akses dari perangkat lain.</span><InvoiceRecovery invoiceNumber={payment.invoiceNumber||payment.id} label="Simpan ke akun"/></div>}
           <footer className="ticket-footer"><span>Status diperiksa otomatis{payment.lastVerifiedAt ? ` · ${date(payment.lastVerifiedAt)}` : ""}</span><Link href="/bantuan">Butuh bantuan?</Link></footer>

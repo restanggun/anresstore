@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import dynamic from "next/dynamic";
 import { motion, useReducedMotion } from "motion/react";
 import { LayoutGrid, ShoppingBag, Box, CreditCard, CircleHelp, Users, ChartNoAxesCombined, Activity, ShieldCheck, ArrowRight, Menu, X, Bell, Clock } from "lucide-react";
-import { HealthChart, useApiHealth } from "../components/health-chart";
+import { useApiHealth } from "../components/health-chart";
 import { AdminGate } from "../components/admin-gate";
 import { Brand } from "../components/brand";
 import { SupportTicketBadge, SupportNotifications } from "../components/support-notifications";
@@ -14,6 +14,9 @@ const OrderWorkspace = dynamic(() => import("../components/order-workspace").the
 const ProductWorkspace = dynamic(() => import("../components/product-workspace").then(module => module.ProductWorkspace), { loading: WorkspaceLoading });
 const TransactionAnalytics = dynamic(() => import("../components/transaction-analytics").then(module => module.TransactionAnalytics), { loading: WorkspaceLoading });
 const ServiceWorkspace = dynamic(() => import("../components/service-workspace").then(module => module.ServiceWorkspace), { loading: WorkspaceLoading });
+const TaskWorkspace = dynamic(() => import("../components/task-workspace").then(module => module.TaskWorkspace), { loading: WorkspaceLoading });
+const PremiumWorkspace = dynamic(() => import("../components/premium-workspace").then(module => module.PremiumWorkspace), { loading: WorkspaceLoading });
+const SystemMonitor = dynamic(() => import("../components/system-monitor").then(module => module.SystemMonitor), { loading: WorkspaceLoading });
 
 type IconName = "grid"|"bag"|"box"|"card"|"help"|"users"|"chart"|"pulse"|"shield"|"arrow"|"menu"|"close"|"bell"|"clock";
 const icons: Record<IconName, typeof LayoutGrid> = {grid:LayoutGrid,bag:ShoppingBag,box:Box,card:CreditCard,help:CircleHelp,users:Users,chart:ChartNoAxesCombined,pulse:Activity,shield:ShieldCheck,arrow:ArrowRight,menu:Menu,close:X,bell:Bell,clock:Clock};
@@ -23,6 +26,8 @@ const sections:Section[]=[
  {id:"overview",label:"Ringkasan",icon:"grid",group:"Utama",description:"",metrics:[],chart:"",chartDescription:"",list:"",listDescription:""},
  {id:"orders",label:"Pesanan & invoice",icon:"bag",group:"Operasional",description:"Pantau pesanan, invoice, dan proses pemenuhan dalam satu tempat.",metrics:["Pesanan baru","Menunggu pembayaran","Perlu ditinjau","Selesai"],chart:"Tren pesanan",chartDescription:"Jumlah pesanan berdasarkan waktu.",list:"Pesanan terbaru",listDescription:"Pesanan dan transaksi produksi yang tercatat di server."},
  {id:"fulfillment",label:"Antrean pemenuhan",icon:"box",group:"Operasional",description:"Tinjau pembayaran terverifikasi dan status pengiriman provider.",metrics:[],chart:"",chartDescription:"",list:"",listDescription:""},
+ {id:"tasks",label:"Joki tugas",icon:"bag",group:"Operasional",description:"Tangani pesanan tugas setelah pembayaran terverifikasi.",metrics:[],chart:"",chartDescription:"",list:"",listDescription:""},
+ {id:"apps",label:"Aplikasi premium",icon:"box",group:"Operasional",description:"Tangani pengiriman akun premium secara manual.",metrics:[],chart:"",chartDescription:"",list:"",listDescription:""},
  {id:"payments",label:"Pembayaran",icon:"card",group:"Operasional",description:"Pantau pembayaran, kegagalan, dan transaksi yang membutuhkan tindak lanjut.",metrics:["Menunggu pembayaran","Pembayaran berhasil","Gagal atau kedaluwarsa","Pengembalian dana"],chart:"Status pembayaran",chartDescription:"Perbandingan status pembayaran dalam periode terpilih.",list:"Aktivitas pembayaran",listDescription:"Status pembayaran nyata akan muncul setelah integrasi tersedia."},
  {id:"catalog",label:"Katalog & harga",icon:"box",group:"Operasional",description:"Pantau produk, kategori, harga, dan ketersediaan layanan.",metrics:["Produk tersedia","Kategori layanan","Produk tidak tersedia","Perubahan harga"],chart:"Produk per kategori",chartDescription:"Sebaran produk yang tersedia di katalog.",list:"Kondisi katalog",listDescription:"Katalog game dan prabayar mengambil data dari penyedia; kategori lainnya masih dalam persiapan."},
  {id:"customers",label:"Pelanggan",icon:"users",group:"Pelanggan",description:"Kelola profil akun pelanggan dari website utama.",metrics:["Total akun","Akun baru","Pelanggan berpesanan","Aktivitas akun"],chart:"Pertumbuhan akun",chartDescription:"Jumlah akun baru berdasarkan waktu.",list:"Akun terbaru",listDescription:"Data profil pelanggan hanya dapat ditampilkan melalui akses admin yang aman."},
@@ -46,9 +51,11 @@ function AdminDashboard(){
  {active === "overview" && <TransactionAnalytics overview onNavigate={select}/>}
  {active === "reports" && <TransactionAnalytics onNavigate={select}/>}
  {["orders","payments","fulfillment"].includes(active) && <OrderWorkspace view={active as "orders"|"payments"|"fulfillment"}/>}
+ {active === "tasks" && <TaskWorkspace/>}
+ {active === "apps" && <PremiumWorkspace/>}
  {active === "catalog" && <ProductWorkspace/>}
  {["customers","conversations","support"].includes(active) && <><div className="workspace-heading"><div><h1>{current.label}</h1><p>{current.description}</p></div></div><ServiceWorkspace kind={active==="support"?"conversations":active as "customers"|"conversations"}/></>}
  {["access"].includes(active) && <><div className="workspace-heading"><div><h1>{current.label}</h1><p>{current.description}</p></div></div><Operations section={active}/></>}
- {active === "system" && <><div className="workspace-heading"><div><h1>Status sistem</h1><p>Ketersediaan API dan riwayat pemeriksaan pada sesi ini.</p></div><button className="outline-button" disabled={fetching} onClick={()=>void refresh()}>Periksa koneksi API</button></div><HealthChart samples={samples}/></>}
+ {active === "system" && <SystemMonitor samples={samples} refresh={refresh} fetching={fetching}/>}
  </motion.main></div></div>;
 }

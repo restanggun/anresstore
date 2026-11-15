@@ -1,5 +1,6 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
+import {HttpException} from '@nestjs/common';
 import {createHmac,randomUUID} from 'node:crypto';
 import {PaymentsController} from '../dist/payments/payments.controller.js';
 import {TripayRejectedError} from '../dist/payments/tripay-client.js';
@@ -64,7 +65,7 @@ test('dashboard history requires an account and only returns verified owner invo
  controller.db=async query=>{queries.push(query);return [{...row,id:randomUUID(),owner_user_id:randomUUID()},row];};
  const history=await controller.history('0',account,res,'account');
  assert.equal(history.userId,userId);assert.equal(history.payments.length,1);assert.equal(history.payments[0].id,id);
- assert.ok(queries[0].includes(`owner_user_id=eq.${userId}`));assert.ok(queries[0].includes('order=created_at.desc'));assert.ok(!queries[0].includes('guest_session_hash'));
+ assert.ok(queries[0].includes(`owner_user_id.eq.${userId}`));assert.ok(queries[0].includes(`claimed_user_id.eq.${userId}`));assert.ok(queries[0].includes('order=created_at.desc'));assert.ok(!queries[0].includes('guest_session_hash'));
  assert.doesNotMatch(JSON.stringify(history.payments),/access_hash|request_hash|guest_session_hash|owner_user_id/);
  await assert.rejects(controller.history('0',req,res,'account'),error=>error.getStatus()===401);
  await assert.rejects(controller.history('0',account,res,'other'),error=>error.getStatus()===400);
@@ -119,6 +120,21 @@ test('parallel requests and different tab IDs reserve only one provider transact
  assert.equal(creates(),1);assert.equal(rows.size,1);assert.equal(new Set(results.map(value=>value.id)).size,1);
  const payment=results.find(value=>value.status==='pending');assert.equal(payment.amount,20000);assert.equal(payment.total,20500);
  assert.doesNotMatch(JSON.stringify(payment),/access_hash|request_hash|guest_session_hash|owner_user_id/);
+});
+
+test('an admin catalog change between pricing and reservation prevents a gateway charge',async()=>{
+ const {controller,creates,rows}=setup();const rpc=controller.store.rpc;
+ const list=controller.catalog.list;
+ controller.catalog.list=async()=>({...await list(),catalogRevision:'7'});
+ controller.store.rpc=async(name,args)=>{
+  if(name==='reserve_payment'){
+   assert.equal(args.p_payment.catalog_revision,'7');
+   throw new HttpException('Catalog changed before reservation',409);
+  }
+  return rpc(name,args);
+ };
+ await assert.rejects(controller.create(input,req,res),error=>error.getStatus()===409);
+ assert.equal(creates(),0);assert.equal(rows.size,0);
 });
 test('ambiguous provider result stays unknown and retry never creates another payment',async()=>{
  const {controller,read}=setup();let attempts=0;
@@ -265,7 +281,11 @@ test('callback database failure is not acknowledged and provider retry recovers 
 });
 
 test('manual task checkout stores authoritative work mode and customer contact snapshots',async()=>{
- const s=setup();await s.controller.create({...input,source:'tasks',target:'Format 10 halaman'},req,res);
+ const s=setup(),rpc=s.controller.store.rpc;
+ const taskCode=`managed.${randomUUID()}`;
+ s.controller.catalog={list:async()=>({items:[{code:taskCode,price:20000,product:'Joki tugas',name:'Format dokumen',fulfillmentMode:'manual'}]})};
+ s.controller.store.rpc=(name,args)=>name==='quote_task_order'?20000:rpc(name==='reserve_task_payment'?'reserve_payment':name,args);
+ await s.controller.create({...input,source:'tasks',code:taskCode,target:'Format 10 halaman',task:{pages:10,deadline_days:7,revisions:1,instructions:'Rapikan dokumen tugas sesuai contoh.',reference_url:''}},req,res);
  assert.equal(s.read().fulfillment_mode,'manual');assert.equal(s.read().customer_email,input.email);assert.equal(s.read().customer_phone,input.phone);
  assert.equal(s.read().service_quantity,1);assert.equal(s.read().amount,input.expectedAmount);
 });

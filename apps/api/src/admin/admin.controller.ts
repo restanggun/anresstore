@@ -1,11 +1,13 @@
 import { featuredGameSlugs } from "../catalog/featured-games";
 import { resolveSession, sessionAccessToken, writeSession } from "../auth/session";
-import { Body, Controller, Get, HttpException, Param, Patch, Post, Query, Req, Res } from "@nestjs/common";
+import { Body, Controller, Delete, Get, HttpException, Param, Patch, Post, Query, Req, Res } from "@nestjs/common";
 import type { Request, Response } from "express";
 import { adminDb, type ManagedProduct } from "./admin-store";
 import { CatalogController } from "../catalog/catalog.controller";
 import { boundedFetch } from "../common/bounded-fetch";
 import { uuid, pageIndex, messageInput } from "../help/conversations.controller";
+import { premiumImage } from "../payments/premium-orders.controller";
+import { randomUUID } from "node:crypto";
 
 @Controller("admin")
 export class AdminController {
@@ -60,6 +62,18 @@ export class AdminController {
   private async audit(actorId: string, action: string, target: string) {
     // Persist the attempt before performing the operation; an outage denies the write.
     await adminDb("admin_audit_log", "", "POST", { actor_id: actorId, action, target });
+  }
+
+  private async authAdmin(path: string, method = "GET", body?: unknown) {
+    const url = process.env.SUPABASE_URL?.replace(/\/$/, "");
+    const key = process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY;
+    if (!url || !key) throw new HttpException("Pengelolaan akun belum dikonfigurasi.", 503);
+    const response = await boundedFetch(`${url}/auth/v1/admin/${path}`, {
+      method, headers: { apikey: key, ...(key.startsWith("sb_secret_") ? {} : { Authorization: `Bearer ${key}` }), "Content-Type": "application/json" },
+      ...(body === undefined ? {} : { body: JSON.stringify(body) }),
+    });
+    if (!response.ok) throw new HttpException(response.status === 404 ? "Akun tidak ditemukan." : response.status === 422 ? "Email sudah digunakan atau data akun tidak valid." : response.status === 409 ? "Akun masih memiliki data terkait dan tidak dapat dihapus." : "Layanan akun belum dapat memproses permintaan.", response.status === 404 ? 404 : response.status === 422 || response.status === 409 ? response.status : 503);
+    return response.status === 204 ? {} : await response.json() as Record<string, any>;
   }
 
   private async mfaRequest(req: Request, path: string, body?: unknown) {
@@ -164,6 +178,53 @@ export class AdminController {
     return { roles, assignments, audit };
   }
 
+  @Get("accounts")
+  async accounts(@Query("page") page:string,@Req() req:Request,@Res({passthrough:true}) res:Response) {
+    const access=await this.authorize(req,res);
+    if(!access.superAdmin) throw new HttpException("Hanya super admin yang dapat melihat akun.",403);
+    const index=Number(page||1);
+    if(!Number.isSafeInteger(index)||index<1||index>10000) throw new HttpException("Halaman tidak valid.",400);
+    const data=await this.authAdmin(`users?page=${index}&per_page=50`);
+    return {users:(Array.isArray(data.users)?data.users:[]).map((user:any)=>({id:user.id,email:user.email||"",confirmed:!!user.email_confirmed_at,created_at:user.created_at})),page:index,hasMore:Array.isArray(data.users)&&data.users.length===50};
+  }
+
+  @Post("accounts")
+  async createAccount(@Body() input:{email?:unknown;password?:unknown},@Req() req:Request,@Res({passthrough:true}) res:Response) {
+    const access=await this.authorize(req,res,true);
+    if(!access.superAdmin) throw new HttpException("Hanya super admin yang dapat membuat akun.",403);
+    if(typeof input?.email!=="string"||input.email.length>254||!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(input.email.trim())||typeof input.password!=="string"||input.password.length<8||input.password.length>256) throw new HttpException("Isi email dan password minimal 8 karakter.",400);
+    const email=input.email.trim().toLowerCase();
+    await this.audit(access.id,"account.create",email);
+    const user=await this.authAdmin("users","POST",{email,password:input.password,email_confirm:true});
+    return {id:user.id,email:user.email||email};
+  }
+
+  @Patch("accounts/:id")
+  async updateAccount(@Param("id") id:string,@Body() input:{email?:unknown;password?:unknown},@Req() req:Request,@Res({passthrough:true}) res:Response) {
+    const access=await this.authorize(req,res,true);
+    if(!access.superAdmin) throw new HttpException("Hanya super admin yang dapat mengubah akun.",403);
+    if(!uuid(id)||!input||Object.keys(input).some(key=>!["email","password"].includes(key))||(!input.email&&!input.password)||input.email!==undefined&&(typeof input.email!=="string"||input.email.length>254||!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(input.email.trim()))||input.password!==undefined&&(typeof input.password!=="string"||input.password.length<8||input.password.length>256)) throw new HttpException("Email atau password tidak valid.",400);
+    await this.audit(access.id,"account.update",id);
+    const user=await this.authAdmin(`users/${id}`,"PUT",{...(typeof input.email==="string"?{email:input.email.trim().toLowerCase()}:{}),...(typeof input.password==="string"?{password:input.password}:{})});
+    return {id,email:user.email||""};
+  }
+
+  @Delete("accounts/:id")
+  async removeAccount(@Param("id") id:string,@Req() req:Request,@Res({passthrough:true}) res:Response) {
+    const access=await this.authorize(req,res,true);
+    if(!access.superAdmin) throw new HttpException("Hanya super admin yang dapat menghapus akun.",403);
+    if(!uuid(id)) throw new HttpException("Akun tidak valid.",400);
+    if(id===access.id||(process.env.ADMIN_USER_IDS||"").split(",").map(x=>x.trim()).includes(id)) throw new HttpException("Akun super admin tidak dapat dihapus.",403);
+    const [assignment]=await adminDb("admin_assignments",`?user_id=eq.${id}&select=user_id&limit=1`);
+    if(assignment) throw new HttpException("Cabut akses admin akun ini sebelum menghapusnya.",409);
+    for(const [table,column] of [["payments","owner_user_id"],["payments","claimed_user_id"],["live_transactions","user_id"],["orders","user_id"],["support_conversations","user_id"]] as const) {
+      if((await adminDb(table,`?${column}=eq.${id}&select=id&limit=1`)).length) throw new HttpException("Akun memiliki riwayat transaksi atau bantuan dan tidak dapat dihapus.",409);
+    }
+    await this.audit(access.id,"account.delete",id);
+    await this.authAdmin(`users/${id}`,"DELETE");
+    return {ok:true};
+  }
+
   @Post("roles")
   async saveRole(@Body() input: unknown, @Req() req: Request, @Res({ passthrough: true }) res: Response) {
     const access = await this.authorize(req, res, true);
@@ -215,11 +276,12 @@ export class AdminController {
   }
 
   @Get("records/:kind")
-  async records(@Param("kind") kind: string, @Query("page") page: string, @Req() req: Request, @Res({ passthrough: true }) res: Response) {
+  async records(@Param("kind") kind: string, @Query("page") page: string, @Req() req: Request, @Res({ passthrough: true }) res: Response, @Query("mode") mode?: string, @Query("category") category?: string) {
     const access = await this.authorize(req, res);
     const tables: Record<string, [string, string]> = {
       orders: ["live_transactions", "id,invoice_number,user_id,created_at,product_name,amount,payment_method,payment_status,fulfillment_status"],
       payments: ["payments", "id,invoice_number,created_at,source,product_name,provider_code,target,amount,method,reference,status"],
+      historical: ["historical_sales", "id,import_key,sale_date,payment_method,amount,product_name,variant_description,quantity,source,created_at"],
       fulfillment: ["live_transactions", "id,invoice_number,created_at,updated_at,category,product_name,provider_code,target,target_zone,amount,payment_method,payment_reference,payment_status,fulfillment_status,provider_reference,provider_note,payment_mode,review_required,fulfillment_mode,service_quantity,customer_name,customer_email,customer_phone"],
       support: ["support_requests", "id,created_at,name,email,message,status"],
       products: ["managed_products", "*"],
@@ -228,15 +290,19 @@ export class AdminController {
     };
     const table = tables[kind];
     if (!table) throw new HttpException("Data tidak tersedia.", 404);
-    this.permit(access, kind === "fulfillment" ? "orders.read" : kind === "conversations" ? "support.read" : `${kind}.read`);
+    this.permit(access, kind === "fulfillment" ? "orders.read" : kind === "historical" ? "payments.read" : kind === "conversations" ? "support.read" : `${kind}.read`);
     const index = Number(page || 0);
     if (!Number.isSafeInteger(index) || index < 0 || index > 100000) throw new HttpException("Halaman tidak valid.", 400);
     // Records other than products have no trustworthy service category: require all scopes.
     if (kind !== "products" && (access.categories.length < 5 || access.productSlugs.length)) throw new HttpException("Data ini memerlukan akses semua layanan.", 403);
     const scope = kind === "products" ? `&category=in.(${access.categories.filter(c => ["game", "prepaid", "apps", "social", "tasks"].includes(c)).join(",")})${access.productSlugs.length ? `&product_slug=in.(${access.productSlugs.join(",")})` : ""}` : "";
     if (kind === "products" && !access.categories.length) return { rows: [], hasMore: false, page: index };
-    const paymentScope = kind === "payments" || kind === "fulfillment" ? "&payment_mode=eq.live" : "";
-    const rows = await adminDb(table[0], `?select=${table[1]}${scope}${paymentScope}&order=created_at.desc&limit=51&offset=${index * 50}`);
+    if (mode && !["all", "live", "sandbox"].includes(mode)) throw new HttpException("Mode transaksi tidak valid.", 400);
+    if (category && (kind !== "fulfillment" || !["game", "prepaid", "apps", "social", "tasks"].includes(category))) throw new HttpException("Kategori transaksi tidak valid.", 400);
+    const paymentScope = ["orders", "payments", "fulfillment"].includes(kind)
+      ? mode && mode !== "all" ? `&payment_mode=eq.${mode}` : "&payment_mode=in.(live,sandbox)"
+      : "";
+    const rows = await adminDb(table[0], `?select=${table[1]}${scope}${paymentScope}${category ? `&category=eq.${category}` : ""}&order=${kind === "historical" ? "sale_date" : "created_at"}.desc&limit=51&offset=${index * 50}`);
     return { rows: rows.slice(0, 50), hasMore: rows.length > 50, page: index };
   }
 
@@ -367,6 +433,215 @@ export class AdminController {
     const [result]=await adminDb("rpc/admin_transaction_analytics","","POST",{p_days:period}); return result;
   }
 
+  @Get("task-pricing/:id")
+  async taskPricing(@Param("id") id:string,@Req() req:Request,@Res({passthrough:true}) res:Response) {
+    const access=await this.authorize(req,res);this.permit(access,"products.read");this.category(access,"tasks");
+    if(!uuid(id)) throw new HttpException("Produk tidak valid.",400);
+    const [product]=await adminDb<{product_slug:string}>("managed_products",`?id=eq.${id}&category=eq.tasks&select=product_slug`);
+    if(!product) throw new HttpException("Produk tidak ditemukan.",404);
+    this.product(access,product.product_slug);
+    const [rule]=await adminDb("task_price_rules",`?product_id=eq.${id}&select=*`);
+    return {rule:rule??null};
+  }
+
+  @Get("premium-rules/:id")
+  async premiumRules(@Param("id") id:string,@Req() req:Request,@Res({passthrough:true}) res:Response){
+    const access=await this.authorize(req,res);this.permit(access,"products.read");this.category(access,"apps");
+    if(!uuid(id))throw new HttpException("Produk tidak valid.",400);
+    const [product]=await adminDb<{product_slug:string}>("managed_products",`?id=eq.${id}&category=eq.apps&select=product_slug`);
+    if(!product)throw new HttpException("Produk tidak ditemukan.",404);
+    this.product(access,product.product_slug);
+    const [rule]=await adminDb("premium_product_rules",`?product_id=eq.${id}&select=*`);
+    return {rule:rule??null};
+  }
+
+  @Post("premium-rules/:id")
+  async savePremiumRules(@Param("id") id:string,@Body() body:{access_type?:unknown;duration_days?:unknown;guarantee_days?:unknown;guarantee_terms?:unknown},@Req() req:Request,@Res({passthrough:true}) res:Response){
+    const access=await this.authorize(req,res,true);this.permit(access,"products.write");this.category(access,"apps");
+    if(!uuid(id)||!["private","sharing","other"].includes(String(body?.access_type))||!Number.isSafeInteger(body.duration_days)||Number(body.duration_days)<1||Number(body.duration_days)>730||!Number.isSafeInteger(body.guarantee_days)||Number(body.guarantee_days)<0||Number(body.guarantee_days)>365||typeof body.guarantee_terms!=="string"||body.guarantee_terms.trim().length<10||body.guarantee_terms.length>2000)throw new HttpException("Aturan aplikasi premium tidak valid.",400);
+    const [product]=await adminDb<{product_slug:string}>("managed_products",`?id=eq.${id}&category=eq.apps&provider=eq.manual&select=product_slug`);
+    if(!product)throw new HttpException("Produk tidak ditemukan.",404);
+    this.product(access,product.product_slug);await this.audit(access.id,"premium_rule.save",id);
+    const [rule]=await adminDb("premium_product_rules","?on_conflict=product_id","POST",{product_id:id,access_type:body.access_type,duration_days:body.duration_days,guarantee_days:body.guarantee_days,guarantee_terms:body.guarantee_terms.trim(),updated_at:new Date().toISOString()});
+    return {rule};
+  }
+
+  private async premiumOrderAccess(access:{categories:string[];productSlugs:string[]},id:string){
+    this.category(access,"apps");if(!uuid(id))throw new HttpException("Pesanan tidak valid.",400);
+    const [order]=await adminDb<{id:string;product_id:string;user_id:string;status:string;conversation_id:string|null}>("premium_orders",`?id=eq.${id}&select=id,product_id,user_id,status,conversation_id`);
+    if(!order)throw new HttpException("Pesanan aplikasi tidak ditemukan.",404);
+    const [product]=await adminDb<{product_slug:string}>("managed_products",`?id=eq.${order.product_id}&select=product_slug`);
+    if(!product)throw new HttpException("Produk tidak ditemukan.",404);
+    this.product(access,product.product_slug);return order;
+  }
+
+  @Get("premium-orders")
+  async premiumOrders(@Query("page") page:string,@Req() req:Request,@Res({passthrough:true}) res:Response){
+    const access=await this.authorize(req,res);this.permit(access,"orders.read");this.category(access,"apps");const index=pageIndex(page);
+    let scope="";if(access.productSlugs.length){const products=await adminDb<{id:string}>("managed_products",`?category=eq.apps&product_slug=in.(${access.productSlugs.join(",")})&select=id`);if(!products.length)return {rows:[],hasMore:false,page:index};scope=`&product_id=in.(${products.map(row=>row.id).join(",")})`}
+    const rows=await adminDb("premium_orders",`?select=id,user_id,product_id,product_name,access_type,duration_days,guarantee_days,amount,status,created_at,paid_at,delivered_at,conversation_id${scope}&order=created_at.desc&limit=51&offset=${index*50}`);
+    return {rows:rows.slice(0,50),hasMore:rows.length>50,page:index};
+  }
+
+  @Get("premium-orders/:id")
+  async premiumOrderDetail(@Param("id") id:string,@Req() req:Request,@Res({passthrough:true}) res:Response){
+    const access=await this.authorize(req,res);this.permit(access,"orders.read");await this.premiumOrderAccess(access,id);
+    const [order]=await adminDb("premium_orders",`?id=eq.${id}&select=*`);
+    const [claim]=await adminDb("premium_guarantee_claims",`?order_id=eq.${id}&select=*`);
+    return {order,claim:claim??null};
+  }
+
+  @Post("premium-orders/:id/qr")
+  async premiumQr(@Param("id") id:string,@Body() body:{image?:unknown;expiresAt?:unknown},@Req() req:Request,@Res({passthrough:true}) res:Response){
+    const access=await this.authorize(req,res,true);this.permit(access,"orders.write");await this.premiumOrderAccess(access,id);
+    const image=premiumImage(body?.image),expiry=typeof body?.expiresAt==="string"?Date.parse(body.expiresAt):NaN;
+    if(!Number.isFinite(expiry)||expiry<Date.now()+60000||expiry>Date.now()+86400000)throw new HttpException("Masa berlaku QRIS harus 1 menit sampai 24 jam.",400);
+    await this.audit(access.id,"premium.qr_upload",id);
+    const [order]=await adminDb("premium_orders",`?id=eq.${id}&status=in.(awaiting_qr,awaiting_payment)`,"PATCH",{qr_image:image,qr_expires_at:new Date(expiry).toISOString(),status:"awaiting_payment",updated_at:new Date().toISOString()});
+    if(!order)throw new HttpException("Status pesanan berubah. Muat ulang.",409);return {order};
+  }
+
+  @Post("premium-orders/:id/verify")
+  async premiumVerify(@Param("id") id:string,@Req() req:Request,@Res({passthrough:true}) res:Response){
+    const access=await this.authorize(req,res,true);this.permit(access,"payments.read");this.permit(access,"orders.write");await this.premiumOrderAccess(access,id);
+    await this.audit(access.id,"premium.payment_verified",id);
+    const [order]=await adminDb("premium_orders",`?id=eq.${id}&status=eq.proof_submitted&proof_image=not.is.null`,"PATCH",{status:"paid",paid_at:new Date().toISOString(),updated_at:new Date().toISOString()});
+    if(!order)throw new HttpException("Bukti belum dikirim atau status berubah.",409);return {order};
+  }
+
+  @Post("premium-orders/:id/chat")
+  async premiumChat(@Param("id") id:string,@Req() req:Request,@Res({passthrough:true}) res:Response){
+    const access=await this.authorize(req,res,true);this.permit(access,"support.write");const order=await this.premiumOrderAccess(access,id);
+    if(!["paid","delivered"].includes(order.status))throw new HttpException("Pembayaran belum diverifikasi.",409);
+    if(order.conversation_id)return {conversationId:order.conversation_id};
+    const roomId=randomUUID();await this.audit(access.id,"premium.chat_open",id);
+    await adminDb("rpc/create_support_ticket","","POST",{p_id:roomId,p_user:order.user_id,p_subject:`Aplikasi premium ${id}`,p_body:null});
+    const [saved]=await adminDb("premium_orders",`?id=eq.${id}&conversation_id=is.null`,"PATCH",{conversation_id:roomId});
+    return {conversationId:saved?roomId:(await this.premiumOrderAccess(access,id)).conversation_id};
+  }
+
+  @Post("premium-orders/:id/deliver")
+  async premiumDeliver(@Param("id") id:string,@Req() req:Request,@Res({passthrough:true}) res:Response){
+    const access=await this.authorize(req,res,true);this.permit(access,"orders.write");const order=await this.premiumOrderAccess(access,id);
+    if(order.status!=="paid"||!order.conversation_id)throw new HttpException("Buka chat privat dan kirim akun sebelum menandai selesai.",409);
+    const messages=await adminDb("support_messages",`?conversation_id=eq.${order.conversation_id}&author_role=eq.staff&select=id&limit=1`);
+    if(!messages.length)throw new HttpException("Kirim data akun melalui chat privat dahulu.",409);
+    await this.audit(access.id,"premium.deliver",id);
+    const [saved]=await adminDb("premium_orders",`?id=eq.${id}&status=eq.paid`,"PATCH",{status:"delivered",delivered_at:new Date().toISOString(),updated_at:new Date().toISOString()});
+    if(!saved)throw new HttpException("Status pesanan berubah.",409);return {order:saved};
+  }
+
+  @Post("premium-orders/:id/claim-decision")
+  async premiumClaimDecision(@Param("id") id:string,@Body() body:{decision?:unknown;note?:unknown},@Req() req:Request,@Res({passthrough:true}) res:Response){
+    const access=await this.authorize(req,res,true);this.permit(access,"orders.write");await this.premiumOrderAccess(access,id);
+    if(!["accepted","rejected","fulfilled"].includes(String(body?.decision))||typeof body.note!=="string"||body.note.trim().length<3||body.note.length>2000)throw new HttpException("Keputusan garansi tidak valid.",400);
+    await this.audit(access.id,`premium.claim.${body.decision}`,id);
+    const allowed=body.decision==="fulfilled"?"accepted":"pending";
+    const [claim]=await adminDb("premium_guarantee_claims",`?order_id=eq.${id}&status=eq.${allowed}`,"PATCH",{status:body.decision,admin_note:body.note.trim(),decided_at:new Date().toISOString()});
+    if(!claim)throw new HttpException("Klaim sudah berubah atau belum diajukan.",409);return {claim};
+  }
+
+  @Post("task-pricing/:id")
+  async saveTaskPricing(@Param("id") id:string,@Body() input:unknown,@Req() req:Request,@Res({passthrough:true}) res:Response) {
+    const access=await this.authorize(req,res,true);this.permit(access,"products.write");this.category(access,"tasks");
+    if(!uuid(id)) throw new HttpException("Produk tidak valid.",400);
+    const body=input as Record<string,unknown>;
+    const limits:Record<string,[number,number]>={price_per_page:[0,1000000],price_per_revision:[0,1000000],rush_fee_per_day:[0,1000000],standard_days:[1,90],max_pages:[1,500],max_revisions:[0,20]};
+    if(!body || typeof body!=="object" || Array.isArray(body) || Object.keys(body).length!==6 || Object.entries(limits).some(([key,[min,max]])=>!Number.isSafeInteger(body[key]) || Number(body[key])<min || Number(body[key])>max)) throw new HttpException("Aturan harga tugas tidak valid.",400);
+    const [product]=await adminDb<{product_slug:string}>("managed_products",`?id=eq.${id}&category=eq.tasks&select=product_slug`);
+    if(!product) throw new HttpException("Produk tidak ditemukan.",404);
+    this.product(access,product.product_slug);await this.audit(access.id,"task_pricing.save",id);
+    const [rule]=await adminDb("task_price_rules","?on_conflict=product_id","POST",{product_id:id,...body,updated_at:new Date().toISOString()});
+    return {rule};
+  }
+
+  private async taskOrderAccess(access:{categories:string[];productSlugs:string[]},id:string) {
+    this.category(access,"tasks");
+    if(!uuid(id)) throw new HttpException("Pesanan tidak valid.",400);
+    const [task]=await adminDb<{payment_id:string;product_id:string;workflow_status:string}>("task_order_specs",`?payment_id=eq.${id}&select=payment_id,product_id,workflow_status`);
+    if(!task) throw new HttpException("Pesanan joki tidak ditemukan.",404);
+    const [product]=await adminDb<{product_slug:string}>("managed_products",`?id=eq.${task.product_id}&select=product_slug`);
+    if(!product) throw new HttpException("Paket joki tidak ditemukan.",404);
+    this.product(access,product.product_slug);
+    return task;
+  }
+
+  @Get("task-orders")
+  async taskOrders(@Query("page") page:string,@Req() req:Request,@Res({passthrough:true}) res:Response) {
+    const access=await this.authorize(req,res);this.permit(access,"orders.read");this.category(access,"tasks");
+    const index=pageIndex(page);
+    let scope="";
+    if(access.productSlugs.length){
+      const products=await adminDb<{id:string}>("managed_products",`?category=eq.tasks&product_slug=in.(${access.productSlugs.join(",")})&select=id`);
+      if(!products.length)return {rows:[],hasMore:false,page:index};
+      scope=`&product_id=in.(${products.map(p=>p.id).join(",")})`;
+    }
+    const specs=await adminDb<Record<string,unknown>>("task_order_specs",`?select=*${scope}&order=created_at.desc&limit=51&offset=${index*50}`);
+    const ids=specs.map(row=>row.payment_id).filter((id):id is string=>typeof id==="string");
+    const payments=ids.length?await adminDb<{id:string;invoice_number:string;product_name:string;amount:number;status:string;customer_name:string;customer_email:string}>("payments",`?id=in.(${ids.join(",")})&select=id,invoice_number,product_name,amount,status,customer_name,customer_email`):[];
+    return {rows:specs.slice(0,50).map(row=>({...row,payment:payments.find(p=>p.id===row.payment_id)??null})),hasMore:specs.length>50,page:index};
+  }
+
+  @Get("task-orders/:id/revisions")
+  async taskRevisions(@Param("id") id:string,@Req() req:Request,@Res({passthrough:true}) res:Response){
+    const access=await this.authorize(req,res);this.permit(access,"orders.read");await this.taskOrderAccess(access,id);
+    return {rows:await adminDb("task_revisions",`?payment_id=eq.${id}&select=*&order=created_at.asc`)};
+  }
+
+  @Patch("task-orders/:id/start")
+  async startTask(@Param("id") id:string,@Req() req:Request,@Res({passthrough:true}) res:Response){
+    const access=await this.authorize(req,res,true);this.permit(access,"orders.write");await this.taskOrderAccess(access,id);
+    await this.audit(access.id,"task.start",id);
+    const [row]=await adminDb("rpc/start_task_order","","POST",{p_payment:id});
+    if(!row)throw new HttpException("Status tugas berubah. Muat ulang.",409);
+    return {task:row};
+  }
+
+  @Post("task-orders/:id/deliver")
+  async deliverTask(@Param("id") id:string,@Body() body:{url?:unknown},@Req() req:Request,@Res({passthrough:true}) res:Response){
+    const access=await this.authorize(req,res,true);this.permit(access,"orders.write");await this.taskOrderAccess(access,id);
+    if(typeof body?.url!=="string" || body.url.length>500 || !/^https:\/\/[^\s]+$/.test(body.url)) throw new HttpException("Tautan hasil HTTPS tidak valid.",400);
+    await this.audit(access.id,"task.deliver",id);
+    const [row]=await adminDb("rpc/deliver_task_result","","POST",{p_payment:id,p_url:body.url});
+    return {task:row};
+  }
+
+  @Post("task-orders/:id/revisions/:revisionId/decision")
+  async decideTaskRevision(@Param("id") id:string,@Param("revisionId") revisionId:string,@Body() body:{decision?:unknown;note?:unknown},@Req() req:Request,@Res({passthrough:true}) res:Response){
+    const access=await this.authorize(req,res,true);this.permit(access,"orders.write");await this.taskOrderAccess(access,id);
+    if(!uuid(revisionId) || !["accepted","rejected"].includes(String(body?.decision)) || typeof body?.note!=="string" || body.note.trim().length<3 || body.note.length>2000) throw new HttpException("Keputusan revisi tidak valid.",400);
+    await this.audit(access.id,`task.revision.${body.decision}`,revisionId);
+    const [row]=await adminDb("rpc/decide_task_revision","","POST",{p_payment:id,p_id:revisionId,p_decision:body.decision,p_note:body.note});
+    return {revision:row};
+  }
+
+  @Get("system/operations")
+  async operationalStatus(@Req() req:Request,@Res({passthrough:true}) res:Response) {
+    const access=await this.authorize(req,res); this.permit(access,"orders.read"); this.permit(access,"payments.read"); this.allServices(access);
+    const url=process.env.SUPABASE_URL?.replace(/\/$/,""),key=process.env.SUPABASE_SECRET_KEY||process.env.SUPABASE_SERVICE_ROLE_KEY;
+    if(!url||!key) throw new HttpException("Pemeriksaan database belum dikonfigurasi.",503);
+    const ago=(minutes:number)=>new Date(Date.now()-minutes*60000).toISOString();
+    const checks=[
+      {name:"Pembayaran tidak pasti",table:"payments",filter:"status=eq.unknown",severity:"critical"},
+      {name:"Pembuatan pembayaran tertahan",table:"payments",filter:`status=eq.creating&created_at=lt.${ago(5)}`,severity:"warning"},
+      {name:"Pembayaran pending lama",table:"payments",filter:`status=eq.pending&created_at=lt.${ago(60)}`,severity:"warning"},
+      {name:"Pengiriman tidak pasti",table:"live_transactions",filter:"fulfillment_status=eq.unknown",severity:"critical"},
+      {name:"Tinjauan manual",table:"live_transactions",filter:"fulfillment_status=eq.manual_review",severity:"warning"},
+      {name:"Ditandai perlu ditinjau",table:"live_transactions",filter:"review_required=eq.true",severity:"warning"},
+      {name:"Pengiriman tertahan",table:"live_transactions",filter:`fulfillment_status=eq.dispatching&updated_at=lt.${ago(3)}`,severity:"critical"},
+      {name:"Antrean pengiriman lama",table:"live_transactions",filter:`payment_status=eq.paid&fulfillment_status=eq.ready&created_at=lt.${ago(15)}`,severity:"warning"},
+      {name:"Pemrosesan lama",table:"live_transactions",filter:`fulfillment_status=eq.processing&created_at=lt.${ago(60)}`,severity:"warning"},
+      {name:"Pembayaran lunas, pengiriman gagal",table:"live_transactions",filter:"payment_status=eq.paid&fulfillment_status=eq.failed",severity:"critical"},
+    ] as const;
+    const results=await Promise.all(checks.map(async check=>{
+      const response=await boundedFetch(`${url}/rest/v1/${check.table}?select=id&payment_mode=eq.live&${check.filter}`,{method:"HEAD",headers:{apikey:key,...(key.startsWith("sb_secret_")?{}:{Authorization:`Bearer ${key}`}),Prefer:"count=exact",Range:"0-0"}});
+      const count=response.headers.get("content-range")?.split("/")[1];
+      if(!response.ok||!/^\d+$/.test(count||"")) throw new HttpException("Pemeriksaan antrean database tidak tersedia.",503);
+      return {name:check.name,count:Number(count),severity:check.severity};
+    }));
+    return {at:new Date().toISOString(),status:results.some(result=>result.count>0)?"attention":"ok",checks:results};
+  }
+
   @Get("promotions/:category")
   async promotions(@Param("category") category: string, @Req() req: Request, @Res({ passthrough: true }) res: Response) {
     const access = await this.authorize(req, res); this.permit(access, "products.read"); this.category(access, category);
@@ -401,29 +676,47 @@ export class AdminController {
       !["game", "prepaid", "apps", "social", "tasks"].includes(body.category) || !string(body.product, 100) || !string(body.name, 200) ||
       !string(body.product_slug, 100) || !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(body.product_slug) ||
       !Number.isSafeInteger(body.price) || body.price < 1 || body.price > 100000000 || typeof body.active !== "boolean" ||
-      typeof body.description !== "string" || body.description.length > 2000 || /[<>\u0000-\u001f]/.test(body.description)) throw new HttpException("Periksa data produk, kode provider, slug, dan harga rupiah.", 400);
+      typeof body.description !== "string" || body.description.length > 2000 || /[<>\u0000-\u0008\u000b\u000c\u000e-\u001f]/.test(body.description)) throw new HttpException("Periksa data produk, kode provider, slug, dan harga rupiah.", 400);
     this.category(access, body.category);
     this.product(access, body.product_slug);
     const fulfillment_mode = body.provider === "vipayment" ? (body.fulfillment_mode || "vipayment") : "manual";
     const supplier_code = body.supplier_code || body.provider_code;
     const service_quantity = body.service_quantity ?? (body.category === "social" ? 1000 : 1);
-    if (!["manual","vipayment"].includes(fulfillment_mode) || !/^[A-Za-z0-9._-]{1,120}$/.test(supplier_code) || !Number.isSafeInteger(service_quantity) || service_quantity < 1 || service_quantity > 10000000 || (body.category === "tasks" && body.provider === "vipayment")) throw new HttpException("Pemetaan provider atau jumlah layanan tidak valid.",400);
-    if (body.provider === "vipayment" && (body.category === "social" || body.supplier_code)) {
-      const source = (await this.catalogReader.list(body.category,true)).items.find(item=>item.code===supplier_code);
-      if (source?.requiresManualReview && fulfillment_mode !== "manual") throw new HttpException("Layanan ini memerlukan pemrosesan manual oleh tim admin.",400);
-      if (!source || (body.category === "social" && (service_quantity < source.minimum! || service_quantity > source.maximum!))) throw new HttpException("Layanan provider atau jumlah paket tidak tersedia.",400);
-    }
-
+    if (!["manual","vipayment"].includes(fulfillment_mode) || !/^[A-Za-z0-9._-]{1,120}$/.test(supplier_code) || !Number.isSafeInteger(service_quantity) || service_quantity < 1 || service_quantity > 10000000 || (["tasks", "apps"].includes(body.category) && (body.provider === "vipayment" || fulfillment_mode !== "manual"))) throw new HttpException("Pemetaan provider atau jumlah layanan tidak valid.",400);
+    if (body.cost_price != null && (!Number.isSafeInteger(body.cost_price) || body.cost_price < 0 || body.cost_price > 100000000)) throw new HttpException("Harga modal harus bilangan rupiah antara 0 dan 100.000.000.", 400);
     const { id, provider, provider_code, category, product, product_slug, name, price, description, active } = body;
-    // Reopening a provider variant must update its existing record even when it is
-    // outside the current admin page. Keep its public managed.<UUID> code stable.
-    const [byId] = await adminDb<ManagedProduct>("managed_products", `?id=eq.${id}&select=id,category,product_slug&limit=1`);
+    // Resolve the persisted identity before checking supplier availability. Ordinary
+    // presentation edits must remain writable during a supplier outage.
+    const [byId] = await adminDb<ManagedProduct>("managed_products", `?id=eq.${id}&select=*&limit=1`);
     if (byId) { this.category(access, byId.category); this.product(access, byId.product_slug); }
-    const [existing] = await adminDb<ManagedProduct>("managed_products", `?provider=eq.${provider}&category=eq.${category}&provider_code=eq.${provider_code}&select=id,product_slug&limit=1`);
+    if (byId?.provider && (byId.provider !== provider || byId.provider_code !== provider_code || byId.category !== category)) throw new HttpException("Identitas varian tersimpan tidak dapat diganti. Tambahkan varian baru untuk SKU lain.", 409);
+    const [existing] = await adminDb<ManagedProduct>("managed_products", `?provider=eq.${provider}&category=eq.${category}&provider_code=eq.${provider_code}&select=*&limit=1`);
     if (existing) this.product(access, existing.product_slug);
+    const stored = existing ?? byId;
+    const sameService = stored?.active && !stored.deleted_at &&
+      (stored.supplier_code || stored.provider_code) === supplier_code &&
+      (stored.fulfillment_mode || "vipayment") === fulfillment_mode &&
+      (stored.service_quantity ?? (category === "social" ? 1000 : 1)) === service_quantity;
+    if (active && provider === "vipayment" && !sameService) {
+      const source = (await this.catalogReader.list(category,true)).items.find(item=>item.code===supplier_code);
+      if (source?.requiresManualReview && fulfillment_mode !== "manual") throw new HttpException("Layanan ini memerlukan pemrosesan manual oleh tim admin.",400);
+      if (!source || (category === "social" && (service_quantity < source.minimum! || service_quantity > source.maximum!))) throw new HttpException("Layanan provider atau jumlah paket tidak tersedia.",400);
+    }
     await this.audit(access.id, "product.save", existing?.id ?? id);
-    const [row] = await adminDb("managed_products", "?on_conflict=id", "POST", { id: existing?.id ?? id, provider, provider_code, category, product, product_slug, name, price, description, active, fulfillment_mode, supplier_code, service_quantity, updated_at: new Date().toISOString() });
+    const [row] = await adminDb("managed_products", "?on_conflict=id", "POST", { id: existing?.id ?? id, provider, provider_code, category, product: product.trim(), product_slug, name: name.trim(), price, cost_price: body.cost_price ?? null, description: description.trim(), active, deleted_at: null, fulfillment_mode, supplier_code, service_quantity, updated_at: new Date().toISOString() });
+    if (!row) throw new HttpException("Varian gagal disimpan.", 503);
     return { product: row, published: process.env.ADMIN_CATALOG_ENABLED === "true" };
+  }
+
+  @Post("products/remove")
+  async removeProduct(@Body() input: unknown, @Req() req: Request, @Res({ passthrough: true }) res: Response) {
+    // Keep an inactive supplier override so deleted default SKUs cannot reappear.
+    // Save through the same validation and access checks as every catalog edit.
+    const result = await this.saveProduct({ ...(input as ManagedProduct), active: false }, req, res);
+    const id = result.product.id;
+    const [row] = await adminDb("managed_products", `?id=eq.${id}`, "PATCH", { active: false, deleted_at: new Date().toISOString(), updated_at: new Date().toISOString() });
+    if (!row) throw new HttpException("Varian disembunyikan, tetapi belum berhasil dihapus. Coba lagi.", 503);
+    return { product: row, published: result.published };
   }
 
   @Patch("support/:id")

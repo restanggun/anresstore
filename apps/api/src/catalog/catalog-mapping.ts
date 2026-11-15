@@ -8,8 +8,32 @@ export type CatalogItem = {
   displayName: string; section: string; developer?: string;
 };
 
+function decodeMojibake(value: string): string {
+  return value
+    .replace(/Ãƒâ€šÃ‚Â·/g, "·")
+    .replace(/Ã‚Â·/g, "·")
+    .replace(/Â·/g, "·")
+    .replace(/Ãƒâ€šÃ‚Â-/g, "-")
+    .replace(/Ã‚Â-/g, "-")
+    .replace(/Â-/g, "-")
+    .replace(/â€š/g, "")
+    .replace(/Â/g, "")
+    .replace(/Ã/g, "")
+    .replace(/\u00a0/g, " ");
+}
+
 function text(value: unknown, max = 300): string {
-  return typeof value === "string" ? value.replace(/<[^>]*>/g, " ").replace(/[\u0000-\u001f\u007f]/g, " ").replace(/\s+/g, " ").trim().slice(0, max) : "";
+  if (typeof value !== "string") return "";
+  const normalized = decodeMojibake(value)
+    .replace(/<[^>]*>/g, " ")
+    .replace(/[\u0000-\u001f\u007f]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, max);
+  return normalized
+    .replace(/\s*(?:vippayment|vipayment|vip[- ]reseller)\s*(?:[·•]|[–—-]|Ãƒâ€šÃ‚Â·|Â·|Ã‚Â·)\s*[A-Za-z0-9._-]+(?:\s+mobile legends)?\s*$/i, "")
+    .replace(/\s*(?:[·•]|[–—-])\s*[A-Za-z0-9._-]+\s+mobile legends\s*$/i, "")
+    .trim();
 }
 const normalized = (value: string) => value.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
 const games = [

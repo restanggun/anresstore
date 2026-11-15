@@ -12,7 +12,7 @@ export class PaymentStore {
         headers: { apikey: key, ...(key.startsWith("sb_secret_") ? {} : { Authorization: `Bearer ${key}` }), "Content-Type": "application/json", Prefer: "return=representation" },
         ...(body === undefined ? {} : { body: JSON.stringify(body) }),
       });
-      if (response.status === 409) throw new HttpException("ID pembayaran sudah digunakan untuk permintaan lain.", 409);
+      if (response.status === 409) throw new HttpException("Data pesanan atau katalog telah berubah. Muat ulang katalog dan periksa invoice sebelum mencoba lagi.", 409);
       if (!response.ok) throw new Error();
       return await response.json() as T;
     } catch (error) {
@@ -21,7 +21,7 @@ export class PaymentStore {
     }
   }
 
-  rpc<T>(name: "consume_payment_rate" | "reserve_payment" | "claim_payment_check", body: unknown) {
+  rpc<T>(name: "consume_payment_rate" | "reserve_payment" | "reserve_task_payment" | "quote_task_order" | "claim_payment_check", body: unknown) {
     return this.request<T>(`rpc/${name}`, "POST", body);
   }
 }

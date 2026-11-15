@@ -17,14 +17,15 @@ export type PaymentRow = {
   owner_user_id: string | null; guest_session_hash: string | null; checkout_hash: string | null;
   revision: number; provider_checked_at: string | null; provider_check_until: string | null; review_required: boolean;
 };
-export type PaymentInput = { expectedQuantity?: number; targetZone?: string; id: string; source: string; code: string; target: string; method: string; name: string; email: string; phone: string; expectedAmount: number };
+export type TaskInput = { pages: number; deadline_days: number; revisions: number; instructions: string; reference_url: string };
+export type PaymentInput = { expectedQuantity?: number; targetZone?: string; task?: TaskInput; id: string; source: string; code: string; target: string; method: string; name: string; email: string; phone: string; expectedAmount: number };
 
 export function parsePayment(input: unknown): PaymentInput {
   const invalid = () => new HttpException("Data pembayaran tidak valid. Muat ulang checkout dan periksa isian.", 400);
   if (!input || typeof input !== "object" || Array.isArray(input)) throw invalid();
   const body = input as Record<string, unknown>;
   const fields = ["id", "source", "code", "target", "method", "name", "email", "phone"] as const;
-  const allowed: readonly string[] = [...fields, "expectedAmount", "targetZone", "expectedQuantity"];
+  const allowed: readonly string[] = [...fields, "expectedAmount", "targetZone", "expectedQuantity", "task"];
   if (Object.keys(body).some(key => !allowed.includes(key))) throw invalid();
   const values: Record<string, string> = {};
   for (const key of fields) {
@@ -49,6 +50,12 @@ export function parsePayment(input: unknown): PaymentInput {
     if (typeof body.targetZone !== "string" || !/^[A-Za-z0-9_-]{0,100}$/.test(body.targetZone) || (result.source !== "game" && body.targetZone)) throw invalid();
     if (body.targetZone) result.targetZone = body.targetZone;
   }
+  if (body.task !== undefined) {
+    const task = body.task as Partial<TaskInput>;
+    if (result.source !== "tasks" || !task || typeof task !== "object" || Array.isArray(task) || Object.keys(task).some(key=>!["pages","deadline_days","revisions","instructions","reference_url"].includes(key)) || !Number.isSafeInteger(task.pages) || Number(task.pages)<1 || Number(task.pages)>500 || !Number.isSafeInteger(task.deadline_days) || Number(task.deadline_days)<1 || Number(task.deadline_days)>90 || !Number.isSafeInteger(task.revisions) || Number(task.revisions)<0 || Number(task.revisions)>20 || typeof task.instructions!=="string" || task.instructions.trim().length<10 || task.instructions.length>3000 || /[\u0000-\u001f]/.test(task.instructions) || typeof task.reference_url!=="string" || task.reference_url.length>500 || task.reference_url && !/^https:\/\/[^\s]+$/.test(task.reference_url)) throw invalid();
+    result.task={pages:Number(task.pages),deadline_days:Number(task.deadline_days),revisions:Number(task.revisions),instructions:task.instructions.trim(),reference_url:task.reference_url.trim()};
+  }
+  if (result.source === "tasks" && !result.task) throw invalid();
   return result;
 }
 

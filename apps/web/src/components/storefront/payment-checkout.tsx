@@ -10,7 +10,7 @@ import { invoicePath, tripayCheckoutUrl } from "@/lib/payment-navigation";
 
 import type { PaymentChannel as Channel } from "@/lib/payment-channels";
 import { PaymentMethods } from "./payment-methods";
-export type PaymentRecord = { ownership?: "account" | "guest"; refund?: {id:string;refund_status:string;refund_requires_admin:boolean;refund_resolution:string|null;refund_reference:string|null} | null; invoiceNumber: string | null; target?: string; targetZone?: string | null; fulfillment?: {status: string; note: string | null; mode: string} | null; id: string; mode?: "live" | "sandbox"; sandboxRealFulfillment?: boolean; createdAt: string; product: string; amount: number; total: number; fee: number; status: string; method: string; reference: string | null; payCode: string | null; checkoutUrl: string | null; expiresAt: number | null; lastVerifiedAt: string | null; needsReview: boolean; refreshDelayed: boolean };
+export type PaymentRecord = { ownership?: "account" | "guest"; source?: string; refund?: {id:string;refund_status:string;refund_requires_admin:boolean;refund_resolution:string|null;refund_reference:string|null} | null; invoiceNumber: string | null; target?: string; targetZone?: string | null; fulfillment?: {status: string; note: string | null; mode: string} | null; id: string; mode?: "live" | "sandbox"; sandboxRealFulfillment?: boolean; createdAt: string; product: string; amount: number; total: number; fee: number; status: string; method: string; reference: string | null; payCode: string | null; checkoutUrl: string | null; expiresAt: number | null; lastVerifiedAt: string | null; needsReview: boolean; refreshDelayed: boolean };
 const money = (value: number) => `Rp${value.toLocaleString("id-ID")}`;
 async function jsonResponse<T>(response: Response): Promise<T> {
   const data = await response.json();
@@ -18,7 +18,7 @@ async function jsonResponse<T>(response: Response): Promise<T> {
   return data as T;
 }
 
-export function PaymentCheckout({ source, code, target, serviceQuantity, targetZone = "", amount, contact, customer, onCreated }: { source: "game" | "prepaid" | "apps" | "social" | "tasks"; code: string; serviceQuantity?: number; target: string; targetZone?: string; amount: number; contact: string; onCreated?: () => Promise<void>; customer?: { name?: string; email: string; phone: string } }) {
+export function PaymentCheckout({ source, code, target, serviceQuantity, targetZone = "", amount, contact, customer, task, onCreated }: { source: "game" | "prepaid" | "apps" | "social" | "tasks"; code: string; serviceQuantity?: number; target: string; targetZone?: string; amount: number; contact: string; task?: {pages:number;deadline_days:number;revisions:number;instructions:string;reference_url:string}; onCreated?: () => Promise<void>; customer?: { name?: string; email: string; phone: string } }) {
   const { accountEmail, loading: emailLoading } = useCheckoutEmail();
   const [channels, setChannels] = useState<Channel[]>([]), [method, setMethod] = useState("");
   const [name, setName] = useState(customer?.name ?? (source === "game" ? "Pelanggan" : "")), [email, setEmail] = useState(customer?.email ?? (contact.includes("@") ? contact : "")), [phone, setPhone] = useState(customer?.phone ?? (contact.includes("@") ? "" : contact.replace(/[\s-]/g, "")));
@@ -49,7 +49,7 @@ export function PaymentCheckout({ source, code, target, serviceQuantity, targetZ
     submitting.current = true;
     setBusy(true); setError("");
     try {
-      const payment = await submitPayment<PaymentRecord>({ source, code, target, targetZone, method, name: name.trim(), email: checkoutEmail.trim(), phone: phone.trim(), expectedAmount: amount, ...(source === "social" ? {expectedQuantity: serviceQuantity || 0} : {}) }, id => { pending.current = id; });
+      const payment = await submitPayment<PaymentRecord>({ source, code, target, targetZone, method, name: name.trim(), email: checkoutEmail.trim(), phone: phone.trim(), expectedAmount: amount, ...(source === "social" ? {expectedQuantity: serviceQuantity || 0} : {}), ...(source === "tasks" ? {task} : {}) }, id => { pending.current = id; });
       const checkoutUrl = tripayCheckoutUrl(payment);
       if (!checkoutUrl) {
         // Stay on checkout when the gateway has not supplied a verified payable URL.
