@@ -466,9 +466,30 @@ export class AdminController {
     return {rule};
   }
 
+  @Get("premium-qris")
+  async premiumQris(@Req() req:Request,@Res({passthrough:true}) res:Response){
+    const access=await this.authorize(req,res);this.permit(access,"products.read");this.category(access,"apps");
+    const [row]=await adminDb<{id:number;image:string;updated_at:string}>("premium_qris_settings","?id=eq.1&select=id,image,updated_at");
+    return {qris:row??null};
+  }
+
+  @Post("premium-qris")
+  async savePremiumQris(@Body() body:{image?:unknown},@Req() req:Request,@Res({passthrough:true}) res:Response){
+    const access=await this.authorize(req,res,true);this.permit(access,"products.write");this.category(access,"apps");
+    const image=premiumImage(body?.image);await this.audit(access.id,"premium_qris.save","global");
+    const [qris]=await adminDb("premium_qris_settings","?on_conflict=id","POST",{id:1,image,updated_at:new Date().toISOString()});
+    return {qris};
+  }
+
+  @Delete("premium-qris")
+  async removePremiumQris(@Req() req:Request,@Res({passthrough:true}) res:Response){
+    const access=await this.authorize(req,res,true);this.permit(access,"products.write");this.category(access,"apps");await this.audit(access.id,"premium_qris.remove","global");
+    await adminDb("rpc/remove_premium_qris","","POST",{});return {removed:true};
+  }
+
   private async premiumOrderAccess(access:{categories:string[];productSlugs:string[]},id:string){
     this.category(access,"apps");if(!uuid(id))throw new HttpException("Pesanan tidak valid.",400);
-    const [order]=await adminDb<{id:string;product_id:string;user_id:string;status:string;conversation_id:string|null}>("premium_orders",`?id=eq.${id}&select=id,product_id,user_id,status,conversation_id`);
+    const [order]=await adminDb<{id:string;product_id:string;user_id:string;status:string;conversation_id:string|null}>("premium_orders",`?id=eq.${id}&payment_mode=eq.live&select=id,product_id,user_id,status,conversation_id`);
     if(!order)throw new HttpException("Pesanan aplikasi tidak ditemukan.",404);
     const [product]=await adminDb<{product_slug:string}>("managed_products",`?id=eq.${order.product_id}&select=product_slug`);
     if(!product)throw new HttpException("Produk tidak ditemukan.",404);
@@ -479,14 +500,14 @@ export class AdminController {
   async premiumOrders(@Query("page") page:string,@Req() req:Request,@Res({passthrough:true}) res:Response){
     const access=await this.authorize(req,res);this.permit(access,"orders.read");this.category(access,"apps");const index=pageIndex(page);
     let scope="";if(access.productSlugs.length){const products=await adminDb<{id:string}>("managed_products",`?category=eq.apps&product_slug=in.(${access.productSlugs.join(",")})&select=id`);if(!products.length)return {rows:[],hasMore:false,page:index};scope=`&product_id=in.(${products.map(row=>row.id).join(",")})`}
-    const rows=await adminDb("premium_orders",`?select=id,user_id,product_id,product_name,access_type,duration_days,guarantee_days,amount,status,created_at,paid_at,delivered_at,conversation_id${scope}&order=created_at.desc&limit=51&offset=${index*50}`);
+    const rows=await adminDb("premium_orders",`?payment_mode=eq.live&select=id,user_id,product_id,product_name,access_type,duration_days,guarantee_days,amount,status,created_at,paid_at,delivered_at,conversation_id${scope}&order=created_at.desc&limit=51&offset=${index*50}`);
     return {rows:rows.slice(0,50),hasMore:rows.length>50,page:index};
   }
 
   @Get("premium-orders/:id")
   async premiumOrderDetail(@Param("id") id:string,@Req() req:Request,@Res({passthrough:true}) res:Response){
     const access=await this.authorize(req,res);this.permit(access,"orders.read");await this.premiumOrderAccess(access,id);
-    const [order]=await adminDb("premium_orders",`?id=eq.${id}&select=*`);
+    const [order]=await adminDb("premium_orders",`?id=eq.${id}&payment_mode=eq.live&select=*`);
     const [claim]=await adminDb("premium_guarantee_claims",`?order_id=eq.${id}&select=*`);
     return {order,claim:claim??null};
   }
@@ -497,7 +518,7 @@ export class AdminController {
     const image=premiumImage(body?.image),expiry=typeof body?.expiresAt==="string"?Date.parse(body.expiresAt):NaN;
     if(!Number.isFinite(expiry)||expiry<Date.now()+60000||expiry>Date.now()+86400000)throw new HttpException("Masa berlaku QRIS harus 1 menit sampai 24 jam.",400);
     await this.audit(access.id,"premium.qr_upload",id);
-    const [order]=await adminDb("premium_orders",`?id=eq.${id}&status=in.(awaiting_qr,awaiting_payment)`,"PATCH",{qr_image:image,qr_expires_at:new Date(expiry).toISOString(),status:"awaiting_payment",updated_at:new Date().toISOString()});
+    const [order]=await adminDb("premium_orders",`?id=eq.${id}&payment_mode=eq.live&status=in.(awaiting_qr,awaiting_payment,proof_submitted)`,"PATCH",{qr_image:image,qr_expires_at:new Date(expiry).toISOString(),proof_image:null,proof_note:null,status:"awaiting_payment",updated_at:new Date().toISOString()});
     if(!order)throw new HttpException("Status pesanan berubah. Muat ulang.",409);return {order};
   }
 
@@ -505,7 +526,7 @@ export class AdminController {
   async premiumVerify(@Param("id") id:string,@Req() req:Request,@Res({passthrough:true}) res:Response){
     const access=await this.authorize(req,res,true);this.permit(access,"payments.read");this.permit(access,"orders.write");await this.premiumOrderAccess(access,id);
     await this.audit(access.id,"premium.payment_verified",id);
-    const [order]=await adminDb("premium_orders",`?id=eq.${id}&status=eq.proof_submitted&proof_image=not.is.null`,"PATCH",{status:"paid",paid_at:new Date().toISOString(),updated_at:new Date().toISOString()});
+    const [order]=await adminDb("premium_orders",`?id=eq.${id}&payment_mode=eq.live&status=eq.proof_submitted&proof_image=not.is.null`,"PATCH",{status:"paid",paid_at:new Date().toISOString(),updated_at:new Date().toISOString()});
     if(!order)throw new HttpException("Bukti belum dikirim atau status berubah.",409);return {order};
   }
 
@@ -516,7 +537,7 @@ export class AdminController {
     if(order.conversation_id)return {conversationId:order.conversation_id};
     const roomId=randomUUID();await this.audit(access.id,"premium.chat_open",id);
     await adminDb("rpc/create_support_ticket","","POST",{p_id:roomId,p_user:order.user_id,p_subject:`Aplikasi premium ${id}`,p_body:null});
-    const [saved]=await adminDb("premium_orders",`?id=eq.${id}&conversation_id=is.null`,"PATCH",{conversation_id:roomId});
+    const [saved]=await adminDb("premium_orders",`?id=eq.${id}&payment_mode=eq.live&conversation_id=is.null`,"PATCH",{conversation_id:roomId});
     return {conversationId:saved?roomId:(await this.premiumOrderAccess(access,id)).conversation_id};
   }
 
@@ -527,7 +548,7 @@ export class AdminController {
     const messages=await adminDb("support_messages",`?conversation_id=eq.${order.conversation_id}&author_role=eq.staff&select=id&limit=1`);
     if(!messages.length)throw new HttpException("Kirim data akun melalui chat privat dahulu.",409);
     await this.audit(access.id,"premium.deliver",id);
-    const [saved]=await adminDb("premium_orders",`?id=eq.${id}&status=eq.paid`,"PATCH",{status:"delivered",delivered_at:new Date().toISOString(),updated_at:new Date().toISOString()});
+    const [saved]=await adminDb("premium_orders",`?id=eq.${id}&payment_mode=eq.live&status=eq.paid`,"PATCH",{status:"delivered",delivered_at:new Date().toISOString(),updated_at:new Date().toISOString()});
     if(!saved)throw new HttpException("Status pesanan berubah.",409);return {order:saved};
   }
 

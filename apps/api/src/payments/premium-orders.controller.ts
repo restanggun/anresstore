@@ -32,7 +32,7 @@ export class PremiumOrdersController {
  }
  private async order(id:string,user:string){
   if(!uuid(id)) throw new HttpException("Pesanan tidak ditemukan.",404);
-  const [row]=await adminDb<Record<string,unknown>>("premium_orders",`?id=eq.${id}&user_id=eq.${user}&select=*`);
+  const [row]=await adminDb<Record<string,unknown>>("premium_orders",`?id=eq.${id}&user_id=eq.${user}&payment_mode=eq.live&select=*`);
   if(!row) throw new HttpException("Pesanan tidak ditemukan.",404);
   return row;
  }
@@ -40,9 +40,11 @@ export class PremiumOrdersController {
   res.setHeader("Cache-Control","no-store");
   if(!uuid(id))throw new HttpException("Paket tidak tersedia.",404);
   const catalog=await this.catalog.list("apps");
-  if(!catalog.items.some(item=>item.code===`managed.${id}`))throw new HttpException("Paket tidak tersedia.",404);
+  if(!catalog.items.some(item=>item.code===`managed.${id}`&&item.fulfillmentMode==="manual"))throw new HttpException("Paket tidak tersedia.",404);
   const [rule]=await adminDb<{access_type:string;duration_days:number;guarantee_days:number;guarantee_terms:string;updated_at:string}>("premium_product_rules",`?product_id=eq.${id}&select=access_type,duration_days,guarantee_days,guarantee_terms,updated_at`);
   if(!rule)throw new HttpException("Ketentuan paket belum diatur.",503);
+  const [qris]=await adminDb<{image:string}>("premium_qris_settings","?id=eq.1&select=image");
+  if(!qris)throw new HttpException("QRIS dinamis belum diatur admin.",503);
   return rule;
  }
  @Post() async create(@Body() input:{id?:unknown;code?:unknown;expectedAmount?:unknown;expectedRuleAt?:unknown},@Req() req:Request,@Res({passthrough:true}) res:Response){
@@ -53,11 +55,15 @@ export class PremiumOrdersController {
   const product=catalog.items.find(row=>row.code===input.code);
   if(!product || product.price!==input.expectedAmount || product.fulfillmentMode!=="manual")throw new HttpException("Paket atau harga berubah. Muat ulang katalog.",409);
   const [order]=await adminDb("rpc/reserve_premium_order","","POST",{p_id:input.id,p_user:user,p_product:input.code.slice(8),p_amount:product.price,p_rule_updated_at:input.expectedRuleAt});
-  return {order};
+  const [qris]=await adminDb<{image:string}>("premium_qris_settings","?id=eq.1&select=image");
+  if(!qris)throw new HttpException("QRIS dinamis belum diatur admin.",503);
+  const [prepared]=await adminDb("rpc/prepare_premium_order","","POST",{p_order:input.id,p_user:user});
+  if(!prepared)throw new HttpException("QRIS pesanan belum dapat disiapkan. Periksa status sebelum mencoba lagi.",503);
+  return {order:prepared};
  }
  @Get() async list(@Req() req:Request,@Res({passthrough:true}) res:Response){
   const user=await this.owner(req,res);
-  const rows=await adminDb("premium_orders",`?user_id=eq.${user}&select=id,product_name,amount,status,created_at&order=created_at.desc&limit=100`);
+  const rows=await adminDb("premium_orders",`?user_id=eq.${user}&payment_mode=eq.live&select=id,product_name,amount,status,created_at&order=created_at.desc&limit=100`);
   return {rows};
  }
  @Get(":id") async detail(@Param("id") id:string,@Req() req:Request,@Res({passthrough:true}) res:Response){
@@ -70,7 +76,7 @@ export class PremiumOrdersController {
   if(order.status!=="awaiting_payment" || typeof order.qr_expires_at!=="string" || Date.parse(order.qr_expires_at)<=Date.now())throw new HttpException("QRIS belum tersedia atau sudah kedaluwarsa.",409);
   const image=premiumImage(input?.image),note=typeof input?.note==="string"?input.note.trim():"";
   if(note.length>500)throw new HttpException("Catatan terlalu panjang.",400);
-  const [saved]=await adminDb("premium_orders",`?id=eq.${id}&user_id=eq.${user}&status=eq.awaiting_payment&qr_expires_at=gt.${encodeURIComponent(new Date().toISOString())}`,"PATCH",{proof_image:image,proof_note:note,status:"proof_submitted",updated_at:new Date().toISOString()});
+  const [saved]=await adminDb("premium_orders",`?id=eq.${id}&user_id=eq.${user}&payment_mode=eq.live&status=eq.awaiting_payment&qr_expires_at=gt.${encodeURIComponent(new Date().toISOString())}`,"PATCH",{proof_image:image,proof_note:note,status:"proof_submitted",updated_at:new Date().toISOString()});
   if(!saved)throw new HttpException("Status pesanan berubah. Muat ulang.",409);
   return {order:saved};
  }

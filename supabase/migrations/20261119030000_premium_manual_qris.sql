@@ -53,6 +53,7 @@ alter table public.premium_guarantee_claims enable row level security;
 revoke all on public.premium_guarantee_claims from public,anon,authenticated;
 grant select,insert,update on public.premium_guarantee_claims to service_role;
 
+
 create function public.reserve_premium_order(p_id uuid,p_user uuid,p_product uuid,p_amount bigint,p_rule_updated_at timestamptz)
 returns setof public.premium_orders language plpgsql security invoker set search_path='' as $$
 declare item public.managed_products; rule public.premium_product_rules; current_order public.premium_orders;
