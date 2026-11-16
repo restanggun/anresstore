@@ -445,3 +445,7 @@ html,body,.admin-shell *, .anres-select-content { scrollbar-width:thin; scrollba
 .admin-shell .health-badge,.admin-shell .muted-badge { border-radius:8px; }
 .admin-shell .health-chart { min-height:230px; }
 .admin-shell .chart-panel { background:white; border-radius:18px; border:0; }
+
+/* Keep the shortcut to manual order handling distinct from the order summary. */
+.order-dialog .manual-order-entry { width:100%; min-height:46px; justify-content:center; margin:0 0 26px; border-radius:12px; }
+
