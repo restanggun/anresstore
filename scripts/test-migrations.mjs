@@ -22,7 +22,7 @@ try {
   }
   console.log(`Replayed ${files.length} migrations on a clean PostgreSQL database`);
   await db.exec(await readFile('supabase/tests/invoice-numbers.sql','utf8'));
-  console.log('ARNS invoice format, date, uniqueness, replay, projection and immutability passed');
+  console.log('ANRS invoice format, date, uniqueness, replay, projection and immutability passed');
   if (process.argv.includes('--snapshot')) {
     const snapshot = await db.query(await readFile('scripts/schema-snapshot.sql','utf8'));
     await writeFile('output/schema-expected.json',JSON.stringify(snapshot.rows,null,2));

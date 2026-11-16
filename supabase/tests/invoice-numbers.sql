@@ -8,7 +8,7 @@ declare r jsonb; again jsonb; code text; other_code text;
     'provider_cost',1500,'invoice_product_code','mobile-legends','invoice_subproduct_code','ml-5');
 begin
   r := public.reserve_payment(p); code := r->'payment'->>'invoice_number';
-  if code !~ '^ARNS-[0-9]{6}-[A-F0-9]{14}$' then raise exception 'Invalid invoice format: %',code; end if;
+  if code !~ '^ANRS-[0-9]{6}-[A-F0-9]{14}$' then raise exception 'Invalid invoice format: %',code; end if;
   if length(code) <> 26 then raise exception 'Invoice not shortened'; end if;
   if split_part(code,'-',2) <> to_char(now() at time zone 'Asia/Jakarta','YYMMDD') then raise exception 'Wrong invoice date'; end if;
   if r->'payment'->>'merchant_ref' <> code then raise exception 'Gateway reference differs from invoice'; end if;
