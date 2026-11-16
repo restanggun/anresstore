@@ -12,7 +12,7 @@ import { apiUrl } from "@/lib/auth-api";
 import "./orders.css";
 import "./invoice-index.css";
 
-function PremiumInvoice({id}:{id:string}){const [order,setOrder]=useState<any>(null),[error,setError]=useState("");useEffect(()=>{void fetch(`${apiUrl}/premium-orders/${id}`,{credentials:"include",cache:"no-store"}).then(async r=>{const d=await r.json();if(!r.ok)throw new Error(d.message||"Invoice tidak ditemukan.");setOrder(d.order)}).catch(e=>setError(e.message))},[id]);return <main className="container invoice-index-page"><header className="invoice-index-heading"><h1>Invoice aplikasi premium</h1><p>Ikuti pembayaran dan pengiriman pesananmu.</p></header>{error&&<p role="alert">{error}</p>}{!order?<p role="status">Memuat invoice…</p>:<section className="invoice-lookup"><h2>{order.product_name}</h2><p>Rp{Number(order.amount).toLocaleString("id-ID")}</p><strong>{order.status}</strong><p>Data akses dikirim setelah pembayaran diverifikasi. Untuk pesanan lengkap, buka <a href={`/premium-order/${id}`}>detail pesanan</a>.</p></section>}</main>;}
+function PremiumInvoice({id}:{id:string}){const [order,setOrder]=useState<any>(null),[checked,setChecked]=useState(false);useEffect(()=>{void fetch(`${apiUrl}/premium-orders/invoice/${encodeURIComponent(id)}`,{credentials:"include",cache:"no-store"}).then(async r=>{if(r.ok){const d=await r.json();setOrder(d.order)}setChecked(true)}).catch(()=>setChecked(true))},[id]);if(checked&&!order)return <PaymentInvoicePage id={id}/>;return <main className="container invoice-index-page"><header className="invoice-index-heading"><h1>Invoice aplikasi premium</h1><p>Ikuti pembayaran dan pengiriman pesananmu.</p></header>{!order?<p role="status">Memuat invoice…</p>:<section className="invoice-lookup"><h2>{order.product_name}</h2><p>{order.invoice_number}</p><p>Rp{Number(order.amount).toLocaleString("id-ID")}</p><strong>{order.status}</strong><p>Data akses dikirim setelah pembayaran diverifikasi. <a href={`/premium-order/${order.id}`}>Buka detail pesanan</a>.</p></section>}</main>;}
 
 export function OrdersPage({ orderId }: { orderId?: string }) {
  const router = useRouter();
@@ -25,7 +25,7 @@ export function OrdersPage({ orderId }: { orderId?: string }) {
   event.preventDefault();
   const code = query.trim().toUpperCase();
   try {
-   if(/^[a-f0-9-]{36}$/i.test(code)){void fetch(`${apiUrl}/premium-orders/${encodeURIComponent(code)}`,{credentials:"include",cache:"no-store"}).then(async r=>{const d=await r.json();if(r.ok){setPremium(d.order);setPremiumError("")}else{setPremium(null);setPremiumError(d.message||"Invoice tidak ditemukan.")}});return;}
+   if(code.startsWith("ARNS-")){router.push(`/invoice/${encodeURIComponent(code)}`);return;}
    const href = invoicePath(code.toLowerCase());
    setError("");
    router.push(href);
@@ -34,7 +34,7 @@ export function OrdersPage({ orderId }: { orderId?: string }) {
    input.current?.focus();
   }
  }
- if (orderId) return <PaymentInvoicePage id={orderId}/>;
+ if (orderId) return /^[a-f0-9-]{36}$/i.test(orderId)||orderId.startsWith("ARNS-") ? <PremiumInvoice id={orderId}/> : <PaymentInvoicePage id={orderId}/>;
  return <main id="main" className="container invoice-index-page">
   <header className="invoice-index-heading"><h1>Invoice</h1><p>Temukan pesananmu dan ikuti setiap perkembangannya.</p></header>
   <section className="invoice-lookup" aria-labelledby="invoice-lookup-title">

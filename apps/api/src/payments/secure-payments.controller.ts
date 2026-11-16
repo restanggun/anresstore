@@ -260,8 +260,8 @@ export class PaymentsController implements OnModuleInit, OnModuleDestroy {
     const payments=visible.map(row=>{const delivery=deliveries.find(item=>item.id===row.id),refund=refunds.find(item=>item.payment_id===row.id);return {...this.publicPayment(row),refund:refund??null,fulfillment:delivery?{status:delivery.fulfillment_status,note:delivery.provider_note,mode:delivery.payment_mode}:null};});
     if(scope!=="guest"){
       const premiumOwner=identity.userId?`user_id=eq.${identity.userId}`:`guest_session_hash=eq.${identity.guestHash}`;
-      const premiums=await this.store.request<any[]>(`premium_orders?${premiumOwner}&payment_mode=eq.live&select=id,product_name,amount,status,created_at,customer_email&order=created_at.desc&limit=50`);
-      const mapped=premiums.map(row=>({id:row.id,invoiceNumber:row.id,createdAt:row.created_at,product:row.product_name,amount:Number(row.amount),total:Number(row.amount),method:"QRIS",status:row.status,reference:null,fulfillment:{status:row.status,mode:"manual",note:row.status==="delivered"?"Data aplikasi telah dikirim ke email.":null},ownership:identity.userId?"account":"guest"}));
+      const premiums=await this.store.request<any[]>(`premium_orders?${premiumOwner}&payment_mode=eq.live&select=id,invoice_number,product_name,amount,status,created_at,customer_email&order=created_at.desc&limit=50`);
+      const mapped=premiums.map(row=>({id:row.id,invoiceNumber:row.invoice_number,createdAt:row.created_at,product:row.product_name,amount:Number(row.amount),total:Number(row.amount),method:"QRIS",status:row.status,reference:null,fulfillment:{status:row.status,mode:"manual",note:row.status==="delivered"?"Data aplikasi telah dikirim ke email.":null},ownership:identity.userId?"account":"guest"}));
       payments.push(...mapped as typeof payments);
       payments.sort((a:any,b:any)=>Date.parse(b.createdAt)-Date.parse(a.createdAt));
     }
