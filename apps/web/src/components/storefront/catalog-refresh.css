@@ -136,6 +136,15 @@
  .shop-flow .variant-card { gap:15px;min-height:104px;padding:13px;border-radius:14px; }
  .variant-card-top strong { font-size:12px; }.variant-price b { font-size:14px; }.variant-check { flex-basis:18px;width:18px;height:18px; }
  .variant-card-top { gap:5px; }.variant-grid { gap:9px; }.catalog-variants { margin-top:25px; }
+ /* Keep mobile variants in one compact, predictable list. Two-column grid rows
+    inherited the height of the taller card and left conspicuous empty gaps. */
+ .variant-grid { grid-template-columns:minmax(0,1fr);align-items:start;gap:8px; }
+ .shop-flow .variant-card { min-height:72px;flex-direction:row;align-items:center;justify-content:space-between;gap:12px;padding:12px 14px; }
+ .variant-card-top { flex:1;align-items:center;gap:10px;min-width:0; }
+ .variant-item-art { width:38px;height:38px;flex-basis:38px; }
+ .variant-game-art { width:36px;height:36px;flex-basis:36px; }
+ .variant-identity small { margin-top:2px; }
+ .variant-price { flex:0 1 auto;max-width:42%;justify-content:flex-end;text-align:right; }
 }
 @media(prefers-reduced-motion:reduce) { .shop-flow .variant-card { transition:none; } }
 /* Compact flash-sale carousel */
