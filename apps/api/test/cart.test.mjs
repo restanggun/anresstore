@@ -16,9 +16,10 @@ test("keranjang memakai identitas sesi dan menolak akses atau data yang tidak va
   else { res.statusCode = 204; res.end(); }
  });
  await new Promise(resolve => mock.listen(0, "127.0.0.1", resolve));
- const server = spawn(process.execPath, ["dist/main.js"], {env:{...process.env,PORT:"4150",SUPABASE_URL:`http://127.0.0.1:${mock.address().port}`,SUPABASE_PUBLISHABLE_KEY:"test-key",SUPABASE_SECRET_KEY:"sb_secret_test"},stdio:"ignore"});
+ const api = createServer(); await new Promise(resolve => api.listen(0,"127.0.0.1",resolve)); const port=api.address().port; await new Promise((resolve,reject)=>api.close(error=>error?reject(error):resolve()));
+ const server = spawn(process.execPath, ["dist/main.js"], {env:{...process.env,PORT:String(port),SUPABASE_URL:`http://127.0.0.1:${mock.address().port}`,SUPABASE_PUBLISHABLE_KEY:"test-key",SUPABASE_SECRET_KEY:"sb_secret_test"},stdio:"ignore"});
  try {
-  const base = "http://127.0.0.1:4150/v1/auth/cart";
+  const base = `http://127.0.0.1:${port}/v1/auth/cart`;
   let ready = false; for (let i=0;i<300;i++) { try { await fetch(base); ready=true; break; } catch { await delay(100); } } assert.ok(ready);
   assert.equal((await fetch(base)).status, 401);
   const headers = {cookie:"anres_access=access", Origin:"http://localhost:3000", "Content-Type":"application/json"};
