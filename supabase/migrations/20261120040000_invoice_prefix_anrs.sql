@@ -27,7 +27,7 @@ alter table public.premium_orders add constraint premium_orders_invoice_number_f
 create trigger assign_payment_invoice before insert or update on public.payments
 for each row execute function public.assign_payment_invoice();
 create trigger project_payment_order after insert or update on public.payments
-for each row execute function public.project_sandbox_order();
+for each row execute function public.project_payment_order();
 create trigger guard_transaction_invoice before insert or update on public.live_transactions
 for each row execute function public.guard_transaction_invoice();
 create trigger premium_invoice_number_before_write before insert or update on public.premium_orders
