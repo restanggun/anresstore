@@ -62,6 +62,6 @@ export class PaymentIdentityService {
       res.cookie(guestCookie(), token, { httpOnly: true, secure: process.env.NODE_ENV === "production", sameSite: "lax", path: "/", maxAge: 30 * 86400000 });
       identity.guestHash = digestGuestToken(token)!.toString("hex");
     }
-    return { mode: identity.userId ? "account" : "guest", scope: createHash("sha256").update(tripayMode() + ":" + (identity.userId ?? identity.guestHash!)).digest("hex") };
+    return { mode: identity.userId ? "account" : "guest", guestHash: identity.guestHash, scope: createHash("sha256").update(tripayMode() + ":" + (identity.userId ?? identity.guestHash!)).digest("hex") };
   }
 }

@@ -257,7 +257,15 @@ export class PaymentsController implements OnModuleInit, OnModuleDestroy {
       this.store.request<{id:string;fulfillment_status:string;provider_note:string|null;payment_mode:string}[]>(`live_transactions?id=in.(${ids})&payment_mode=eq.${tripayConfig().mode}&select=id,fulfillment_status,provider_note,payment_mode&limit=50`),
       this.store.request<{id:string;payment_id:string;refund_status:string;refund_requires_admin:boolean;refund_resolution:string|null;refund_reference:string|null}[]>(`support_conversations?payment_id=in.(${ids})&kind=eq.refund&select=id,payment_id,refund_status,refund_requires_admin,refund_resolution,refund_reference&limit=50`),
     ]) : [[],[]];
-    return { payments: visible.map(row=>{const delivery=deliveries.find(item=>item.id===row.id),refund=refunds.find(item=>item.payment_id===row.id);return {...this.publicPayment(row),refund:refund??null,fulfillment:delivery?{status:delivery.fulfillment_status,note:delivery.provider_note,mode:delivery.payment_mode}:null};}), hasMore: rows.length>50, userId: identity.userId, attachedCount };
+    const payments=visible.map(row=>{const delivery=deliveries.find(item=>item.id===row.id),refund=refunds.find(item=>item.payment_id===row.id);return {...this.publicPayment(row),refund:refund??null,fulfillment:delivery?{status:delivery.fulfillment_status,note:delivery.provider_note,mode:delivery.payment_mode}:null};});
+    if(scope!=="guest"){
+      const premiumOwner=identity.userId?`user_id=eq.${identity.userId}`:`guest_session_hash=eq.${identity.guestHash}`;
+      const premiums=await this.store.request<any[]>(`premium_orders?${premiumOwner}&payment_mode=eq.live&select=id,product_name,amount,status,created_at,customer_email&order=created_at.desc&limit=50`);
+      const mapped=premiums.map(row=>({id:row.id,invoiceNumber:row.id,createdAt:row.created_at,product:row.product_name,amount:Number(row.amount),total:Number(row.amount),method:"QRIS",status:row.status,reference:null,fulfillment:{status:row.status,mode:"manual",note:row.status==="delivered"?"Data aplikasi telah dikirim ke email.":null},ownership:identity.userId?"account":"guest"}));
+      payments.push(...mapped as typeof payments);
+      payments.sort((a:any,b:any)=>Date.parse(b.createdAt)-Date.parse(a.createdAt));
+    }
+    return { payments: payments.slice(0,50), hasMore: rows.length>50||payments.length>50, userId: identity.userId, attachedCount };
   }
   @Post("guest/attach") @HttpCode(200)
   async attachGuest(@Req() req:Request,@Res({passthrough:true}) res:Response) {

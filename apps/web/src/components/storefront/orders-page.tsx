@@ -1,5 +1,5 @@
 "use client";
-import { useRef, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowRight, ReceiptText, Search, ShieldCheck } from "lucide-react";
 import { Button } from "@anres/ui";
@@ -8,19 +8,25 @@ import { InvoiceRecovery } from "./invoice-recovery";
 import { PaymentHistory } from "./payment-history";
 import { invoicePath } from "@/lib/payment-navigation";
 import { PaymentInvoicePage } from "./payment-checkout";
+import { apiUrl } from "@/lib/auth-api";
 import "./orders.css";
 import "./invoice-index.css";
+
+function PremiumInvoice({id}:{id:string}){const [order,setOrder]=useState<any>(null),[error,setError]=useState("");useEffect(()=>{void fetch(`${apiUrl}/premium-orders/${id}`,{credentials:"include",cache:"no-store"}).then(async r=>{const d=await r.json();if(!r.ok)throw new Error(d.message||"Invoice tidak ditemukan.");setOrder(d.order)}).catch(e=>setError(e.message))},[id]);return <main className="container invoice-index-page"><header className="invoice-index-heading"><h1>Invoice aplikasi premium</h1><p>Ikuti pembayaran dan pengiriman pesananmu.</p></header>{error&&<p role="alert">{error}</p>}{!order?<p role="status">Memuat invoice…</p>:<section className="invoice-lookup"><h2>{order.product_name}</h2><p>Rp{Number(order.amount).toLocaleString("id-ID")}</p><strong>{order.status}</strong><p>Data akses dikirim setelah pembayaran diverifikasi. Untuk pesanan lengkap, buka <a href={`/premium-order/${id}`}>detail pesanan</a>.</p></section>}</main>;}
 
 export function OrdersPage({ orderId }: { orderId?: string }) {
  const router = useRouter();
  const [query, setQuery] = useState("");
  const [error, setError] = useState("");
  const input = useRef<HTMLInputElement>(null);
+ const [premium,setPremium]=useState<{id:string;invoice_number:string;product_name:string;amount:number;status:string}|null>(null);
+ const [premiumError,setPremiumError]=useState("");
  function search(event: FormEvent<HTMLFormElement>) {
   event.preventDefault();
   const code = query.trim().toUpperCase();
   try {
-   const href = invoicePath(code.startsWith("ARNS-") ? code : code.toLowerCase());
+   if(/^[a-f0-9-]{36}$/i.test(code)){void fetch(`${apiUrl}/premium-orders/${encodeURIComponent(code)}`,{credentials:"include",cache:"no-store"}).then(async r=>{const d=await r.json();if(r.ok){setPremium(d.order);setPremiumError("")}else{setPremium(null);setPremiumError(d.message||"Invoice tidak ditemukan.")}});return;}
+   const href = invoicePath(code.toLowerCase());
    setError("");
    router.push(href);
   } catch {
@@ -41,6 +47,6 @@ export function OrdersPage({ orderId }: { orderId?: string }) {
    </form>
    <div className="invoice-lookup-recovery"><span>Invoice tidak muncul di perangkat ini?</span><InvoiceRecovery/></div></div>
   </section>
-  <PaymentHistory/>
+  {premium&&<section className="invoice-lookup"><h2>{premium.product_name}</h2><p>{premium.invoice_number} · Rp{Number(premium.amount).toLocaleString("id-ID")}</p><strong>{premium.status}</strong><p>Pesanan premium dipantau di halaman invoice ini; data akses dikirim setelah pembayaran diterima.</p></section>}{premiumError&&<p role="status">{premiumError}</p>}<PaymentHistory/>
  </main>;
 }

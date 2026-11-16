@@ -13,7 +13,7 @@ async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule, { rawBody: true });
   app.disable("x-powered-by");
   app.set("trust proxy", trustedProxies.length ? trustedProxies : false);
-  app.useBodyParser("json", { limit: "192kb", strict: true });
+  app.useBodyParser("json", { limit: "15mb", strict: true });
   app.useBodyParser("urlencoded", { limit: "16kb", extended: false });
   app.use((_req: import("express").Request, res: import("express").Response, next: import("express").NextFunction) => {
     res.setHeader("X-Content-Type-Options", "nosniff");

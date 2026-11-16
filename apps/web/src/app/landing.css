@@ -148,3 +148,9 @@
 .landing-page .landing-hero-actions { pointer-events: none; }
 .landing-hero-actions > * { pointer-events: auto; }
 @media(max-width:380px) { .landing-page .landing-task h2 { font-size: 21px; } }
+
+/* Shared category grid keeps the desktop feature pair and compact cards. */
+.service-categories { grid-template-columns: repeat(12, minmax(0, 1fr)); align-items: stretch; }
+.service-categories .service-category, .service-categories .service-category-1, .service-categories .service-category-2 { grid-column: span 4; min-width: 0; }
+.service-categories .service-category-1, .service-categories .service-category-2 { grid-column: span 6; }
+@media (max-width: 800px) { .service-categories { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; } .service-categories .service-category, .service-categories .service-category-1, .service-categories .service-category-2 { grid-column: auto; min-height: 216px; padding: 16px 14px; } .service-categories .service-category-3 { grid-column: 1 / -1; min-height: 190px; } }

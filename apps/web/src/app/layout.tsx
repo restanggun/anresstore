@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import "./landing.css";
 import "./page-design.css";
 import "./account.css";
 import { Providers } from "./providers";

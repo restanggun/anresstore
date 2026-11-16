@@ -11,6 +11,7 @@ import { qrisForAmount } from "../payments/qris-payload";
 import { randomUUID } from "node:crypto";
 import { TripayClient } from "../payments/tripay-client";
 import { VipaymentClient } from "../payments/vipayment-client";
+import nodemailer from "nodemailer";
 
 @Controller("admin")
 export class AdminController {
@@ -306,6 +307,16 @@ export class AdminController {
       ? mode && mode !== "all" ? `&payment_mode=eq.${mode}` : "&payment_mode=in.(live,sandbox)"
       : "";
     const rows = await adminDb(table[0], `?select=${table[1]}${scope}${paymentScope}${category ? `&category=eq.${category}` : ""}&order=${kind === "historical" ? "sale_date" : "created_at"}.desc&limit=51&offset=${index * 50}`);
+    if(kind==="fulfillment"&&!category){
+      const [premium,tasks]=await Promise.all([
+        access.categories.includes("apps")?adminDb<any>("premium_orders","?payment_mode=eq.live&select=id,created_at,updated_at,product_id,product_name,amount,status,customer_email,customer_phone&order=created_at.desc&limit=100"):Promise.resolve([]),
+        access.categories.includes("tasks")?adminDb<any>("task_order_specs","?select=payment_id,created_at,product_id,workflow_status,payment:payments(id,invoice_number,created_at,product_name,provider_code,target,amount,status,owner_user_id)&order=created_at.desc&limit=100"):Promise.resolve([])
+      ]);
+      const mappedPremium=premium.map((o:any)=>({id:o.id,invoice_number:o.id,created_at:o.created_at,updated_at:o.updated_at||o.created_at,category:"apps",product_name:o.product_name,provider_code:"premium",target:"Aplikasi premium",target_zone:null,amount:o.amount,payment_method:"QRIS",payment_reference:null,payment_status:o.status==="paid"||o.status==="delivered"?"paid":o.status==="proof_submitted"?"pending":"pending",fulfillment_status:o.status==="delivered"?"completed":"processing",provider_reference:null,provider_note:null,payment_mode:"live",review_required:o.status==="proof_submitted",fulfillment_mode:"manual",service_quantity:1,customer_email:o.customer_email,customer_phone:o.customer_phone,manual_kind:"premium",manual_status:o.status}));
+      const mappedTasks=tasks.filter((t:any)=>t.payment).map((t:any)=>({id:t.payment_id,invoice_number:t.payment.invoice_number,created_at:t.created_at,updated_at:t.created_at,category:"tasks",product_name:t.payment.product_name,provider_code:"task",target:"Joki tugas",target_zone:null,amount:t.payment.amount,payment_method:"QRIS",payment_reference:null,payment_status:t.payment.status,fulfillment_status:t.workflow_status,provider_reference:null,provider_note:null,payment_mode:"live",review_required:false,fulfillment_mode:"manual",service_quantity:1,customer_email:null,customer_phone:null,manual_kind:"task",manual_status:t.workflow_status}));
+      const combined=[...rows,...mappedPremium,...mappedTasks].sort((a:any,b:any)=>Date.parse(b.created_at)-Date.parse(a.created_at));
+      return {rows:combined.slice(0,50),hasMore:rows.length>50||combined.length>50,page:index};
+    }
     return { rows: rows.slice(0, 50), hasMore: rows.length > 50, page: index };
   }
 
@@ -503,7 +514,7 @@ export class AdminController {
 
   private async premiumOrderAccess(access:{categories:string[];productSlugs:string[]},id:string){
     this.category(access,"apps");if(!uuid(id))throw new HttpException("Pesanan tidak valid.",400);
-    const [order]=await adminDb<{id:string;product_id:string;user_id:string;status:string;conversation_id:string|null}>("premium_orders",`?id=eq.${id}&payment_mode=eq.live&select=id,product_id,user_id,status,conversation_id`);
+    const [order]=await adminDb<{id:string;product_id:string;user_id:string|null;status:string;conversation_id:string|null}>("premium_orders",`?id=eq.${id}&payment_mode=eq.live&select=id,product_id,user_id,status,conversation_id`);
     if(!order)throw new HttpException("Pesanan aplikasi tidak ditemukan.",404);
     const [product]=await adminDb<{product_slug:string}>("managed_products",`?id=eq.${order.product_id}&select=product_slug`);
     if(!product)throw new HttpException("Produk tidak ditemukan.",404);
@@ -544,9 +555,34 @@ export class AdminController {
     if(!order)throw new HttpException("Bukti belum dikirim atau status berubah.",409);return {order};
   }
 
+  @Post("premium-orders/:id/reject-payment")
+  async premiumRejectPayment(@Param("id") id:string,@Body() body:{note?:unknown},@Req() req:Request,@Res({passthrough:true}) res:Response){
+    const access=await this.authorize(req,res,true);this.permit(access,"payments.read");this.permit(access,"orders.write");await this.premiumOrderAccess(access,id);
+    if(typeof body?.note!=="string"||body.note.trim().length<5||body.note.length>500)throw new HttpException("Alasan penolakan harus 5–500 karakter.",400);
+    await this.audit(access.id,"premium.payment_rejected",id);
+    const [order]=await adminDb("premium_orders",`?id=eq.${id}&payment_mode=eq.live&status=eq.proof_submitted`,"PATCH",{status:"awaiting_payment",proof_image:null,proof_note:body.note.trim(),updated_at:new Date().toISOString()});
+    if(!order)throw new HttpException("Bukti sudah diproses atau status berubah.",409);return {order};
+  }
+
+  @Post("premium-orders/:id/send")
+  async premiumSend(@Param("id") id:string,@Body() body:{kind?:unknown;data?:unknown},@Req() req:Request,@Res({passthrough:true}) res:Response){
+    const access=await this.authorize(req,res,true);this.permit(access,"orders.write");const order=await this.premiumOrderAccess(access,id);
+    if(!["credentials","code"].includes(String(body?.kind))||typeof body?.data!=="string"||body.data.trim().length<1||body.data.length>10000)throw new HttpException("Data pengiriman tidak valid.",400);
+    if(!["paid","delivered"].includes(order.status))throw new HttpException("Pembayaran belum diverifikasi.",409);
+    const [full]=await adminDb<{customer_email:string|null;conversation_id:string|null}>("premium_orders",`?id=eq.${id}&select=customer_email,conversation_id`);
+    const host=process.env.SMTP_HOST,port=Number(process.env.SMTP_PORT||587),user=process.env.SMTP_USER,password=process.env.SMTP_PASSWORD,from=process.env.SMTP_FROM;
+    if(!host||!user||!password||!from||!full?.customer_email)throw new HttpException("Email pelanggan atau SMTP belum tersedia.",503);
+    await this.audit(access.id,`premium.email.${body.kind}`,id);
+    const transport=nodemailer.createTransport({host,port,secure:process.env.SMTP_SECURE==="true"||port===465,auth:{user,pass:password},requireTLS:port!==465&&process.env.SMTP_SECURE!=="true",tls:{rejectUnauthorized:true}});
+    try{await transport.sendMail({from,to:full.customer_email,subject:body.kind==="code"?`Kode aplikasi premium · ${id.slice(0,8)}`:`Data aplikasi premium · ${id.slice(0,8)}`,text:`${body.kind==="code"?"Kode verifikasi":"Data akses aplikasi"}\n\n${body.data.trim()}\n\nInvoice: ${id}\nAnres Store`})}catch{throw new HttpException("Email belum dapat dikirim.",502)}finally{transport.close()}
+    if(full.conversation_id){const bodyText=`${body.kind==="code"?"Kode verifikasi":"Data akses aplikasi"}:\n${body.data.trim()}`;await adminDb("rpc/append_support_message","","POST",{p_id:randomUUID(),p_room:full.conversation_id,p_actor:access.id,p_role:"staff",p_body:bodyText})}
+    return {sent:true,chat:!!full.conversation_id};
+  }
+
   @Post("premium-orders/:id/chat")
   async premiumChat(@Param("id") id:string,@Req() req:Request,@Res({passthrough:true}) res:Response){
     const access=await this.authorize(req,res,true);this.permit(access,"support.write");const order=await this.premiumOrderAccess(access,id);
+    if(!order.user_id)throw new HttpException("Pesanan guest belum terhubung ke akun chat. Hubungi pelanggan melalui email atau WhatsApp yang tercatat di pesanan.",409);
     if(!["paid","delivered"].includes(order.status))throw new HttpException("Pembayaran belum diverifikasi.",409);
     if(order.conversation_id)return {conversationId:order.conversation_id};
     const roomId=randomUUID();await this.audit(access.id,"premium.chat_open",id);
@@ -558,9 +594,8 @@ export class AdminController {
   @Post("premium-orders/:id/deliver")
   async premiumDeliver(@Param("id") id:string,@Req() req:Request,@Res({passthrough:true}) res:Response){
     const access=await this.authorize(req,res,true);this.permit(access,"orders.write");const order=await this.premiumOrderAccess(access,id);
-    if(order.status!=="paid"||!order.conversation_id)throw new HttpException("Buka chat privat dan kirim akun sebelum menandai selesai.",409);
-    const messages=await adminDb("support_messages",`?conversation_id=eq.${order.conversation_id}&author_role=eq.staff&select=id&limit=1`);
-    if(!messages.length)throw new HttpException("Kirim data akun melalui chat privat dahulu.",409);
+    if(order.status!=="paid"||(!order.conversation_id&&order.user_id))throw new HttpException("Buka chat privat dan kirim akun sebelum menandai selesai.",409);
+    if(order.conversation_id){const messages=await adminDb("support_messages",`?conversation_id=eq.${order.conversation_id}&author_role=eq.staff&select=id&limit=1`);if(!messages.length)throw new HttpException("Kirim data akun melalui chat privat dahulu.",409);}
     await this.audit(access.id,"premium.deliver",id);
     const [saved]=await adminDb("premium_orders",`?id=eq.${id}&payment_mode=eq.live&status=eq.paid`,"PATCH",{status:"delivered",delivered_at:new Date().toISOString(),updated_at:new Date().toISOString()});
     if(!saved)throw new HttpException("Status pesanan berubah.",409);return {order:saved};

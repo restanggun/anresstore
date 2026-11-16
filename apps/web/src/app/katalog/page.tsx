@@ -1,4 +1,4 @@
-import "../landing.css";
+
 import { redirect } from "next/navigation";
 import type { Metadata } from "next";
 import { Catalog } from "@/components/storefront/catalog";
@@ -13,3 +13,4 @@ export default async function CatalogPage({searchParams}: {searchParams:Promise<
   return <main id="main" className="container catalog-page"><Catalog key={`${category}:${initialQuery}`} initialCategory={category} initialQuery={initialQuery} /></main>;
 }
  
+

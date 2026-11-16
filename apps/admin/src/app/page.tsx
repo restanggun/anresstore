@@ -40,6 +40,7 @@ const sections:Section[]=[
 export default function AdminHome(){ return <AdminGate><AdminDashboard /></AdminGate>; }
 function AdminDashboard(){
  const [active,setActive]=useState("overview"),[menuOpen,setMenuOpen]=useState(false);
+ useEffect(()=>{const handler=(event:Event)=>{const section=(event as CustomEvent<{section?:string}>).detail?.section;if(section==="apps"||section==="tasks")setActive(section)};window.addEventListener("anres-open-manual-order",handler);return()=>window.removeEventListener("anres-open-manual-order",handler)},[]);
  const {health,samples,refresh,fetching}=useApiHealth(); const reducedMotion=useReducedMotion();
  const select=(id:string)=>{setActive(id);setMenuOpen(false)}; const current=sections.find(x=>x.id===active)!;
  useEffect(()=>{if(!menuOpen)return;const close=(event:KeyboardEvent)=>{if(event.key==="Escape")setMenuOpen(false)};window.addEventListener("keydown",close);return()=>window.removeEventListener("keydown",close)},[menuOpen]);
