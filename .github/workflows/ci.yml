@@ -4,6 +4,9 @@ on:
   pull_request:
 permissions:
   contents: read
+concurrency:
+  group: anres-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 jobs:
   validate:
     runs-on: ubuntu-latest
@@ -25,3 +28,29 @@ jobs:
       - run: npm run test:web
       - run: npm run test:db
       - run: npm run build
+
+  deploy:
+    name: Deploy production VPS
+    needs: validate
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && vars.VPS_DEPLOY_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    concurrency:
+      group: anres-production-deploy
+      cancel-in-progress: false
+    steps:
+      - name: Load VPS SSH key
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.VPS_SSH_KEY }}
+      - name: Trust VPS host key
+        run: |
+          install -m 700 -d ~/.ssh
+          printf '%s\n' '[202.155.143.177]:32127 ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIGsDdKagNjzm8YzcqMewoBKcS+1tvNBMKvQNIvZnYVJd' > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/known_hosts
+      - name: Deploy through restricted VPS key
+        run: ssh -p 32127 -o BatchMode=yes root@202.155.143.177 deploy
+      - name: Check production routes
+        run: |
+          for url in https://anresstore.site/ https://app.anresstore.site/katalog https://admin.anresstore.site/ https://api.anresstore.site/v1/health; do
+            curl --fail --silent --show-error --retry 8 --retry-delay 5 --retry-all-errors "$url" --output /dev/null
+          done
