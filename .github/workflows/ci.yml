@@ -24,7 +24,10 @@ jobs:
       - name: Install dependencies
         run: npm ci
       - run: npm run typecheck
-      - run: npm test
+      - name: Build API for tests
+        run: npm run build --workspace=@anres/api
+      - name: Run API tests with diagnostic output
+        run: node --test --test-reporter=spec apps/api/test/*.test.mjs
       - run: npm run test:web
       - run: npm run test:db
       - run: npm run build
