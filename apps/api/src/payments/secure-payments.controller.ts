@@ -23,10 +23,18 @@ export class PaymentsController implements OnModuleInit, OnModuleDestroy {
   private attempts = new Map<string, { count: number; until: number }>();
   private timer?: ReturnType<typeof setInterval>;
   private reconciling = false;
+  private reconciliationWarningAt = 0;
 
   onModuleInit() {
     if (process.env.PAYMENT_RECONCILIATION_ENABLED === "false") return;
-    this.timer = setInterval(() => { void this.reconcile().catch(() => console.warn("payment.reconciliation_unavailable")); }, 60000);
+    this.timer = setInterval(() => {
+      void this.reconcile().catch(() => {
+        const now = Date.now();
+        if (now - this.reconciliationWarningAt < 10 * 60_000) return;
+        this.reconciliationWarningAt = now;
+        console.warn("payment.reconciliation_unavailable");
+      });
+    }, 60000);
     this.timer.unref();
   }
   onModuleDestroy() { if (this.timer) clearInterval(this.timer); }

@@ -13,7 +13,7 @@ Target saat ini: satu VPS Linux, Docker Engine + Compose v2, Caddy, tiga aplikas
 
 ## Migrasi database
 
-Hentikan API dan worker versi lama. Setelah backup, audit history hosted dan schema aktual, lalu terapkan migrasi yang belum terpasang dalam urutan timestamp sampai `20261119030000_premium_manual_qris.sql`. Ini mencakup alur katalog, joki tugas, dan QRIS manual aplikasi premium. Pastikan setiap migrasi berstatus sukses sebelum menjalankan API yang menggunakannya. Rangkaian migrasi merekonsiliasi tabel fondasi, mengganti tabel pembayaran menjadi `payments`, menghapus record nonproduksi berdasarkan `payment_mode`, memvalidasi batasan produksi, dan menyelaraskan izin profil. Jangan menjalankan versi API lama pada schema baru.
+Hentikan API dan worker versi lama. Setelah backup, audit history hosted dan schema aktual, lalu terapkan migrasi yang belum terpasang dalam urutan timestamp sampai `20261119040000_premium_global_qris.sql`. Ini mencakup katalog, joki tugas, serta aturan QRIS manual dan global untuk aplikasi premium. Pastikan setiap migrasi berstatus sukses sebelum menjalankan API yang menggunakannya. Rangkaian migrasi merekonsiliasi tabel fondasi, mengganti tabel pembayaran menjadi `payments`, menghapus record nonproduksi berdasarkan `payment_mode`, memvalidasi batasan produksi, dan menyelaraskan izin profil. Jangan menjalankan versi API lama pada schema baru.
 
 ## Konfigurasi dan build
 

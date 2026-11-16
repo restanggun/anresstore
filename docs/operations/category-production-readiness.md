@@ -1,10 +1,10 @@
 # Kesiapan alur produksi per kategori
 
-Status dokumen: implementasi lokal dan gerbang rilis. Perubahan di repository
-belum berarti aplikasi sudah terpasang di VPS. Sesuai arahan pemilik, pengujian
-lanjutan tidak dijalankan dalam sesi penyiapan ini.
+Dokumen ini merangkum perilaku kategori yang harus diverifikasi sebelum layanan
+diaktifkan. Implementasi source dan hasil unit test saja tidak membuktikan bahwa
+provider, database hosted, dan transaksi VPS siap produksi.
 
-Urutan migrasi fitur dalam repo berakhir di `20261119030000_premium_manual_qris.sql`.
+Urutan migrasi fitur dalam repo berakhir di `20261119040000_premium_global_qris.sql`.
 Sebelum deploy, bandingkan seluruh timestamp migrasi dengan history hosted dan
 schema aktual; terapkan hanya migrasi yang belum terpasang setelah backup dan
 uji restore. Runbook deployment menjadi daftar akhir rentang migrasi.

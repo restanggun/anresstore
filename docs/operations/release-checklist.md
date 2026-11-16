@@ -1,6 +1,6 @@
 # Membekukan release
 
-Release adalah commit lengkap dan bersih, bukan salinan workspace yang terus berubah. Cache `.next-*`, output audit/browser dan secret dikecualikan dari file baru oleh `.gitignore`; artefak historis yang sudah tracked tetap dipertahankan agar tidak menghapus bukti lama.
+Release adalah commit lengkap dan bersih, bukan salinan workspace yang terus berubah. Cache, screenshot, catatan browser, arsip lokal, dependency hasil instalasi, dan secret tidak boleh ikut dalam commit atau image produksi. Artefak lama yang diarsipkan di `recycle-bin/` hanya untuk pemulihan workspace dan selalu dikecualikan dari Git serta Docker.
 
 1. Tinjau `git status --short`, `git diff --stat` dan diff source/migrasi. Sertakan aset baru yang dipakai aplikasi. Jangan stage secret, dump pelanggan, cache atau berkas sementara. Perubahan timestamp migrasi harus tetap direkonsiliasi dengan hosted sebelum deploy.
 2. Jalankan `npm run typecheck`, `npm test`, `npm run test:web`, `npm run test:db` dan `node --test scripts/monitor-operations.test.mjs`. Build image Linux dan E2E tetap gerbang terpisah sesuai runbook VPS.

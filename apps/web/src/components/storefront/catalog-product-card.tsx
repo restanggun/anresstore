@@ -2,7 +2,7 @@
 
 import { AppWindow, ArrowUpRight, FileText, Gamepad2, Smartphone, Star, Users, Wallet, Wifi, Zap } from "lucide-react";
 import { motion, useReducedMotion } from "motion/react";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { TextGenerateEffect } from "@/components/ui/text-generate-effect";
 
 export const gameArtwork: Record<string, string> = {
@@ -36,12 +36,28 @@ export const gameDevelopers: Record<string, string> = {
 const icons: Record<string, typeof Gamepad2> = {
   "Top up game": Gamepad2, "Booster media sosial": Users, "Aplikasi premium": AppWindow, "Joki tugas": FileText, PPOB: Smartphone,
 };
-const gamePreviews: Record<string,string> = {
-  "War Robots": "/brand/games/previews/war-robots.webm",
-  "Zenless Zone Zero": "/brand/games/previews/zenless-zone-zero.webm",
-  "Delta Force (Garena)": "/brand/games/previews/delta-force-garena.webm",
-  "Blood Strike": "/brand/games/previews/blood-strike.webm",
-  "Lords Mobile": "/brand/games/previews/lords-mobile.webm",
+export const gamePreviews: Record<string,string> = {
+  "Mobile Legends": "/brand/games/previews/mobile-legends.mp4?v=20261116",
+  "Free Fire": "/brand/games/previews/free-fire.mp4?v=20261116",
+  "PUBG Mobile": "/brand/games/previews/pubg-mobile.mp4?v=20261116",
+  "EA SPORTS FC Mobile": "/brand/games/previews/ea-sports-fc-mobile.mp4?v=20261116",
+  "Magic Chess: Go Go": "/brand/games/previews/magic-chess-go-go.mp4?v=20261116",
+  "Whiteout Survival": "/brand/games/previews/whiteout-survival.mp4?v=20261116",
+  "Honkai Star Rail": "/brand/games/previews/honkai-star-rail.mp4?v=20261116",
+  "Honor of Kings Global": "/brand/games/previews/honor-of-kings-global.mp4?v=20261116",
+  "Delta Force (Garena)": "/brand/games/previews/delta-force-garena.mp4?v=20261116",
+  "Genshin Impact": "/brand/games/previews/genshin-impact.mp4?v=20261116",
+  Valorant: "/brand/games/previews/valorant.mp4?v=20261116",
+  Roblox: "/brand/games/previews/roblox.mp4?v=20261116",
+  "Call of Duty Mobile (Indonesia)": "/brand/games/previews/call-of-duty-mobile-indonesia.mp4?v=20261116",
+  "Arena Breakout": "/brand/games/previews/arena-breakout.mp4?v=20261116",
+  "Blood Strike": "/brand/games/previews/blood-strike.mp4?v=20261116",
+  "Love and Deepspace": "/brand/games/previews/love-and-deepspace.mp4?v=20261116",
+  "Zenless Zone Zero": "/brand/games/previews/zenless-zone-zero.mp4?v=20261116",
+  "Identity V": "/brand/games/previews/identity-v.mp4?v=20261116",
+  "Lords Mobile": "/brand/games/previews/lords-mobile.mp4?v=20261116",
+  "War Robots": "/brand/games/previews/war-robots.mp4?v=20261116",
+  "Age of Empires Mobile": "/brand/games/previews/age-of-empires-mobile.mp4?v=20261116",
 };
 
 export function CatalogProductCard({ name, category, developer, pinned = false, label = "Lihat pilihan", index = 0, onSelect }: {
@@ -50,11 +66,25 @@ export function CatalogProductCard({ name, category, developer, pinned = false, 
   const reduce = useReducedMotion();
   const [preview, setPreview] = useState(false);
   const [videoReady, setVideoReady] = useState(false);
+  const videoRef = useRef<HTMLVideoElement | null>(null);
   const Icon = icons[category] ?? AppWindow;
   const PpobIcon = ({ "Pulsa": Smartphone, "Paket data": Wifi, "Token listrik": Zap, "E-wallet": Wallet } as Record<string, typeof Smartphone>)[name] ?? Smartphone;
   const image = artwork[name];
   const cover = category === "Top up game" ? gameCoverArtwork[name] : undefined;
-  const video = cover && category === "Top up game" ? gamePreviews[name] : undefined;
+  const video = category === "Top up game" ? gamePreviews[name] : undefined;
+  useEffect(() => {
+    const videoNode = videoRef.current;
+    if (!video || !videoNode) return;
+    if (preview) {
+      videoNode.muted = true;
+      videoNode.currentTime = 0;
+      videoNode.play().catch(() => undefined);
+      return;
+    }
+    videoNode.pause();
+    videoNode.currentTime = 0;
+    setVideoReady(false);
+  }, [preview, video]);
   const stopPreview = () => { setPreview(false); setVideoReady(false); };
   return <motion.button type="button" tabIndex={0} className="catalog-product-card" onClick={onSelect}
     onMouseEnter={() => { if (!reduce && video) setPreview(true); }} onMouseLeave={stopPreview}
@@ -62,7 +92,7 @@ export function CatalogProductCard({ name, category, developer, pinned = false, 
     initial={{ opacity: 0, y: 14 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, amount: .12 }}
     transition={{ duration: reduce ? 0 : .35, delay: reduce ? 0 : Math.min(index, 5) * .04 }}
     whileHover={reduce ? undefined : { y: -4 }} whileTap={reduce ? undefined : { scale: .99 }}>
-    <span className={`catalog-product-art${category === "PPOB" ? " catalog-product-art-ppob" : ""}`} aria-hidden="true">{category === "PPOB" ? <span className="ppob-thumbnail"><PpobIcon size={46} strokeWidth={1.5}/></span> : cover ? <img className="catalog-product-cover" src={cover} alt="" loading="lazy"/> : image ? <img src={image} alt="" loading="lazy"/> : <Icon size={38} strokeWidth={1.5} />}{preview && video && <video className={`catalog-product-video${videoReady ? " is-ready" : ""}`} src={video} autoPlay muted loop playsInline preload="metadata" onCanPlay={()=>setVideoReady(true)} onError={stopPreview}/>} {pinned && <span className="catalog-product-pin"><Star size={17} fill="currentColor" strokeWidth={1.8}/></span>}</span>{pinned && <span className="sr-only">Produk pilihan. </span>}
+    <span className={`catalog-product-art${category === "PPOB" ? " catalog-product-art-ppob" : ""}`} aria-hidden="true">{category === "PPOB" ? <span className="ppob-thumbnail"><PpobIcon size={46} strokeWidth={1.5}/></span> : cover ? <img className="catalog-product-cover" src={cover} alt="" loading="lazy"/> : image ? <img src={image} alt="" loading="lazy"/> : <Icon size={38} strokeWidth={1.5} />}{preview && video && <video ref={videoRef} className={`catalog-product-video${videoReady ? " is-ready" : ""}`} src={video} poster={cover} muted loop playsInline preload="metadata" onCanPlay={() => setVideoReady(true)} onLoadedData={() => setVideoReady(true)} onError={stopPreview}/>} {pinned && <span className="catalog-product-pin"><Star size={17} fill="currentColor" strokeWidth={1.8}/></span>}</span>{pinned && <span className="sr-only">Produk pilihan. </span>}
     <span className="catalog-product-content">
       {category === "PPOB" ? <span className="catalog-product-game-heading"><span className="catalog-product-game-icon ppob-heading-icon" aria-hidden="true"><PpobIcon size={22}/></span><span className="catalog-product-game-copy"><TextGenerateEffect as="strong" words={name} className="catalog-product-title" duration={.22} revealOnView/><span className="catalog-product-developer">PPOB</span></span></span> : cover && image ? <span className="catalog-product-game-heading"><span className="catalog-product-game-icon" aria-hidden="true"><img src={image} alt="" loading="lazy"/></span><span className="catalog-product-game-copy"><TextGenerateEffect as="strong" words={name} className="catalog-product-title" duration={.22} revealOnView/>{(developer || gameDevelopers[name]) && <span className="catalog-product-developer">{developer || gameDevelopers[name]}</span>}</span></span> : <TextGenerateEffect as="strong" words={name} className="catalog-product-title" duration={.22} revealOnView/>}
       {!cover && category !== "PPOB" && (category === "Top up game" ? (developer || gameDevelopers[name]) && <span className="catalog-product-developer">{developer || gameDevelopers[name]}</span> : <span className="catalog-product-category">{category}</span>)}
@@ -70,4 +100,3 @@ export function CatalogProductCard({ name, category, developer, pinned = false, 
     </span>
   </motion.button>;
 }
-
