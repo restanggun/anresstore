@@ -76,7 +76,7 @@ export class PremiumOrdersController {
   return {rows};
  }
  @Get("invoice/:invoice") async byInvoice(@Param("invoice") invoice:string,@Req() req:Request,@Res({passthrough:true}) res:Response){
-  const identity=await this.owner(req,res); if(!/^ARNS-[A-Z0-9-]{6,60}$/.test(invoice))throw new HttpException("Invoice tidak ditemukan.",404);
+  const identity=await this.owner(req,res); if(!/^ANRS-[A-Z0-9-]{6,60}$/.test(invoice))throw new HttpException("Invoice tidak ditemukan.",404);
   const ownership=identity.userId?`user_id=eq.${identity.userId}`:`guest_session_hash=eq.${identity.guestHash}`;
   const [order]=await adminDb("premium_orders",`?invoice_number=eq.${encodeURIComponent(invoice)}&${ownership}&payment_mode=eq.live&select=id,invoice_number,product_name,amount,status,created_at,paid_at,delivered_at,customer_email`);
   if(!order)throw new HttpException("Invoice tidak ditemukan.",404); return {order};

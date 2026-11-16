@@ -76,7 +76,7 @@ test('dashboard history requires an account and only returns verified owner invo
 
 test('ARNS number is shared by checkout, return URL, invoice lookup and verified callback',async()=>{
  const {controller,rows}=setup();
- const number='ARNS-SKU-GAME-20261115-0123456789ABCDEF';
+ const number='ANRS-SKU-GAME-20261115-0123456789ABCDEF';
  const rpc=controller.store.rpc;
  controller.store.rpc=async(name,args)=>{
   const result=await rpc(name,args);

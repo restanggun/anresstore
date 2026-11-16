@@ -25,7 +25,7 @@ export function OrdersPage({ orderId }: { orderId?: string }) {
   event.preventDefault();
   const code = query.trim().toUpperCase();
   try {
-   if(code.startsWith("ARNS-")){router.push(`/invoice/${encodeURIComponent(code)}`);return;}
+   if(code.startsWith("ANRS-")){router.push(`/invoice/${encodeURIComponent(code)}`);return;}
    const href = invoicePath(code.toLowerCase());
    setError("");
    router.push(href);
@@ -34,7 +34,7 @@ export function OrdersPage({ orderId }: { orderId?: string }) {
    input.current?.focus();
   }
  }
- if (orderId) return /^[a-f0-9-]{36}$/i.test(orderId)||orderId.startsWith("ARNS-") ? <PremiumInvoice id={orderId}/> : <PaymentInvoicePage id={orderId}/>;
+ if (orderId) return /^[a-f0-9-]{36}$/i.test(orderId)||orderId.startsWith("ANRS-") ? <PremiumInvoice id={orderId}/> : <PaymentInvoicePage id={orderId}/>;
  return <main id="main" className="container invoice-index-page">
   <header className="invoice-index-heading"><h1>Invoice</h1><p>Temukan pesananmu dan ikuti setiap perkembangannya.</p></header>
   <section className="invoice-lookup" aria-labelledby="invoice-lookup-title">

@@ -5,7 +5,7 @@ import {invoiceCsv} from '../dist/payments/invoice-export.js';
 import {ownsPayment} from '../dist/payments/payment-contract.js';
 const user='aaaaaaaa-0000-4000-8000-000000000001';
 const challenge='bbbbbbbb-0000-4000-8000-000000000001';
-const invoice='ARNS-261115-ABCDEF12345678';
+const invoice='ANRS-261115-ABCDEF12345678';
 const identity={userId:user,email:'buyer@example.com',emailVerified:true,guestHash:'a'.repeat(64)};
 test('guest linking requires verified account and original browser identity',async()=>{
  let calls=0;const service=new InvoiceAccountService({request:async()=>{calls++;return 1;}});
