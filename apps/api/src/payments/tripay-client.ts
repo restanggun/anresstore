@@ -81,6 +81,24 @@ export class TripayClient {
     return data.filter(channel => channel.active === true && /^[A-Z0-9_]{1,50}$/.test(channel.code));
   }
 
+  /** Balance for the Tripay PPOB/H2H account used by fulfillment. */
+  async balance(): Promise<number> {
+    const apiKey = process.env.TRIPAY_H2H_API_KEY?.trim();
+    if (!apiKey) throw new HttpException("API key Tripay H2H belum dikonfigurasi.", 503);
+    const mode = process.env.TRIPAY_H2H_MODE?.trim() === "sandbox" ? "sandbox" : "live";
+    const base = mode === "sandbox" ? "https://tripay.id/api-sandbox" : "https://tripay.id/api";
+    try {
+      const response = await this.transport(`${base}/v2/ceksaldo`, {
+        method: "GET", redirect: "error", headers: { Authorization: `Bearer ${apiKey}` }, signal: AbortSignal.timeout(15000),
+      });
+      const result = await response.json() as { success?: unknown; data?: unknown };
+      if (!response.ok || result.success !== true || typeof result.data !== "number" || !Number.isFinite(result.data) || result.data < 0) throw new Error("Invalid balance response");
+      return result.data;
+    } catch {
+      throw new HttpException("Saldo Tripay tidak dapat dimuat. Periksa konfigurasi API H2H.", 502);
+    }
+  }
+
   async create(input: { id: string; method: string; amount: number; name: string; email: string; phone: string; product: string; code: string; callback: string; returnUrl: string }) {
     const { privateKey, merchant } = tripayConfig();
     if (!Number.isSafeInteger(input.amount) || input.amount <= 0) throw new HttpException("Nominal tidak valid.", 400);

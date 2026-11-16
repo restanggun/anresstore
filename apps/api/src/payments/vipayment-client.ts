@@ -20,6 +20,22 @@ export class VipaymentClient {
     } finally { await reader.cancel().catch(() => {}); }
     try { return JSON.parse(Buffer.concat(chunks).toString("utf8")); } catch { throw new Error("VIPayment response invalid"); }
   }
+  async balance(): Promise<number> {
+    const id = process.env.VIPAYMENT_API_ID?.trim(), key = process.env.VIPAYMENT_API_KEY?.trim();
+    if (!id || !key) throw new Error("VIPayment configuration unavailable");
+    const response = await fetch("https://vip-reseller.co.id/api/profile", {
+      method: "POST", redirect: "error", signal: AbortSignal.timeout(15000),
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({ key, sign: createHash("md5").update(id + key).digest("hex") }),
+    });
+    if (!response.ok || !response.body) throw new Error("VIPayment response unavailable");
+    const reader = response.body.getReader(); const chunks: Uint8Array[] = []; let size = 0;
+    try { for (;;) { const { done, value } = await reader.read(); if (done) break; size += value.length; if (size > 65536) throw new Error("VIPayment response too large"); chunks.push(value); } }
+    finally { await reader.cancel().catch(() => {}); }
+    const result = JSON.parse(Buffer.concat(chunks).toString("utf8")) as { result?: unknown; data?: { balance?: unknown } };
+    if (result.result !== true || typeof result.data?.balance !== "number" || !Number.isFinite(result.data.balance) || result.data.balance < 0) throw new Error("VIPayment balance unavailable");
+    return result.data.balance;
+  }
   async order(order: VipOrder): Promise<VipResult> {
     if (process.env.VIPAYMENT_FULFILLMENT_ENABLED !== "true") throw new Error("Live fulfillment disabled");
     this.validate(order);

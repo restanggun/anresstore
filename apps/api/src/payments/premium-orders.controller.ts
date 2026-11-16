@@ -5,6 +5,8 @@ import { CatalogController } from "../catalog/catalog.controller";
 import { adminDb } from "../admin/admin-store";
 import { uuid } from "../help/conversations.controller";
 import { PaymentStore } from "./payment-store";
+import { qrisForAmount } from "./qris-payload";
+import QRCode from "qrcode";
 
 export function premiumImage(value:unknown):string {
  if(typeof value!=="string" || value.length>150000) throw new HttpException("Gambar maksimal 100 KB.",400);
@@ -43,8 +45,8 @@ export class PremiumOrdersController {
   if(!catalog.items.some(item=>item.code===`managed.${id}`&&item.fulfillmentMode==="manual"))throw new HttpException("Paket tidak tersedia.",404);
   const [rule]=await adminDb<{access_type:string;duration_days:number;guarantee_days:number;guarantee_terms:string;updated_at:string}>("premium_product_rules",`?product_id=eq.${id}&select=access_type,duration_days,guarantee_days,guarantee_terms,updated_at`);
   if(!rule)throw new HttpException("Ketentuan paket belum diatur.",503);
-  const [qris]=await adminDb<{image:string}>("premium_qris_settings","?id=eq.1&select=image");
-  if(!qris)throw new HttpException("QRIS dinamis belum diatur admin.",503);
+  const [qris]=await adminDb<{payload:string}>("premium_qris_settings","?id=eq.1&select=payload");
+  if(!qris)throw new HttpException("QRIS statis merchant belum diatur admin.",503);
   return rule;
  }
  @Post() async create(@Body() input:{id?:unknown;code?:unknown;expectedAmount?:unknown;expectedRuleAt?:unknown},@Req() req:Request,@Res({passthrough:true}) res:Response){
@@ -55,9 +57,11 @@ export class PremiumOrdersController {
   const product=catalog.items.find(row=>row.code===input.code);
   if(!product || product.price!==input.expectedAmount || product.fulfillmentMode!=="manual")throw new HttpException("Paket atau harga berubah. Muat ulang katalog.",409);
   const [order]=await adminDb("rpc/reserve_premium_order","","POST",{p_id:input.id,p_user:user,p_product:input.code.slice(8),p_amount:product.price,p_rule_updated_at:input.expectedRuleAt});
-  const [qris]=await adminDb<{image:string}>("premium_qris_settings","?id=eq.1&select=image");
-  if(!qris)throw new HttpException("QRIS dinamis belum diatur admin.",503);
-  const [prepared]=await adminDb("rpc/prepare_premium_order","","POST",{p_order:input.id,p_user:user});
+  const [qris]=await adminDb<{payload:string}>("premium_qris_settings","?id=eq.1&select=payload");
+  if(!qris)throw new HttpException("QRIS statis merchant belum diatur admin.",503);
+  const dynamicPayload=qrisForAmount(qris.payload,product.price);
+  const image=await QRCode.toDataURL(dynamicPayload,{errorCorrectionLevel:"M",margin:2,width:480});
+  const [prepared]=await adminDb("rpc/prepare_premium_order","","POST",{p_order:input.id,p_user:user,p_qr_image:image});
   if(!prepared)throw new HttpException("QRIS pesanan belum dapat disiapkan. Periksa status sebelum mencoba lagi.",503);
   return {order:prepared};
  }

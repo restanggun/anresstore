@@ -7,7 +7,10 @@ import { CatalogController } from "../catalog/catalog.controller";
 import { boundedFetch } from "../common/bounded-fetch";
 import { uuid, pageIndex, messageInput } from "../help/conversations.controller";
 import { premiumImage } from "../payments/premium-orders.controller";
+import { qrisForAmount } from "../payments/qris-payload";
 import { randomUUID } from "node:crypto";
+import { TripayClient } from "../payments/tripay-client";
+import { VipaymentClient } from "../payments/vipayment-client";
 
 @Controller("admin")
 export class AdminController {
@@ -433,6 +436,17 @@ export class AdminController {
     const [result]=await adminDb("rpc/admin_transaction_analytics","","POST",{p_days:period}); return result;
   }
 
+  @Get("provider-balances")
+  async providerBalances(@Req() req:Request,@Res({passthrough:true}) res:Response) {
+    const access=await this.authorize(req,res); this.permit(access,"orders.read"); this.permit(access,"payments.read"); this.allServices(access);
+    const results=await Promise.allSettled([new TripayClient().balance(),new VipaymentClient().balance()]);
+    return {
+      tripay: results[0].status === "fulfilled" ? { balance: results[0].value, available: true } : { balance: null, available: false, message: "Saldo Tripay tidak dapat dimuat." },
+      vipayment: results[1].status === "fulfilled" ? { balance: results[1].value, available: true } : { balance: null, available: false, message: "Saldo VIPayment tidak dapat dimuat." },
+      checkedAt: new Date().toISOString(),
+    };
+  }
+
   @Get("task-pricing/:id")
   async taskPricing(@Param("id") id:string,@Req() req:Request,@Res({passthrough:true}) res:Response) {
     const access=await this.authorize(req,res);this.permit(access,"products.read");this.category(access,"tasks");
@@ -469,15 +483,15 @@ export class AdminController {
   @Get("premium-qris")
   async premiumQris(@Req() req:Request,@Res({passthrough:true}) res:Response){
     const access=await this.authorize(req,res);this.permit(access,"products.read");this.category(access,"apps");
-    const [row]=await adminDb<{id:number;image:string;updated_at:string}>("premium_qris_settings","?id=eq.1&select=id,image,updated_at");
+    const [row]=await adminDb<{id:number;image:string|null;updated_at:string}>("premium_qris_settings","?id=eq.1&select=id,image,updated_at");
     return {qris:row??null};
   }
 
   @Post("premium-qris")
-  async savePremiumQris(@Body() body:{image?:unknown},@Req() req:Request,@Res({passthrough:true}) res:Response){
+  async savePremiumQris(@Body() body:{image?:unknown;payload?:unknown},@Req() req:Request,@Res({passthrough:true}) res:Response){
     const access=await this.authorize(req,res,true);this.permit(access,"products.write");this.category(access,"apps");
-    const image=premiumImage(body?.image);await this.audit(access.id,"premium_qris.save","global");
-    const [qris]=await adminDb("premium_qris_settings","?on_conflict=id","POST",{id:1,image,updated_at:new Date().toISOString()});
+    const image=premiumImage(body?.image);if(typeof body?.payload!=="string")throw new HttpException("QRIS tidak terbaca dari gambar.",400);qrisForAmount(body.payload,1);await this.audit(access.id,"premium_qris.save","global");
+    const [qris]=await adminDb("premium_qris_settings","?on_conflict=id","POST",{id:1,image,payload:body.payload,updated_at:new Date().toISOString()});
     return {qris};
   }
 
@@ -704,6 +718,7 @@ export class AdminController {
       !string(body.provider, 60) || !/^[a-z0-9_-]+$/.test(body.provider) || !string(body.provider_code, 120) || !/^[A-Za-z0-9._-]+$/.test(body.provider_code) ||
       !["game", "prepaid", "apps", "social", "tasks"].includes(body.category) || !string(body.product, 100) || !string(body.name, 200) ||
       !string(body.product_slug, 100) || !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(body.product_slug) ||
+      (body.section !== undefined && body.section !== null && (typeof body.section !== "string" || body.section.length > 100 || /[<>\u0000-\u001f]/.test(body.section))) ||
       !Number.isSafeInteger(body.price) || body.price < 1 || body.price > 100000000 || typeof body.active !== "boolean" ||
       typeof body.description !== "string" || body.description.length > 2000 || /[<>\u0000-\u0008\u000b\u000c\u000e-\u001f]/.test(body.description)) throw new HttpException("Periksa data produk, kode provider, slug, dan harga rupiah.", 400);
     this.category(access, body.category);
@@ -732,7 +747,8 @@ export class AdminController {
       if (!source || (category === "social" && (service_quantity < source.minimum! || service_quantity > source.maximum!))) throw new HttpException("Layanan provider atau jumlah paket tidak tersedia.",400);
     }
     await this.audit(access.id, "product.save", existing?.id ?? id);
-    const [row] = await adminDb("managed_products", "?on_conflict=id", "POST", { id: existing?.id ?? id, provider, provider_code, category, product: product.trim(), product_slug, name: name.trim(), price, cost_price: body.cost_price ?? null, description: description.trim(), active, deleted_at: null, fulfillment_mode, supplier_code, service_quantity, updated_at: new Date().toISOString() });
+    const section = typeof body.section === "string" ? body.section.trim() || null : stored?.section || null;
+    const [row] = await adminDb("managed_products", "?on_conflict=id", "POST", { id: existing?.id ?? id, provider, provider_code, category, product: product.trim(), product_slug, section, name: name.trim(), price, cost_price: body.cost_price ?? null, description: description.trim(), active, deleted_at: null, fulfillment_mode, supplier_code, service_quantity, updated_at: new Date().toISOString() });
     if (!row) throw new HttpException("Varian gagal disimpan.", 503);
     return { product: row, published: process.env.ADMIN_CATALOG_ENABLED === "true" };
   }

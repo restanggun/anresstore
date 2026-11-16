@@ -29,7 +29,7 @@ export async function adminDb<T = Record<string, unknown>>(table: string, query:
 
 export type ManagedProduct = {
   id: string; provider: string; provider_code: string; category: CatalogItem["category"];
-  product: string; product_slug: string; name: string; price: number; cost_price?: number | null; description: string; active: boolean; deleted_at?: string | null; fulfillment_mode?: "manual" | "vipayment"; supplier_code?: string; service_quantity?: number;
+  product: string; product_slug: string; section?: string | null; name: string; price: number; cost_price?: number | null; description: string; active: boolean; deleted_at?: string | null; fulfillment_mode?: "manual" | "vipayment"; supplier_code?: string; service_quantity?: number;
 };
 
 export function mergeProducts(items: CatalogItem[], rows: ManagedProduct[], category: string, sourceItems = items): CatalogItem[] {
@@ -43,9 +43,13 @@ export function mergeProducts(items: CatalogItem[], rows: ManagedProduct[], cate
     if (row.provider === "vipayment" && !original) continue;
     const quantity = row.service_quantity || original?.serviceQuantity || 1;
     if (category === "social" && original && (quantity < original.minimum! || quantity > original.maximum!)) continue;
-    result.set(code, { ...original, code, category: row.category, name: row.name, displayName: row.name, product: row.product,
+    const section = row.section?.trim() || original?.section || (row.category === "tasks" ? "Paket tugas" : row.category === "apps" ? "Pilihan akses" : row.category === "social" ? "Pilihan layanan" : "Paket lainnya");
+    const displayName = row.category === "apps" && row.section && row.name.toLowerCase().startsWith(`${section.toLowerCase()} `)
+      ? row.name.slice(section.length).trim()
+      : row.name;
+    result.set(code, { ...original, code, category: row.category, name: row.name, displayName, product: row.product,
       productSlug: row.product_slug, price: row.price, description: row.description, group: original?.group ?? row.product,
-      type: original?.type ?? row.category, brand: original?.brand ?? row.product, section: original?.section ?? (row.category === "tasks" ? "Paket tugas" : row.category === "apps" ? "Pilihan akses" : row.category === "social" ? "Pilihan layanan" : "Paket lainnya"), fulfillmentMode: ["tasks", "apps"].includes(row.category) || original?.requiresManualReview ? "manual" : row.provider === "vipayment" ? (row.fulfillment_mode || "vipayment") : "manual", providerServiceCode: row.supplier_code || row.provider_code, serviceQuantity: quantity, unitPrice: original?.unitPrice, minimum: original?.minimum, maximum: original?.maximum, providerCost: category === "social" && original?.providerCost ? Math.ceil(original.providerCost * quantity / 1000) : original?.providerCost });
+      type: original?.type ?? row.category, brand: original?.brand ?? row.product, section, fulfillmentMode: ["tasks", "apps"].includes(row.category) || original?.requiresManualReview ? "manual" : row.provider === "vipayment" ? (row.fulfillment_mode || "vipayment") : "manual", providerServiceCode: row.supplier_code || row.provider_code, serviceQuantity: quantity, unitPrice: original?.unitPrice, minimum: original?.minimum, maximum: original?.maximum, providerCost: category === "social" && original?.providerCost ? Math.ceil(original.providerCost * quantity / 1000) : original?.providerCost });
   }
   return [...result.values()].sort((a, b) => a.product.localeCompare(b.product) || a.price - b.price);
 }
