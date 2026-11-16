@@ -1,49 +1,71 @@
 # Anres Store
 
-Anres Store is a digital services storefront built as a TypeScript monorepo. It includes a customer storefront, an operations dashboard, and a server API for catalog, payment, account, and order workflows.
+**Platform storefront layanan digital dengan dashboard operasional dan API transaksi.**
 
-## Product capabilities
+Anres Store adalah proyek full-stack berbasis TypeScript untuk menjelajahi katalog produk digital, mengelola akun dan pesanan, serta menjalankan alur pembayaran dan pemenuhan produk. Arsitektur monorepo ini memisahkan aplikasi pelanggan, panel admin, dan API agar tiap bagian dapat dikembangkan dan dioperasikan dengan tanggung jawab yang jelas.
 
-- Browse game top-ups, prepaid services, social media services, task services, and premium app offers.
-- Keep catalog pricing and order validation on the server.
-- Create payment invoices through Tripay and fulfill supported supplier orders through VIPayment.
-- Manage products, promotions, support, and order operations from a role-protected admin dashboard.
-- Use Supabase Auth and Postgres for customer identity and application data.
+> Status integrasi pembayaran, katalog, dan fulfillment mengikuti konfigurasi provider serta lingkungan yang digunakan. Transaksi produksi memerlukan kredensial dan verifikasi operasional.
 
-Availability, prices, payment channels, and fulfillment rules depend on the configured providers and database state.
+## Fitur utama
 
-## Architecture
+- **Storefront pelanggan** — katalog game, prabayar, layanan digital, dan produk premium; keranjang, akun, pesanan, invoice, serta bantuan.
+- **Dashboard operasional** — pengelolaan katalog, promosi, transaksi, refund, dan dukungan dengan akses admin yang diverifikasi server.
+- **API transaksi** — REST API NestJS untuk validasi katalog dan harga, autentikasi, checkout, pembayaran, pemenuhan pesanan, serta dukungan.
+- **Integrasi provider** — Tripay untuk invoice pembayaran dan VIPayment untuk item serta pemenuhan layanan yang didukung.
+- **Fondasi keamanan** — Supabase Auth dan Postgres, kontrol akses berbasis role, pemeriksaan signature callback, dan penanganan status transaksi.
+- **Panduan operasional** — dokumentasi arsitektur, keamanan, migrasi database, deployment VPS, dan checklist rilis.
+
+## Arsitektur
 
 ```mermaid
 flowchart LR
-  Customer[Customer] --> Web[Storefront · Next.js]
-  Operator[Operator] --> Admin[Admin dashboard · Next.js]
-  Web --> API[REST API · NestJS]
-  Admin --> API
-  API --> DB[Supabase Auth and Postgres]
-  API --> Pay[Tripay]
-  API --> Supply[VIPayment]
-  Edge[Caddy · HTTPS] --> Web
-  Edge --> Admin
-  Edge --> API
+    Customer["Pelanggan"] --> Web["Storefront · Next.js"]
+    Operator["Operator"] --> Admin["Dashboard admin · Next.js"]
+    Web --> API["REST API · NestJS"]
+    Admin --> API
+    API --> Supabase["Supabase Auth + Postgres"]
+    API --> Tripay["Tripay"]
+    API --> VIPayment["VIPayment"]
+    Edge["Caddy · HTTPS"] --> Web
+    Edge --> Admin
+    Edge --> API
 ```
 
-## Repository layout
+API memvalidasi harga dan detail pesanan di sisi server. Status pembayaran, fulfillment, dan refund dikelola terpisah; callback provider diverifikasi sebelum mengubah status transaksi. Nilai mata uang disimpan sebagai bilangan bulat rupiah dan timestamp menggunakan UTC.
 
-| Path | Purpose |
+## Teknologi
+
+| Area | Teknologi |
 | --- | --- |
-| `apps/web` | Customer storefront |
-| `apps/admin` | Operations dashboard |
-| `apps/api` | REST API and provider integrations |
-| `packages` | Shared UI, contracts, configuration, and Supabase clients |
-| `infra` | Docker images, production Compose, and Caddy configuration |
-| `supabase` | Database migrations, templates, and SQL checks |
-| `scripts` | Release, environment, catalog, and database utilities |
-| `docs` | Architecture, security, operations, and deployment guides |
+| Storefront dan admin | Next.js, React, TypeScript |
+| API | NestJS, TypeScript |
+| Data dan autentikasi | Supabase Auth, PostgreSQL |
+| Pembayaran dan fulfillment | Tripay, VIPayment |
+| UI bersama | React, Tailwind CSS, Radix UI |
+| Deployment | Docker Compose, Caddy |
 
-## Local development
+## Struktur repository
 
-Requirements: Node.js `>=22.18`, npm `>=10`.
+| Direktori | Isi |
+| --- | --- |
+| `apps/web` | Storefront dan pengalaman pelanggan |
+| `apps/admin` | Dashboard operasional |
+| `apps/api` | REST API dan integrasi provider |
+| `packages/` | UI, kontrak TypeScript, konfigurasi, dan klien Supabase bersama |
+| `supabase/` | Migrasi skema, template autentikasi, dan pengujian SQL |
+| `infra/` | Dockerfile, Compose, dan konfigurasi Caddy |
+| `scripts/` | Utilitas database, domain lokal, dan rilis |
+| `docs/` | Dokumentasi arsitektur, keamanan, API, dan operasi |
+
+## Menjalankan lokal
+
+### Prasyarat
+
+- Node.js `>=22.18`
+- npm `>=10`
+- Supabase lokal/remote untuk fitur yang menggunakan autentikasi dan database
+
+### Instalasi
 
 ```powershell
 npm ci
@@ -52,28 +74,42 @@ Copy-Item apps/api/.env.example apps/api/.env
 npm run dev
 ```
 
-Configure local Supabase and provider settings in the app environment files as needed. Keep production credentials on the server; never copy them into `NEXT_PUBLIC_*` variables or commit environment files.
+> Atur variabel lingkungan sesuai layanan yang ingin dijalankan. Contoh env hanya untuk konfigurasi lokal; jangan masukkan secret produksi ke repository atau variabel `NEXT_PUBLIC_*`.
 
-The storefront runs on port `3000`, the admin dashboard on `3001`, and the API on `4000`.
+Secara default aplikasi berjalan pada alamat berikut:
 
-## Quality checks
+| Aplikasi | URL lokal |
+| --- | --- |
+| Storefront | `http://localhost:3000` |
+| Dashboard admin | `http://localhost:3001` |
+| API | `http://localhost:4000` |
+
+Jalankan service secara terpisah bila diperlukan dengan `npm run dev:web`, `npm run dev:admin`, atau `npm run dev:api`.
+
+## Perintah proyek
 
 ```sh
-npm run typecheck
-npm test
-npm run test:web
-npm run test:db
-npm run build
+npm run typecheck   # Pemeriksaan tipe seluruh workspace
+npm test            # Pengujian workspace
+npm run test:web    # Pengujian unit utilitas storefront
+npm run test:db     # Pemeriksaan migrasi database
+npm run build       # Build aplikasi dan paket
 ```
 
-Database checks require the Supabase CLI and its local services. CI runs type checks, application tests, database tests, and builds on Node.js 24.
+> Pengujian database memerlukan Supabase CLI dan layanan lokalnya. Skrip lain yang tersedia termasuk `npm run db:start`, `npm run db:reset`, dan `npm run db:test`.
 
-## Production deployment
+## Deployment dan dokumentasi
 
-Production uses Docker Compose and Caddy. Browse the [documentation index](docs/README.md), start with the [VPS deployment runbook](docs/operations/vps-deployment.md), review the [release checklist](docs/operations/release-checklist.md), and consult the [readiness audit](docs/operations/vps-readiness-audit.md). The API environment file is created on the server from `infra/api.env.example`; it is intentionally not included in the repository.
+Konfigurasi produksi menggunakan Docker Compose dan Caddy. Sebelum deployment, siapkan secret di server, domain dan TLS, backup database, konfigurasi provider, serta validasi transaksi end-to-end.
 
-The repository contains deployment configuration, but a production launch still requires environment-specific secrets, verified database migrations, DNS and TLS, backups, provider allowlisting, and end-to-end transaction checks.
+- [Indeks dokumentasi](docs/README.md)
+- [Ikhtisar arsitektur](docs/architecture/overview.md)
+- [Panduan deployment VPS](docs/operations/vps-deployment.md)
+- [Checklist rilis](docs/operations/release-checklist.md)
+- [Catatan keamanan](docs/security/README.md)
+- [Peta endpoint API](docs/api/README.md)
+- [Panduan kontribusi](CONTRIBUTING.md)
 
-## Assets and license
+## Catatan lisensi dan aset
 
-Asset source notes are kept in `apps/web/public/brand/README.md` and `apps/web/public/brand/items/README.md`. Product names and third-party artwork remain the property of their respective owners. This repository does not currently grant an open-source license; obtain permission before reusing its code or assets.
+Repository ini belum menetapkan lisensi open source. Kode dan aset tidak otomatis bebas digunakan ulang. Nama produk dan artwork pihak ketiga tetap menjadi milik pemegang hak masing-masing; lihat catatan aset di `apps/web/public/brand/`.
