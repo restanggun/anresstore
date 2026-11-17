@@ -45,3 +45,4 @@
 .premium-catalog-flow .order-card>dl>div{border:0;padding-block:10px}
 .premium-catalog-flow .premium-checkout-contact{display:flex;flex-direction:column}
 @media(max-width:800px){.premium-catalog-flow .order-layout{grid-template-columns:minmax(0,1fr)}}
+.premium-checkout .premium-checkout-field label{margin:0}.premium-checkout .premium-checkout-field input{margin:0}.premium-checkout .premium-checkout-field .field-note{margin:0;line-height:1.7}.premium-checkout .premium-checkout-field{gap:9px}
