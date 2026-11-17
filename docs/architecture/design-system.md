@@ -82,3 +82,8 @@ Sebelum membuat variasi baru, cari komponen yang sudah ada. Komponen khusus hala
 Halaman utama katalog mempertahankan lima kartu kategori dari landing beserta alur kategori dan produk yang terpisah. Daftar top up berisi 20 game hasil kurasi. Di dalam produk, gunakan tab untuk mata uang, membership, durasi aplikasi, atau operator PPOB. Kartu pilihan hanya menampilkan nama yang mudah dibaca, harga, dan promo; kode serta kelompok teknis penyedia tidak menjadi informasi utama pengguna.
 
 Pilihan aktif menggunakan bidang pink solid `--pink`, teks `--pink-ink`, dan ikon centang. Perpindahan tab memakai Motion dengan indikator bersama; perubahan panel memakai transisi singkat dan gerak tekan memberi respons pada pemilihan. Hormati reduced motion dan navigasi tab dengan keyboard. Promo memakai satu harga dan jadwal dari server untuk section flash sale, kartu biasa, serta SKU di detail produk. Checkout dan invoice menampilkan status pembayaran produksi dari server.
+
+
+## Alur aplikasi premium
+
+`premium-flow.css` menyelaraskan detail paket, checkout, invoice, dan riwayat premium. Formulir mengikuti satu kolom; ketentuan akses, durasi, dan garansi berupa baris ringkas tanpa grid kartu. Ringkasan pembayaran boleh berdampingan pada layar lebar dan ditumpuk pada ponsel. Gunakan bidang solid dari token biru dan pink, radius 14 px untuk kontrol dan 18?26 px untuk panel, serta hindari bayangan dan kartu bertumpuk. Panel penanganan admin memakai prinsip yang sama dalam `commerce-dashboard.css`.
