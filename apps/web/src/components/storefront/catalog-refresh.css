@@ -220,3 +220,6 @@
 .flash-offers-track{gap:0;margin-left:-12px}
 .flash-offer{margin-left:12px;scroll-snap-align:none}
 .flash-offer:hover{transform:none}
+
+/* Keep the full app artwork visible on narrow cards. */
+.catalog-product-card .catalog-product-art-apps { height:auto;aspect-ratio:16 / 9; }

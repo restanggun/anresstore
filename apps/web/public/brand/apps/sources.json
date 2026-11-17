@@ -1,0 +1,82 @@
+[
+  {
+    "name": "Zoom",
+    "slug": "zoom",
+    "publisher": "Zoom Communications, Inc.",
+    "source": "https://apps.apple.com/id/app/zoom-workplace/id546505307?uo=4",
+    "iconUrl": "https://is1-ssl.mzstatic.com/image/thumb/Purple221/v4/fc/d0/96/fcd09664-56c3-f856-4311-da9dcbae1fd2/AppIcon-0-0-1x_U007epad-0-1-0-0-85-220.png/512x512bb.jpg",
+    "coverUrl": "https://is1-ssl.mzstatic.com/image/thumb/PurpleSource221/v4/7d/52/3a/7d523af2-2aa8-a0df-3baf-6ade83cb3993/01_ai__U005ben_U005d_ipad13.jpg/1200x1200bb.jpg"
+  },
+  {
+    "name": "Claude AI",
+    "slug": "claude-ai",
+    "publisher": "Anthropic PBC",
+    "source": "https://apps.apple.com/id/app/claude-by-anthropic/id6473753684?uo=4",
+    "iconUrl": "https://is1-ssl.mzstatic.com/image/thumb/Purple221/v4/f7/78/19/f778197d-06fe-8143-0e86-49a1dccec2b4/AppIcon-0-0-1x_U007epad-0-1-85-220.png/512x512bb.jpg",
+    "coverUrl": "https://is1-ssl.mzstatic.com/image/thumb/PurpleSource211/v4/06/b5/dc/06b5dcdd-1b62-8109-bfb0-5fb5b09874bc/UK.png/1200x1200bb.jpg"
+  },
+  {
+    "name": "iQIYI",
+    "slug": "iqiyi",
+    "publisher": "IQIYI INTERNATIONAL SINGAPORE PTE. LTD.",
+    "source": "https://apps.apple.com/id/app/iqiyi-dramas-anime-shows/id1461999674?uo=4",
+    "iconUrl": "https://is1-ssl.mzstatic.com/image/thumb/Purple221/v4/ab/65/62/ab656281-15e8-b149-9390-92807ecca132/AppIcon-0-0-1x_U007emarketing-0-8-0-85-220.png/512x512bb.jpg",
+    "coverUrl": "https://is1-ssl.mzstatic.com/image/thumb/PurpleSource221/v4/a7/85/ac/a785ace2-c805-2a21-1634-3553c268199e/ipad_U9996_U9875.jpg/1200x1200bb.jpg"
+  },
+  {
+    "name": "PicsArt",
+    "slug": "picsart",
+    "publisher": "PicsArt, Inc.",
+    "source": "https://apps.apple.com/id/app/picsart-ai-photo-editor-video/id587366035?uo=4",
+    "iconUrl": "https://is1-ssl.mzstatic.com/image/thumb/Purple221/v4/f0/db/3a/f0db3a20-31cd-d25a-c76a-a6e86b1d269c/AppIcon-0-0-1x_U007emarketing-0-8-0-sRGB-85-220.png/512x512bb.jpg",
+    "coverUrl": "https://is1-ssl.mzstatic.com/image/thumb/PurpleSource221/v4/0d/7d/2e/0d7d2e8a-daed-d9b1-8e5f-c19fd51e02cb/072cbf42-fad7-40f4-b11e-015732e61666_1._Multiple_Use_Cases___iPhone_12.9_.png/1200x1200bb.png"
+  },
+  {
+    "name": "Vidio",
+    "slug": "vidio",
+    "publisher": "PT Kreatif Media Karya",
+    "source": "https://apps.apple.com/id/app/vidio-sports-movies-series/id1048858798?uo=4",
+    "iconUrl": "https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/e9/1f/7d/e91f7d02-c8af-3ab0-6500-018c469c647b/AppIcon-0-0-1x_U007epad-0-1-0-85-220.png/512x512bb.jpg",
+    "coverUrl": "https://is1-ssl.mzstatic.com/image/thumb/PurpleSource221/v4/e3/8c/52/e38c5241-6102-c580-cc22-6e6f6b2b6352/iPad_-_01._ENG_SPORTS.jpg/1200x1200bb.jpg"
+  },
+  {
+    "name": "Canva",
+    "slug": "canva",
+    "publisher": "Canva",
+    "source": "https://apps.apple.com/id/app/canva-ai-video-photo-editor/id897446215?uo=4",
+    "iconUrl": "https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/52/fb/83/52fb83b6-516d-8dc1-049a-1279a6e344c9/AppIcon-0-0-1x_U007epad-0-11-0-85-220.png/512x512bb.jpg",
+    "coverUrl": "https://is1-ssl.mzstatic.com/image/thumb/PurpleSource211/v4/57/f4/c9/57f4c9cd-4972-ae48-b362-8428fb5a34fe/0.png/1200x1200bb.jpg"
+  },
+  {
+    "name": "CapCut",
+    "slug": "capcut",
+    "publisher": "Bytedance Pte. Ltd",
+    "source": "https://apps.apple.com/id/app/capcut-photo-video-editor/id1500855883?uo=4",
+    "iconUrl": "https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/ef/eb/ab/efebab85-a422-d5da-1fab-23de4f2845ea/AppIcon-0-0-1x_U007emarketing-0-8-0-85-220.png/512x512bb.jpg",
+    "coverUrl": "https://is1-ssl.mzstatic.com/image/thumb/Purple221/v4/5f/1d/6e/5f1d6eff-7d77-f16e-1015-214dae5767e7/8e75a2dd-7d2e-437a-af9a-74450119792e_img12_92_0_en-US.jpg/1200x1200bb.jpg"
+  },
+  {
+    "name": "ChatGPT",
+    "slug": "chatgpt",
+    "publisher": "OpenAI OpCo, LLC",
+    "source": "https://apps.apple.com/id/app/chatgpt/id6448311069?uo=4",
+    "iconUrl": "https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/fb/80/03/fb80039a-f8c2-f1ca-4fbd-7f9d77909b03/AppIcon-0-0-1x_U007epad-0-0-0-1-0-85-220.png/512x512bb.jpg",
+    "coverUrl": "https://is1-ssl.mzstatic.com/image/thumb/PurpleSource211/v4/dd/43/c8/dd43c882-9d5d-3094-0689-d022dc9254fe/1_iPad.jpg/1200x1200bb.jpg"
+  },
+  {
+    "name": "Alight Motion",
+    "slug": "alight-motion",
+    "publisher": "BENDING SPOONS OPERATIONS SPA",
+    "source": "https://apps.apple.com/id/app/alight-motion/id1459833443?uo=4",
+    "iconUrl": "https://is1-ssl.mzstatic.com/image/thumb/Purple221/v4/c3/af/3d/c3af3d92-58d5-e2b4-cf32-9c1dfe2101e7/AppIcon-0-0-1x_U007emarketing-0-5-0-0-0-0-85-220.png/512x512bb.jpg",
+    "coverUrl": "https://is1-ssl.mzstatic.com/image/thumb/PurpleSource126/v4/81/be/c0/81bec0b2-1a9c-60b2-d712-dab4ff994660/fd6a828e-3d9e-4a98-a877-3654bca7a823_iPad_12.9_2_screenshot01.png/1200x1200bb.png"
+  },
+  {
+    "name": "Loklok",
+    "slug": "loklok",
+    "publisher": "Loklok",
+    "source": "https://loklok.com/",
+    "iconUrl": "https://loklok.com/assets/ios-app-icon-CZiJvfpm.png",
+    "coverUrl": "https://loklok.com/assets/home_sec2_1-CSJDjEWA.png"
+  }
+]

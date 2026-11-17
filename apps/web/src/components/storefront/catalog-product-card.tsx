@@ -19,10 +19,22 @@ export const gameCoverArtwork: Record<string, string> = {
   Valorant: "/brand/games/covers/valorant.jpg",
   ...Object.fromEntries(Object.entries({"EA SPORTS FC Mobile":"ea-sports-fc-mobile", "Magic Chess: Go Go":"magic-chess-go-go", "Whiteout Survival":"whiteout-survival", "Honkai Star Rail":"honkai-star-rail", "Honor of Kings Global":"honor-of-kings-global", "Delta Force (Garena)":"delta-force-garena", "Call of Duty Mobile (Indonesia)":"call-of-duty-mobile-indonesia", "Arena Breakout":"arena-breakout", "Blood Strike":"blood-strike", "Love and Deepspace":"love-and-deepspace", "Zenless Zone Zero":"zenless-zone-zero", "Identity V":"identity-v", "Lords Mobile":"lords-mobile", "War Robots":"war-robots.png", "Age of Empires Mobile":"age-of-empires-mobile"}).map(([name,slug]) => [name, `/brand/games/covers/${slug.includes('.') ? slug : `${slug}.jpg`}`])),
 };
+const appSlugs: Record<string, string> = {
+  Zoom: "zoom", Loklok: "loklok", Claude: "claude-ai", "Claude AI": "claude-ai",
+  iQIYI: "iqiyi", PicsArt: "picsart", Vidio: "vidio", Canva: "canva",
+  CapCut: "capcut", ChatGPT: "chatgpt", "Alight Motion": "alight-motion",
+};
+export const appArtwork: Record<string, string> = Object.fromEntries(
+  Object.entries(appSlugs).map(([name, slug]) => [name, `/brand/apps/${slug}-icon.webp`]),
+);
+export const appCoverArtwork: Record<string, string> = Object.fromEntries(
+  Object.entries(appSlugs).map(([name, slug]) => [name, `/brand/apps/${slug}-thumbnail.webp`]),
+);
 export const artwork: Record<string, string> = {
   ...gameArtwork,
+  ...appArtwork,
   Instagram: "/brand/social/instagram.svg", TikTok: "/brand/social/tiktok.svg", YouTube: "/brand/social/youtube.svg", Facebook: "/brand/social/facebook.svg",
-  Claude: "/brand/products/claude.svg", Netflix: "/brand/products/netflix.svg", Spotify: "/brand/products/spotify.svg",
+  Netflix: "/brand/products/netflix.svg", Spotify: "/brand/products/spotify.svg",
 };
 export const gameDevelopers: Record<string, string> = {
   "Mobile Legends": "Moonton",
@@ -70,7 +82,7 @@ export function CatalogProductCard({ name, category, developer, pinned = false, 
   const Icon = icons[category] ?? AppWindow;
   const PpobIcon = ({ "Pulsa": Smartphone, "Paket data": Wifi, "Token listrik": Zap, "E-wallet": Wallet } as Record<string, typeof Smartphone>)[name] ?? Smartphone;
   const image = artwork[name];
-  const cover = category === "Top up game" ? gameCoverArtwork[name] : undefined;
+  const cover = category === "Top up game" ? gameCoverArtwork[name] : category === "Aplikasi premium" ? appCoverArtwork[name] : undefined;
   const video = category === "Top up game" ? gamePreviews[name] : undefined;
   useEffect(() => {
     const videoNode = videoRef.current;
@@ -92,9 +104,9 @@ export function CatalogProductCard({ name, category, developer, pinned = false, 
     initial={{ opacity: 0, y: 14 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, amount: .12 }}
     transition={{ duration: reduce ? 0 : .35, delay: reduce ? 0 : Math.min(index, 5) * .04 }}
     whileHover={reduce ? undefined : { y: -4 }} whileTap={reduce ? undefined : { scale: .99 }}>
-    <span className={`catalog-product-art${category === "PPOB" ? " catalog-product-art-ppob" : ""}`} aria-hidden="true">{category === "PPOB" ? <span className="ppob-thumbnail"><PpobIcon size={46} strokeWidth={1.5}/></span> : cover ? <img className="catalog-product-cover" src={cover} alt="" loading="lazy"/> : image ? <img src={image} alt="" loading="lazy"/> : <Icon size={38} strokeWidth={1.5} />}{preview && video && <video ref={videoRef} className={`catalog-product-video${videoReady ? " is-ready" : ""}`} src={video} poster={cover} muted loop playsInline preload="metadata" onCanPlay={() => setVideoReady(true)} onLoadedData={() => setVideoReady(true)} onError={stopPreview}/>} {pinned && <span className="catalog-product-pin"><Star size={17} fill="currentColor" strokeWidth={1.8}/></span>}</span>{pinned && <span className="sr-only">Produk pilihan. </span>}
+    <span className={`catalog-product-art${category === "PPOB" ? " catalog-product-art-ppob" : category === "Aplikasi premium" ? " catalog-product-art-apps" : ""}`} aria-hidden="true">{category === "PPOB" ? <span className="ppob-thumbnail"><PpobIcon size={46} strokeWidth={1.5}/></span> : cover ? <img className="catalog-product-cover" src={cover} alt="" loading="lazy"/> : image ? <img src={image} alt="" loading="lazy"/> : <Icon size={38} strokeWidth={1.5} />}{preview && video && <video ref={videoRef} className={`catalog-product-video${videoReady ? " is-ready" : ""}`} src={video} poster={cover} muted loop playsInline preload="metadata" onCanPlay={() => setVideoReady(true)} onLoadedData={() => setVideoReady(true)} onError={stopPreview}/>} {pinned && <span className="catalog-product-pin"><Star size={17} fill="currentColor" strokeWidth={1.8}/></span>}</span>{pinned && <span className="sr-only">Produk pilihan. </span>}
     <span className="catalog-product-content">
-      {category === "PPOB" ? <span className="catalog-product-game-heading"><span className="catalog-product-game-icon ppob-heading-icon" aria-hidden="true"><PpobIcon size={22}/></span><span className="catalog-product-game-copy"><TextGenerateEffect as="strong" words={name} className="catalog-product-title" duration={.22} revealOnView/><span className="catalog-product-developer">PPOB</span></span></span> : cover && image ? <span className="catalog-product-game-heading"><span className="catalog-product-game-icon" aria-hidden="true"><img src={image} alt="" loading="lazy"/></span><span className="catalog-product-game-copy"><TextGenerateEffect as="strong" words={name} className="catalog-product-title" duration={.22} revealOnView/>{(developer || gameDevelopers[name]) && <span className="catalog-product-developer">{developer || gameDevelopers[name]}</span>}</span></span> : <TextGenerateEffect as="strong" words={name} className="catalog-product-title" duration={.22} revealOnView/>}
+      {category === "PPOB" ? <span className="catalog-product-game-heading"><span className="catalog-product-game-icon ppob-heading-icon" aria-hidden="true"><PpobIcon size={22}/></span><span className="catalog-product-game-copy"><TextGenerateEffect as="strong" words={name} className="catalog-product-title" duration={.22} revealOnView/><span className="catalog-product-developer">PPOB</span></span></span> : cover && image ? <span className="catalog-product-game-heading"><span className="catalog-product-game-icon" aria-hidden="true"><img src={image} alt="" loading="lazy"/></span><span className="catalog-product-game-copy"><TextGenerateEffect as="strong" words={name} className="catalog-product-title" duration={.22} revealOnView/>{(developer || gameDevelopers[name] || category === "Aplikasi premium") && <span className="catalog-product-developer">{developer || gameDevelopers[name] || "Aplikasi premium"}</span>}</span></span> : <TextGenerateEffect as="strong" words={name} className="catalog-product-title" duration={.22} revealOnView/>}
       {!cover && category !== "PPOB" && (category === "Top up game" ? (developer || gameDevelopers[name]) && <span className="catalog-product-developer">{developer || gameDevelopers[name]}</span> : <span className="catalog-product-category">{category}</span>)}
       <span className="catalog-product-action">{label}<ArrowUpRight size={16}/></span>
     </span>

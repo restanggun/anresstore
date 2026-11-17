@@ -1,4 +1,6 @@
 "use client";
+import { AdminInput } from "./form-controls";
+
 import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { adminRequest } from "./workspace-api";
@@ -19,5 +21,5 @@ export function TaskPricingEditor({productId,basePrice}:{productId:string;basePr
   ["max_revisions","Maksimal revisi",0,20],
  ];
  async function save(event:React.FormEvent){event.preventDefault();setBusy(true);setMessage("");try{await adminRequest(`task-pricing/${productId}`,"POST",draft);setMessage("Tarif joki disimpan. Kutipan baru memakai aturan ini.");await query.refetch();}catch(error){setMessage(error instanceof Error?error.message:"Tarif gagal disimpan.")}finally{setBusy(false)}}
- return <section className="variant-promotion"><h3>Tarif joki tugas</h3><p className="field-note">Harga dasar varian Rp{basePrice.toLocaleString("id-ID")} ditambah halaman, revisi, dan biaya percepatan jika tenggat lebih pendek dari standar.</p>{query.isPending?<p role="status">Memuat tarif...</p>:query.error?<p role="alert">{query.error.message}</p>:<form className="variant-form" onSubmit={event=>void save(event)}><fieldset disabled={busy}>{fields.map(([key,label,min,max])=><label key={key}>{label}<input required type="number" min={min} max={max} step={1} value={draft[key]} onChange={event=>setDraft({...draft,[key]:Number(event.target.value)})}/></label>)}<button className="outline-button" type="submit" disabled={busy}>{busy?"Menyimpan...":"Simpan tarif joki"}</button></fieldset></form>}{message&&<p role="status" className="workspace-feedback">{message}</p>}</section>;
+ return <section className="variant-promotion"><h3>Tarif joki tugas</h3><p className="field-note">Harga dasar varian Rp{basePrice.toLocaleString("id-ID")} ditambah halaman, revisi, dan biaya percepatan jika tenggat lebih pendek dari standar.</p>{query.isPending?<p role="status">Memuat tarif...</p>:query.error?<p role="alert">{query.error.message}</p>:<form className="variant-form" onSubmit={event=>void save(event)}><fieldset disabled={busy}>{fields.map(([key,label,min,max])=><label key={key}>{label}<AdminInput required type="number" min={min} max={max} step={1} value={draft[key]} onChange={event=>setDraft({...draft,[key]:Number(event.target.value)})}/></label>)}<button className="outline-button" type="submit" disabled={busy}>{busy?"Menyimpan...":"Simpan tarif joki"}</button></fieldset></form>}{message&&<p role="status" className="workspace-feedback">{message}</p>}</section>;
 }
