@@ -11,3 +11,5 @@ Workflow `.github/workflows/ci.yml` menjalankan pemeriksaan pada push dan pull r
 Deploy hanya dapat menjalankan `/opt/anresstore/scripts/deploy-production.sh`. Public key host VPS dipatok di workflow agar koneksi SSH memeriksa identitas server.
 
 Workflow membangun dan mengganti container web, admin, dan API, menunggu health check container, lalu memeriksa URL production. Database migrations tidak dijalankan otomatis.
+
+Setelah mengaktifkan `VPS_DEPLOY_ENABLED`, push commit baru ke `main` untuk memulai workflow; mengubah repository variable sendiri tidak memicu run.
