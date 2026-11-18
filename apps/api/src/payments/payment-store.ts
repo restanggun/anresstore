@@ -21,7 +21,16 @@ export class PaymentStore {
     }
   }
 
-  rpc<T>(name: "consume_payment_rate" | "reserve_payment" | "reserve_task_payment" | "quote_task_order" | "claim_payment_check", body: unknown) {
+  rpc<T>(name: "consume_payment_rate" | "reserve_payment" | "reserve_task_payment" | "quote_task_order" | "claim_payment_check" |
+    "voucher_offer" | "account_vouchers" | "reserve_voucher_payment" | "reserve_premium_voucher" |
+    "voucher_set_account" | "voucher_admin_accounts" | "voucher_admin_usage" |
+    "voucher_admin_redemptions" | "voucher_release_premium", body: unknown) {
     return this.request<T>(`rpc/${name}`, "POST", body);
+  }
+
+  async voucherReceipt(column: "payment_id" | "premium_id", id: string) {
+    const [row] = await this.request<{ voucher_name: string; base_amount: number; discount: number }[]>(
+      `voucher_redemptions?${column}=eq.${id}&select=voucher_name,base_amount,discount&limit=1`);
+    return row ? { name: row.voucher_name, baseAmount: row.base_amount, discount: row.discount } : null;
   }
 }

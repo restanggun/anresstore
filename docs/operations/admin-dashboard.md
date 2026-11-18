@@ -25,7 +25,9 @@ Jalankan migrasi `20261114000000_admin_access.sql` sebelum memberikan role atau 
 
 ## Perilaku
 
-- Pesanan, pembayaran dan status pemenuhan berasal dari `payments` dan `live_transactions`, dengan paginasi dan kontrol akses admin.
+- Ringkasan dan Laporan membaca checkout produksi, pesanan premium, dan riwayat QRIS. Periode dihitung berdasarkan tanggal checkout atau tanggal penjualan historis dalam WIB. Produk terlaris mengurutkan jumlah transaksi berstatus lunas dan menampilkan nominalnya. Modal dan keuntungan memakai biaya yang tersimpan pada transaksi.
+- Daftar pesanan dan pembayaran mencakup seluruh status. Filter serta pencarian diterapkan sebelum paginasi. Riwayat QRIS muncul sebagai penjualan historis dan dikecualikan dari antrean pemenuhan.
+- Terapkan migrasi `20261120080000_admin_transaction_reporting.sql` beserta migrasi pendahulunya sebelum menjalankan versi dashboard ini.
 - Status pembayaran hanya mengikuti mekanisme verifikasi gateway yang sudah ada. Admin tidak dapat menandai pembayaran lunas dari browser. Data akses tamu, hash permintaan, dan detail gateway tidak dikirim melalui daftar admin.
 - Produk manual/provider bebas tersimpan di `managed_products`. Provider+category+provider_code unik. Kode publik provider selain VIPayment memakai `managed.<UUID>` sehingga SKU sama dari provider berbeda tidak berbenturan. Identitas provider tidak membuat koneksi API otomatis.
 - Untuk VIPayment, pilih varian dari katalog web di dashboard lalu simpan pengaturan dengan kode SKU yang sama. Pengaturan menggantikan atribut/harga dasar; nonaktif menyembunyikan SKU. Harga promo web yang masih aktif tetap berlaku di atas harga dasar admin.

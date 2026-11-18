@@ -2,7 +2,7 @@
 import { useEffect, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import { motion, useReducedMotion } from "motion/react";
-import { LayoutGrid, ShoppingBag, Box, CreditCard, CircleHelp, Users, ChartNoAxesCombined, Activity, ShieldCheck, ArrowRight, Menu, X, Bell, Clock } from "lucide-react";
+import { LayoutGrid, ShoppingBag, Box, CreditCard, CircleHelp, Users, ChartNoAxesCombined, Activity, ShieldCheck, ArrowRight, Menu, X, Bell, Clock, Sparkles, Ticket } from "lucide-react";
 import { useApiHealth } from "../components/health-chart";
 import { AdminGate } from "../components/admin-gate";
 import { Brand } from "../components/brand";
@@ -10,20 +10,24 @@ import { SupportTicketBadge, SupportNotifications } from "../components/support-
 
 function WorkspaceLoading() { return <p role="status">Memuat ruang kerja...</p>; }
 const Operations = dynamic(() => import("../components/operations").then(module => module.Operations), { loading: WorkspaceLoading });
+const AssistantWorkspace = dynamic(() => import("../components/assistant-workspace").then(module => module.AssistantWorkspace), { loading: WorkspaceLoading });
 const OrderWorkspace = dynamic(() => import("../components/order-workspace").then(module => module.OrderWorkspace), { loading: WorkspaceLoading });
 const ProductWorkspace = dynamic(() => import("../components/product-workspace").then(module => module.ProductWorkspace), { loading: WorkspaceLoading });
+const VoucherWorkspace = dynamic(() => import("../components/voucher-workspace").then(module => module.VoucherWorkspace), { loading: WorkspaceLoading });
 const TransactionAnalytics = dynamic(() => import("../components/transaction-analytics").then(module => module.TransactionAnalytics), { loading: WorkspaceLoading });
 const ServiceWorkspace = dynamic(() => import("../components/service-workspace").then(module => module.ServiceWorkspace), { loading: WorkspaceLoading });
 const TaskWorkspace = dynamic(() => import("../components/task-workspace").then(module => module.TaskWorkspace), { loading: WorkspaceLoading });
 const PremiumWorkspace = dynamic(() => import("../components/premium-workspace").then(module => module.PremiumWorkspace), { loading: WorkspaceLoading });
 const SystemMonitor = dynamic(() => import("../components/system-monitor").then(module => module.SystemMonitor), { loading: WorkspaceLoading });
 
-type IconName = "grid"|"bag"|"box"|"card"|"help"|"users"|"chart"|"pulse"|"shield"|"arrow"|"menu"|"close"|"bell"|"clock";
-const icons: Record<IconName, typeof LayoutGrid> = {grid:LayoutGrid,bag:ShoppingBag,box:Box,card:CreditCard,help:CircleHelp,users:Users,chart:ChartNoAxesCombined,pulse:Activity,shield:ShieldCheck,arrow:ArrowRight,menu:Menu,close:X,bell:Bell,clock:Clock};
+type IconName = "grid"|"bag"|"box"|"card"|"help"|"users"|"chart"|"pulse"|"shield"|"arrow"|"menu"|"close"|"bell"|"clock"|"assistant"|"ticket";
+const icons: Record<IconName, typeof LayoutGrid> = {grid:LayoutGrid,bag:ShoppingBag,box:Box,card:CreditCard,help:CircleHelp,users:Users,chart:ChartNoAxesCombined,pulse:Activity,shield:ShieldCheck,arrow:ArrowRight,menu:Menu,close:X,bell:Bell,clock:Clock,assistant:Sparkles,ticket:Ticket};
 function Icon({name,size=20}:{name:IconName;size?:number}) { const Component=icons[name]; return <Component size={size} strokeWidth={1.7} aria-hidden="true"/>; }
 type Section={id:string;label:string;icon:IconName;group:string;description:string;metrics:string[];chart:string;chartDescription:string;list:string;listDescription:string};
 const sections:Section[]=[
  {id:"overview",label:"Ringkasan",icon:"grid",group:"Utama",description:"",metrics:[],chart:"",chartDescription:"",list:"",listDescription:""},
+ {id:"assistant",label:"Asisten Anres",icon:"assistant",group:"Utama",description:"",metrics:[],chart:"",chartDescription:"",list:"",listDescription:""},
+ {id:"vouchers",label:"Voucher",icon:"ticket",group:"Operasional",description:"",metrics:[],chart:"",chartDescription:"",list:"",listDescription:""},
  {id:"orders",label:"Pesanan & invoice",icon:"bag",group:"Operasional",description:"Pantau pesanan, invoice, dan proses pemenuhan dalam satu tempat.",metrics:["Pesanan baru","Menunggu pembayaran","Perlu ditinjau","Selesai"],chart:"Tren pesanan",chartDescription:"Jumlah pesanan berdasarkan waktu.",list:"Pesanan terbaru",listDescription:"Pesanan dan transaksi produksi yang tercatat di server."},
  {id:"fulfillment",label:"Antrean pemenuhan",icon:"box",group:"Operasional",description:"Tinjau pembayaran terverifikasi dan status pengiriman provider.",metrics:[],chart:"",chartDescription:"",list:"",listDescription:""},
  {id:"tasks",label:"Joki tugas",icon:"bag",group:"Operasional",description:"Tangani pesanan tugas setelah pembayaran terverifikasi.",metrics:[],chart:"",chartDescription:"",list:"",listDescription:""},
@@ -42,7 +46,8 @@ function AdminDashboard(){
  const [active,setActive]=useState("overview"),[menuOpen,setMenuOpen]=useState(false);
  useEffect(()=>{const handler=(event:Event)=>{const section=(event as CustomEvent<{section?:string}>).detail?.section;if(section==="apps"||section==="tasks")setActive(section)};window.addEventListener("anres-open-manual-order",handler);return()=>window.removeEventListener("anres-open-manual-order",handler)},[]);
  const {health,samples,refresh,fetching}=useApiHealth(); const reducedMotion=useReducedMotion();
- const select=(id:string)=>{setActive(id);setMenuOpen(false)}; const current=sections.find(x=>x.id===active)!;
+ const [transactionStatus,setTransactionStatus]=useState<string>();
+ const select=(id:string,status?:string)=>{setActive(id);setTransactionStatus(status);setMenuOpen(false)}; const current=sections.find(x=>x.id===active)!;
  const drawer = useRef<HTMLDialogElement>(null);
  useEffect(() => {
    const panel = drawer.current;
@@ -69,11 +74,13 @@ function AdminDashboard(){
  <div className="main-wrap"><header className="topbar"><div className="topbar-left"><button className="icon-button mobile-menu" onClick={()=>setMenuOpen(true)} aria-label="Buka menu" aria-controls="admin-navigation" aria-expanded={menuOpen}><Icon name="menu"/></button><span className="breadcrumb"><span className="breadcrumb-root">Ruang kerja</span> <span className="breadcrumb-divider">/</span> <strong>{current.label}</strong></span></div><div className="topbar-right"><span className="setup-pill"><span/> Akses administrator</span><button className="text-button" onClick={() => void logout()}>Keluar</button><SupportNotifications onNavigate={select} systemAlerts={alerts}/><span className="top-avatar">A</span></div></header>
  <motion.main id="main" className="main-content" key={active} initial={reducedMotion ? false : {opacity:0}} animate={{opacity:1}} transition={{duration:reducedMotion ? 0 : 0.15}}>
  {active === "overview" && <TransactionAnalytics overview onNavigate={select}/>}
+ {active === "assistant" && <AssistantWorkspace onNavigate={select}/>}
  {active === "reports" && <TransactionAnalytics onNavigate={select}/>}
- {["orders","payments","fulfillment"].includes(active) && <OrderWorkspace view={active as "orders"|"payments"|"fulfillment"}/>}
+ {["orders","payments","fulfillment"].includes(active) && <OrderWorkspace view={active as "orders"|"payments"|"fulfillment"} initialStatus={transactionStatus}/>}
  {active === "tasks" && <TaskWorkspace/>}
  {active === "apps" && <PremiumWorkspace/>}
  {active === "catalog" && <ProductWorkspace/>}
+ {active === "vouchers" && <VoucherWorkspace/>}
  {["customers","conversations","support"].includes(active) && <><div className="workspace-heading"><div><h1>{current.label}</h1><p>{current.description}</p></div></div><ServiceWorkspace kind={active==="support"?"conversations":active as "customers"|"conversations"}/></>}
  {["access"].includes(active) && <><div className="workspace-heading"><div><h1>{current.label}</h1><p>{current.description}</p></div></div><Operations section={active}/></>}
  {active === "system" && <SystemMonitor samples={samples} refresh={refresh} fetching={fetching}/>}

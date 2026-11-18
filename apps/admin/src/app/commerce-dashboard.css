@@ -137,6 +137,11 @@ button:disabled { cursor:default; }
 .commerce-table small { display:block; font-size:9px; color:#94a0ab; line-height:1.65; margin-top:5px; }
 .commerce-table strong { font-weight:650; }
 .commerce-table .numeric { text-align:right; white-space:nowrap; font-variant-numeric:tabular-nums; }
+.report-daily { margin-bottom:22px; }
+.report-daily > summary { padding:18px 23px; font-weight:700; cursor:pointer; }
+.report-daily tbody th { background:transparent; }
+.product-ranking > div > span:last-child { max-width:45%; text-align:right; }
+.chart-legend > div { gap:12px; }
 .invoice-link { border:0; background:none; color:#287ba2; font-size:10px; font-weight:750; padding:0; letter-spacing:.25px; }
 .invoice-link:hover { text-decoration:underline; }
 .order-table td:first-child { min-width:210px; }

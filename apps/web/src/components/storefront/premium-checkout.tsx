@@ -1,7 +1,8 @@
 "use client";
 import { PaymentMethods } from "./payment-methods";
+import { CheckoutVoucher, voucherScope, type AppliedVoucher } from "./checkout-voucher";
 import type { PaymentChannel } from "@/lib/payment-channels";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@anres/ui";
 import { Input } from "@/components/ui/input";
@@ -22,10 +23,46 @@ export function PremiumCheckout({code,amount,onCreated,checkoutContact}:{code:st
  const checkoutPhone=checkoutContact?.phone??phone;
  const emailIsLoading=checkoutContact?.emailLoading??loading;
  const emailIsReadOnly = !!accountEmail;
- async function create(){if(!rule||busy||!customerEmail.trim())return;setBusy(true);setError("");try{const key=`anres-premium-intent:${customerEmail.toLowerCase()}:${code}`;const saved=localStorage.getItem(key);let id=saved&&/^[a-f0-9-]{36}$/.test(saved)?saved:crypto.randomUUID();if(saved){const existing=await fetch(`${apiUrl}/premium-orders/${id}`,{credentials:"include",cache:"no-store"});if(existing.ok){const data=await existing.json();if(!["closed","cancelled","delivered"].includes(data.order?.status)){await onCreated?.();router.push(`/premium-order/${id}`);return}id=crypto.randomUUID()}else if(existing.status!==404)throw new Error("Status pesanan sebelumnya belum dapat diperiksa.")}localStorage.setItem(key,id);const response=await fetch(`${apiUrl}/premium-orders`,{method:"POST",credentials:"include",headers:{"Content-Type":"application/json"},body:JSON.stringify({id,code,expectedAmount:amount,expectedRuleAt:rule.updated_at,email:customerEmail.trim(),phone:checkoutPhone.trim()})});const data=await response.json();if(!response.ok)throw new Error(typeof data.message==="string"?data.message:"Pesanan belum dapat dibuat.");await onCreated?.();router.push(`/premium-order/${id}`)}catch(cause){setError(cause instanceof Error?cause.message:"Pesanan belum dapat dibuat.")}finally{setBusy(false)}}
+ const [voucher,setVoucher]=useState<AppliedVoucher|null>(null);
+ const [checkingVoucher,setCheckingVoucher]=useState<string|null>(null);
+ const voucherProduct={source:"apps",code,amount};
+ const scope=voucherScope(voucherProduct);
+ const applied=voucher?.scope===scope?voucher:null;
+ const payableAmount=applied?.amount??amount;
+ const gift=applied?.kind==="gift";
+ const submitting=useRef(false);
+ async function create(){
+  if(!rule||submitting.current||checkingVoucher===scope||!customerEmail.trim())return;
+  submitting.current=true;setBusy(true);setError("");
+  try {
+   const key=`anres-premium-intent:${customerEmail.toLowerCase()}:${code}`;
+   const saved=localStorage.getItem(key);
+   let id=saved&&/^[a-f0-9-]{36}$/.test(saved)?saved:crypto.randomUUID();
+   if(saved){
+    const existing=await fetch(`${apiUrl}/premium-orders/${id}`,{credentials:"include",cache:"no-store"});
+    if(existing.ok){
+     const data=await existing.json();
+     const status=data.order?.status;
+     if(["closed","cancelled","delivered"].includes(status))id=crypto.randomUUID();
+     else if(status!=="awaiting_qr"){await onCreated?.();router.push(`/premium-order/${id}`);return;}
+    }else if(existing.status!==404)throw new Error("Status pesanan sebelumnya belum dapat diperiksa.");
+   }
+   localStorage.setItem(key,id);
+   const response=await fetch(`${apiUrl}/premium-orders`,{method:"POST",credentials:"include",headers:{"Content-Type":"application/json"},
+    body:JSON.stringify({id,code,expectedAmount:payableAmount,expectedRuleAt:rule.updated_at,email:customerEmail.trim(),
+     phone:checkoutPhone.trim(),...(applied?{voucher:applied.reference}:{})})});
+   const data=await response.json();
+   if(!response.ok)throw new Error(typeof data.message==="string"?data.message:"Pesanan belum dapat dibuat.");
+   await onCreated?.();router.push(`/premium-order/${id}`);
+  }catch(cause){setError(cause instanceof Error?cause.message:"Pesanan belum dapat dibuat.")}
+  finally{submitting.current=false;setBusy(false);}
+ }
  return (
   <form onSubmit={event => { event.preventDefault(); void create(); }}>
-    <PaymentMethods channels={qrisChannels} value="QRIS" disabled={busy}/>
+    <CheckoutVoucher key={scope} product={voucherProduct} applied={applied} disabled={busy}
+      onChecking={(key,active)=>setCheckingVoucher(current=>active?key:current===key?null:current)}
+      onApply={offer=>{setVoucher(offer);setError("");}}/>
+    {gift ? <p role="status">Voucher menanggung harga produk. Total pembayaran Rp0.</p> : <PaymentMethods channels={qrisChannels} value="QRIS" disabled={busy}/>}
     {!checkoutContact && <>
       <label>
         {emailIsReadOnly ? "Email akun" : "Email untuk menerima data aplikasi"}
@@ -49,13 +86,13 @@ export function PremiumCheckout({code,amount,onCreated,checkoutContact}:{code:st
     </> : !error && <p role="status">Memuat ketentuan paket...</p>}
     {error && <p role="alert">{error}</p>}
     <Button type="submit" className="order-primary"
-      disabled={!rule || busy || emailIsLoading || !/^\S+@\S+\.\S+$/.test(customerEmail.trim()) ||
+      disabled={!rule || busy || checkingVoucher===scope || emailIsLoading || !/^\S+@\S+\.\S+$/.test(customerEmail.trim()) ||
         (!!checkoutPhone.trim() && !/^\+?[0-9]{8,15}$/.test(checkoutPhone.trim()))}>
-      {busy ? "Menyiapkan pembayaran..." : "Lanjut ke pembayaran"}
+      {busy ? "Menyiapkan pesanan..." : gift ? "Klaim produk Rp0" : "Lanjut ke pembayaran"}
     </Button>
-    <p className="checkout-payment-note">
+    {!gift && <p className="checkout-payment-note">
       Pindai QRIS di invoice, lalu unggah bukti pembayaran untuk diverifikasi admin.
-    </p>
+    </p>}
   </form>
  );
 }

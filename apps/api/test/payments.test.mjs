@@ -283,9 +283,11 @@ test('callback database failure is not acknowledged and provider retry recovers 
 test('manual task checkout stores authoritative work mode and customer contact snapshots',async()=>{
  const s=setup(),rpc=s.controller.store.rpc;
  const taskCode=`managed.${randomUUID()}`;
- s.controller.catalog={list:async()=>({items:[{code:taskCode,price:20000,product:'Joki tugas',name:'Format dokumen',fulfillmentMode:'manual'}]})};
+ s.controller.catalog={list:async()=>({items:[{code:taskCode,price:20000,product:'Joki tugas',name:'Edit video',fulfillmentMode:'manual',taskPricing:{unit:'minute'}}]})};
  s.controller.store.rpc=(name,args)=>name==='quote_task_order'?20000:rpc(name==='reserve_task_payment'?'reserve_payment':name,args);
- await s.controller.create({...input,source:'tasks',code:taskCode,target:'Format 10 halaman',task:{pages:10,deadline_days:7,revisions:1,instructions:'Rapikan dokumen tugas sesuai contoh.',reference_url:''}},req,res);
+ const request={...input,source:'tasks',code:taskCode,target:'Edit video 10 menit',task:{pages:10,deadline_days:7,revisions:1,instructions:'Edit video sesuai contoh.\nTambahkan subtitle.',reference_url:''}};
+ await assert.rejects(s.controller.create({...request,task:{...request.task,pricing_unit:'page'}},req,res),e=>e.getStatus()===409);assert.equal(s.creates(),0);
+ await s.controller.create({...request,task:{...request.task,pricing_unit:'minute'}},req,res);
  assert.equal(s.read().fulfillment_mode,'manual');assert.equal(s.read().customer_email,input.email);assert.equal(s.read().customer_phone,input.phone);
  assert.equal(s.read().service_quantity,1);assert.equal(s.read().amount,input.expectedAmount);
 });

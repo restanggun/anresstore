@@ -4,6 +4,7 @@ export type CatalogItem = {
   code: string; name: string; group: string; type: string; price: number;
   product: string; productSlug: string; brand: string; description: string; category: "game" | "prepaid" | "apps" | "social" | "tasks";
   fulfillmentMode?: "vipayment" | "manual"; providerServiceCode?: string; serviceQuantity?: number; unitPrice?: number; minimum?: number; maximum?: number;
+  taskPricing?: { unit: "page" | "slide" | "minute" | "item" | "custom"; maxUnits: number; maxRevisions: number; standardDays: number; startingPrice?: number };
   targetHosts?: readonly string[];
   targetKind?: "username" | "link" | "either";
   requiresManualReview?: boolean;

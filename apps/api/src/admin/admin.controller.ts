@@ -11,12 +11,19 @@ import { qrisForAmount } from "../payments/qris-payload";
 import { randomUUID } from "node:crypto";
 import { TripayClient } from "../payments/tripay-client";
 import { VipaymentClient } from "../payments/vipayment-client";
+import { PaymentStore } from "../payments/payment-store";
+import { parseVoucherSettings, voucherUuid } from "../payments/vouchers";
 import nodemailer from "nodemailer";
+import {
+  assistantAnswer, assistantCategories, assistantConfig, assistantInput, assistantObject,
+  assistantPatch, assistantPlan, assistantQuota, redactAssistantText, type AssistantTool,
+} from "./assistant-model";
 
 @Controller("admin")
 export class AdminController {
   private readonly catalogReader = new CatalogController();
-  private async authorize(req: Request, res: Response, write = false, requireMfa = true) {
+  private readonly voucherStore = new PaymentStore();
+  private async authorize(req: Request, res: Response, write = false, requireMfa = true, forceMfa = false) {
     res.setHeader("Cache-Control", "no-store");
     const adminOrigins = (process.env.ADMIN_ALLOWED_ORIGINS || (process.env.NODE_ENV === "production" ? "" : "http://localhost:3001")).split(",").map(v => v.trim()).filter(Boolean);
     if (write && !adminOrigins.includes(req.headers.origin || "")) throw new HttpException("Origin admin tidak diizinkan.", 403);
@@ -34,7 +41,7 @@ export class AdminController {
       if (!claims || typeof claims !== "object" || Array.isArray(claims)) throw new Error();
     } catch { throw new HttpException("Sesi admin tidak valid.", 401); }
     if (claims.sub !== user.id || typeof claims.exp !== "number" || !Number.isFinite(claims.exp) || claims.exp <= Date.now() / 1000) throw new HttpException("Sesi admin tidak valid atau kedaluwarsa.", 401);
-    const mfaRequired = process.env.NODE_ENV === "production" || process.env.ADMIN_REQUIRE_MFA !== "false";
+    const mfaRequired = forceMfa || process.env.NODE_ENV === "production" || process.env.ADMIN_REQUIRE_MFA !== "false";
     if (requireMfa && mfaRequired && claims.aal !== "aal2") throw new HttpException("Akses admin memerlukan verifikasi dua langkah (MFA).", 403);
     let permissions: string[] = ["*"];
     let categories: string[] = ["game", "prepaid", "apps", "social", "tasks"];
@@ -335,7 +342,11 @@ export class AdminController {
 
   @Get("product-management/:category")
   async productManagement(@Param("category") category: string, @Req() req: Request, @Res({ passthrough: true }) res: Response) {
-    const access = await this.authorize(req, res); this.permit(access, "products.read"); this.category(access, category);
+    return this.readProductManagement(await this.authorize(req, res), category);
+  }
+
+  private async readProductManagement(access: Awaited<ReturnType<AdminController["authorize"]>>, category: string) {
+    this.permit(access, "products.read"); this.category(access, category);
     if (!["game", "prepaid", "apps", "social", "tasks"].includes(category)) throw new HttpException("Kategori tidak valid.", 400);
     const scope = access.productSlugs.length ? `&product_slug=in.(${access.productSlugs.join(",")})` : "";
     const managed: ManagedProduct[] = [];
@@ -349,6 +360,168 @@ export class AdminController {
     try { source = await this.catalogReader.list(category, true); } catch { /* Saved variants remain manageable while the provider is unavailable. */ }
     const items = (source?.items || []).filter(item => !access.productSlugs.length || access.productSlugs.includes(item.productSlug)).map(item=>({...item,defaultPublished:!item.requiresManualReview && (category === "game" ? featuredGameSlugs.includes(item.productSlug) : category !== "social")}));
     return { items, managed, providerAvailable: !!source, published: process.env.ADMIN_CATALOG_ENABLED === "true", canWrite: access.permissions.includes("*") || access.permissions.includes("products.write") };
+  }
+
+  private assistantTools(access: Awaited<ReturnType<AdminController["authorize"]>>): AssistantTool[] {
+    const can = (permission: string) => access.permissions.includes("*") || access.permissions.includes(permission);
+    const full = access.categories.length === assistantCategories.length && !access.productSlugs.length;
+    const tools: AssistantTool[] = ["reply"];
+    if (can("products.read") && access.categories.length) {
+      tools.push("catalog_search");
+      if (!access.productSlugs.length) tools.push("promotions");
+      if (can("products.write")) tools.push("catalog_edit");
+    }
+    if (full && (can("orders.read") || can("payments.read"))) tools.push("transactions");
+    if (full && can("orders.read") && can("payments.read")) tools.push("analytics", "operations", "balances");
+    if (full && can("support.read")) tools.push("support", "support_draft");
+    if (access.superAdmin) tools.push("vouchers");
+    return tools;
+  }
+
+  @Get("assistant")
+  async assistantStatus(@Req() req: Request, @Res({ passthrough: true }) res: Response) {
+    const access = await this.authorize(req, res, false, true, true);
+    const { configured, attachments } = assistantConfig();
+    return { configured, attachments, tools: this.assistantTools(access) };
+  }
+
+  @Post("assistant/chat")
+  async assistantChat(@Body() body: unknown, @Req() req: Request, @Res({ passthrough: true }) res: Response) {
+    const access = await this.authorize(req, res, true, true, true);
+    const config = assistantConfig();
+    if (!config.configured) throw new HttpException("Asisten Anres belum diaktifkan.", 503);
+    const input = assistantInput(body, config.attachments);
+    await assistantQuota(access.id);
+    const plan = await assistantPlan(input, this.assistantTools(access));
+    const arg = (key: string) => (plan as Record<string, unknown>)[key];
+
+    switch (plan.tool) {
+      case "reply": {
+        const text = arg("text");
+        if (typeof text !== "string" || !text.trim() || text.length > 1500) throw new HttpException("Jawaban AI tidak valid.", 502);
+        return { text: redactAssistantText(text.trim()) };
+      }
+      case "catalog_search":
+      case "catalog_edit":
+        return this.assistantCatalog(access, arg("query"), arg("category"), plan.tool === "catalog_edit" ? assistantPatch(arg("patch")) : null);
+      case "promotions": {
+        const category = arg("category");
+        if (typeof category !== "string") throw new HttpException("Sebutkan kategori promo.", 422);
+        const result = await this.promotions(category, req, res);
+        const data = result.rows.slice(0, 16).map(({ item_code, sale_price, starts_at, ends_at, active }) => ({ item_code, sale_price, starts_at, ends_at, active }));
+        return { text: await assistantAnswer(input.text, plan.tool, { rows: data, shown: data.length, totalFetched: result.rows.length }), section: "catalog" };
+      }
+      case "transactions": {
+        const view = arg("view") ?? "orders";
+        const status = arg("status") ?? "all";
+        const search = arg("search") ?? "";
+        if (typeof view !== "string" || typeof status !== "string" || typeof search !== "string" ||
+            (search && (!/^[A-Za-z0-9-]{4,80}$/.test(search) || !input.text.includes(search)))) {
+          throw new HttpException("Gunakan nomor invoice yang ditulis pada pesan untuk mencari transaksi.", 422);
+        }
+        const result = await this.transactionRecords(view, "0", status, search, req, res);
+        const outstanding = view === "fulfillment" && status === "paid";
+        const rows = result.rows.filter(row => !outstanding || !["completed", "delivered", "accepted"].includes(String(row.fulfillment_status)));
+        const data = rows.slice(0, 20).map(({ category, payment_status, fulfillment_status, payment_mode, review_required, source }) => ({ category, payment_status, fulfillment_status, payment_mode, review_required, source }));
+        return { text: await assistantAnswer(input.text, plan.tool, { rows: data, shown: data.length, onFirstPage: rows.length, hasMore: result.hasMore, view, status }), section: view };
+      }
+      case "analytics": {
+        const days = arg("days") ?? 7;
+        if (![7, 30, 90, "7", "30", "90"].includes(days as number | string)) throw new HttpException("Pilih periode 7, 30, atau 90 hari.", 422);
+        const data = await this.analytics(String(Number(days)), req, res);
+        return { text: await assistantAnswer(input.text, plan.tool, { days, summary: data.summary }), section: "reports" };
+      }
+      case "operations":
+        return { text: await assistantAnswer(input.text, plan.tool, await this.operationalStatus(req, res)), section: "system" };
+      case "balances":
+        // Balance figures remain in the dashboard instead of being sent to the model.
+        return { text: "Buka Ringkasan untuk melihat saldo Tripay dan VIPayment langsung dari provider.", section: "overview" };
+      case "support": {
+        const { count, unreadCount } = await this.supportNotifications(req, res);
+        return { text: await assistantAnswer(input.text, plan.tool, { count, unreadCount }), section: "conversations" };
+      }
+      case "support_draft":
+        return { text: await assistantAnswer(input.text, plan.tool, { context: "Situasi anonim yang dijelaskan admin", attachments: input.attachments }), section: "conversations" };
+      case "vouchers": {
+        const { rows, hasMore } = await this.vouchers("0", req, res);
+        return { text: `${rows.length} voucher pada halaman pertama${hasMore ? ", masih ada halaman berikutnya" : ""}. Buka Voucher untuk melihat kode dan pengaturannya.`, section: "vouchers" };
+      }
+    }
+  }
+
+  private async assistantCatalog(
+    access: Awaited<ReturnType<AdminController["authorize"]>>,
+    query: unknown, category: unknown, patch: ReturnType<typeof assistantPatch> | null,
+  ) {
+    if (typeof query !== "string" || !query.trim() || query.length > 150 ||
+        (category !== undefined && category !== null && !assistantCategories.some(value => value === category))) {
+      throw new HttpException("Sebutkan nama varian atau SKU dan kategori yang valid.", 422);
+    }
+    if (typeof category === "string") this.category(access, category);
+    const categories = access.categories.filter(value => !category || category === value);
+    const data = await Promise.all(categories.map(value => this.readProductManagement(access, value)));
+    const candidates = data.flatMap(result => {
+      const managed = new Map(result.managed.map(row => [`${row.provider}:${row.provider_code}`, row]));
+      return [
+        ...result.managed.filter(row => !row.deleted_at),
+        ...result.items.filter(item => item.defaultPublished && !managed.has(`vipayment:${item.code}`)).map(item => ({
+          id: "", name: item.name, product: item.product, product_slug: item.productSlug, provider: "vipayment",
+          provider_code: item.code, category: item.category, price: item.price, description: item.description, active: true,
+        } as ManagedProduct)),
+      ];
+    });
+    const term = query.trim().toLowerCase();
+    const exactSku = candidates.filter(row => row.provider_code.toLowerCase() === term);
+    const terms = term.split(/[^\p{L}\p{N}]+/u).filter(Boolean);
+    const matches = exactSku.length ? exactSku : candidates.filter(row => terms.length && terms.every(word =>
+      `${row.name} ${row.product} ${row.provider_code}`.toLowerCase().includes(word)));
+    const choices = matches.slice(0, 8).map(row => ({
+      name: row.name, product: row.product, sku: row.provider_code, category: row.category, price: Number(row.price), active: row.active,
+    }));
+    const sourceIncomplete = data.some(result => !result.providerAvailable);
+    if (!patch || matches.length !== 1) {
+      const message = matches.length === 0 ? "Varian tidak ditemukan. Coba nama, SKU, atau kategori yang lebih spesifik."
+        : patch ? "Beberapa varian cocok. Tulis SKU dan kategori varian yang ingin diubah." : `Ditemukan ${matches.length} varian dalam cakupan akses kamu.`;
+      return { text: message + (sourceIncomplete ? " Sebagian katalog provider mungkin tidak tersedia." : ""), choices, section: "catalog" };
+    }
+    const row = matches[0]!;
+    if (!row.id || !row.updated_at || (patch.active === true && !row.active && row.provider === "vipayment")) {
+      return { text: "Varian ini perlu disimpan atau diaktifkan melalui editor katalog agar pemetaan provider dapat diperiksa.", choices, section: "catalog" };
+    }
+    this.permit(access, "products.write");
+    this.category(access, row.category);
+    this.product(access, row.product_slug);
+    const old = { name: row.name, price: Number(row.price), description: row.description, active: row.active };
+    const keys = (Object.keys(patch) as (keyof typeof patch)[]).filter(key => patch[key] !== old[key]);
+    if (!keys.length) return { text: "Varian sudah memiliki nilai yang diminta.", choices, section: "catalog" };
+    const changes = keys.map(key => ({ key, before: old[key], after: patch[key]! }));
+    const id = randomUUID();
+    const [saved] = await adminDb<{ id: string; expires_at: string }>("admin_assistant_proposals", "", "POST", {
+      id, actor_id: access.id, product_id: row.id, category: row.category, product_slug: row.product_slug,
+      product_version: row.updated_at, before_values: Object.fromEntries(keys.map(key => [key, old[key]])),
+      patch: Object.fromEntries(keys.map(key => [key, patch[key]])),
+    });
+    if (saved?.id !== id) throw new HttpException("Draf belum dapat disimpan.", 503);
+    return { text: "Tinjau draf perubahan varian. Promo aktif bisa menentukan harga yang terlihat pelanggan.", proposal: { id, expiresAt: saved.expires_at, variant: choices[0], changes }, section: "catalog" };
+  }
+
+  @Post("assistant/proposals/:id/apply")
+  async assistantApply(@Param("id") id: string, @Body() input: unknown, @Req() req: Request, @Res({ passthrough: true }) res: Response) {
+    const access = await this.authorize(req, res, true, true, true);
+    if (!assistantConfig().configured) throw new HttpException("Asisten Anres belum diaktifkan.", 503);
+    this.permit(access, "products.read");
+    this.permit(access, "products.write");
+    const body = assistantObject(input);
+    if (!uuid(id) || body.confirm !== true || Object.keys(body).length !== 1) throw new HttpException("Konfirmasi draf tidak valid.", 400);
+    const [draft] = await adminDb<{ category: string; product_slug: string }>("admin_assistant_proposals", `?id=eq.${id}&actor_id=eq.${access.id}&select=category,product_slug&limit=1`);
+    if (!draft) throw new HttpException("Draf tidak ditemukan.", 404);
+    this.category(access, draft.category);
+    this.product(access, draft.product_slug);
+    const [result] = await adminDb<{ result: string }>("rpc/apply_admin_assistant_proposal", "", "POST", { p_id: id, p_actor: access.id });
+    if (result?.result === "expired") throw new HttpException("Draf kedaluwarsa. Siapkan draf baru.", 409);
+    if (result?.result === "conflict") throw new HttpException("Data varian berubah. Siapkan draf baru sebelum menyimpan.", 409);
+    if (result?.result !== "applied") throw new HttpException("Draf belum dapat diterapkan.", 503);
+    return { ok: true, published: process.env.ADMIN_CATALOG_ENABLED === "true" };
   }
 
   @Get("conversations/notifications")
@@ -440,11 +613,42 @@ export class AdminController {
     return {ok:true};
   }
 
+  @Get("transaction-records/:view")
+  async transactionRecords(
+    @Param("view") view: string,
+    @Query("page") page: string,
+    @Query("status") status: string,
+    @Query("search") search: string,
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const access = await this.authorize(req, res);
+    if (!["orders", "payments", "fulfillment"].includes(view)) throw new HttpException("Daftar tidak tersedia.", 404);
+    this.permit(access, view === "payments" ? "payments.read" : "orders.read");
+    this.allServices(access);
+    const index = Number(page || 0);
+    const filter = status ?? "all";
+    if (!Number.isSafeInteger(index) || index < 0 || index > 100000) throw new HttpException("Halaman tidak valid.", 400);
+    if (!["all", "active", "pending", "paid", "failed", "refunded", "unknown", "review", "completed"].includes(filter)) {
+      throw new HttpException("Status transaksi tidak valid.", 400);
+    }
+    if (search !== undefined && (typeof search !== "string" || search.length > 200)) {
+      throw new HttpException("Kata kunci tidak valid.", 400);
+    }
+    const fields = "id,invoice_number,created_at,updated_at,category,product_name,provider_code,target,target_zone,amount,payment_method,payment_reference,payment_status,fulfillment_status,provider_reference,provider_note,payment_mode,review_required,fulfillment_mode,service_quantity,customer_name,customer_email,customer_phone,manual_kind,source";
+    const rows = await adminDb("rpc/admin_list_transactions", `?select=${fields}`, "POST", {
+      p_view: view, p_status: filter, p_search: search?.trim() ?? "", p_page: index,
+    });
+    return { rows: rows.slice(0, 50), hasMore: rows.length > 50, page: index };
+  }
+
   @Get("analytics")
   async analytics(@Query("days") days:string,@Req() req:Request,@Res({passthrough:true}) res:Response) {
     const access=await this.authorize(req,res); this.permit(access,"orders.read"); this.permit(access,"payments.read"); this.allServices(access);
     const period=Number(days || 30); if(![7,30,90].includes(period)) throw new HttpException("Periode tidak valid.",400);
-    const [result]=await adminDb("rpc/admin_transaction_analytics","","POST",{p_days:period}); return result;
+    const [result]=await adminDb<{summary?:{paidCount?:number}}>("rpc/admin_transaction_analytics","","POST",{p_days:period});
+    if (typeof result?.summary?.paidCount !== "number") throw new HttpException("Terapkan migrasi laporan transaksi terbaru.", 503);
+    return result;
   }
 
   @Get("provider-balances")
@@ -619,7 +823,7 @@ export class AdminController {
     if(!uuid(id)) throw new HttpException("Produk tidak valid.",400);
     const body=input as Record<string,unknown>;
     const limits:Record<string,[number,number]>={price_per_page:[0,1000000],price_per_revision:[0,1000000],rush_fee_per_day:[0,1000000],standard_days:[1,90],max_pages:[1,500],max_revisions:[0,20]};
-    if(!body || typeof body!=="object" || Array.isArray(body) || Object.keys(body).length!==6 || Object.entries(limits).some(([key,[min,max]])=>!Number.isSafeInteger(body[key]) || Number(body[key])<min || Number(body[key])>max)) throw new HttpException("Aturan harga tugas tidak valid.",400);
+    if(!body || typeof body!=="object" || Array.isArray(body) || Object.keys(body).some(key=>key!=="pricing_unit"&&key!=="base_fee"&&!Object.hasOwn(limits,key)) || (body.pricing_unit!==undefined && (typeof body.pricing_unit!=="string" || !["page","slide","minute","item","custom"].includes(body.pricing_unit))) || (body.base_fee!==undefined && body.base_fee!==null && (!Number.isSafeInteger(body.base_fee) || Number(body.base_fee)<0 || Number(body.base_fee)>100000000)) || Object.entries(limits).some(([key,[min,max]])=>!Number.isSafeInteger(body[key]) || Number(body[key])<min || Number(body[key])>max)) throw new HttpException("Aturan harga tugas tidak valid.",400);
     const [product]=await adminDb<{product_slug:string}>("managed_products",`?id=eq.${id}&category=eq.tasks&select=product_slug`);
     if(!product) throw new HttpException("Produk tidak ditemukan.",404);
     this.product(access,product.product_slug);await this.audit(access.id,"task_pricing.save",id);
@@ -720,6 +924,96 @@ export class AdminController {
       return {name:check.name,count:Number(count),severity:check.severity};
     }));
     return {at:new Date().toISOString(),status:results.some(result=>result.count>0)?"attention":"ok",checks:results};
+  }
+
+  private async voucherAdmin(req: Request, res: Response, write = false) {
+    const access = await this.authorize(req, res, write);
+    if (!access.superAdmin) throw new HttpException("Voucher memerlukan akses super admin.", 403);
+    return access;
+  }
+
+  @Get("vouchers")
+  async vouchers(@Query("page") page: string, @Req() req: Request, @Res({ passthrough: true }) res: Response) {
+    await this.voucherAdmin(req, res);
+    const index = pageIndex(page);
+    const rows = await adminDb("vouchers", `?select=*&order=created_at.desc,id&limit=51&offset=${index * 50}`);
+    return { rows: rows.slice(0, 50), hasMore: rows.length > 50 };
+  }
+
+  @Post("vouchers")
+  async saveVoucher(@Body() input: unknown, @Req() req: Request, @Res({ passthrough: true }) res: Response) {
+    const access = await this.voucherAdmin(req, res, true);
+    const voucher = parseVoucherSettings(input);
+    const { id, version } = input as { id?: string; version?: number };
+    if (id !== undefined && (typeof id !== "string" || !voucherUuid.test(id) || !Number.isSafeInteger(version) || Number(version) < 1))
+      throw new HttpException("Versi voucher tidak valid. Muat ulang daftar.", 400);
+    if (voucher.active && voucher.product_slug) {
+      const data = await this.catalogReader.list(String(voucher.category));
+      if (!data.items.some(item => item.productSlug === voucher.product_slug &&
+        (!voucher.variant_code || item.code === voucher.variant_code)))
+        throw new HttpException("Produk atau varian tidak tersedia di katalog aktif.", 409);
+    }
+    const key = id ?? randomUUID();
+    await this.audit(access.id, id ? "voucher.update" : "voucher.create", key);
+    const path = id ? `vouchers?id=eq.${id}&version=eq.${version}` : "vouchers";
+    let rows: Record<string, unknown>[];
+    try {
+      rows = await this.voucherStore.request(path, id ? "PATCH" : "POST", {
+        ...voucher, ...(id ? { version: version! + 1 } : { id: key }), updated_at: new Date().toISOString(),
+      });
+    } catch (error) {
+      if (error instanceof HttpException && error.getStatus() === 409)
+        throw new HttpException("Kode voucher sudah digunakan atau pengaturan bertentangan.", 409);
+      throw error;
+    }
+    if (!rows[0]) throw new HttpException("Voucher berubah sejak dibuka. Muat ulang sebelum menyimpan.", 409);
+    return { voucher: rows[0] };
+  }
+
+  @Get("vouchers/:id")
+  async voucherDetails(@Param("id") id: string, @Query("page") page: string, @Req() req: Request, @Res({ passthrough: true }) res: Response) {
+    await this.voucherAdmin(req, res);
+    if (!voucherUuid.test(id)) throw new HttpException("Voucher tidak ditemukan.", 404);
+    const [accounts, usage] = await Promise.all([
+      this.voucherStore.rpc<unknown[]>("voucher_admin_accounts", { p_voucher: id, p_offset: pageIndex(page) * 50 }),
+      this.voucherStore.rpc("voucher_admin_usage", { p_voucher: id }),
+    ]);
+    return { accounts: accounts.slice(0, 50), hasMore: accounts.length > 50, usage };
+  }
+
+  @Post("vouchers/:id/accounts")
+  async voucherAccount(@Param("id") id: string, @Body() body: { email?: unknown; active?: unknown },
+    @Req() req: Request, @Res({ passthrough: true }) res: Response) {
+    const access = await this.voucherAdmin(req, res, true);
+    const email = typeof body?.email === "string" ? body.email.trim().toLowerCase() : "";
+    if (!voucherUuid.test(id) || email.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || typeof body?.active !== "boolean")
+      throw new HttpException("Isi email akun yang valid.", 400);
+    try {
+      await this.voucherStore.rpc("voucher_set_account", { p_voucher: id, p_email: email, p_active: body.active, p_actor: access.id });
+    } catch (error) {
+      if (error instanceof HttpException && error.getStatus() === 409)
+        throw new HttpException("Voucher atau akun dengan email terverifikasi tidak ditemukan.", 409);
+      throw error;
+    }
+    return { saved: true };
+  }
+
+  @Get("vouchers/:id/redemptions")
+  async voucherRedemptions(@Param("id") id: string, @Query("page") page: string, @Req() req: Request, @Res({ passthrough: true }) res: Response) {
+    await this.voucherAdmin(req, res);
+    if (!voucherUuid.test(id)) throw new HttpException("Voucher tidak ditemukan.", 404);
+    const rows = await this.voucherStore.rpc<unknown[]>("voucher_admin_redemptions", { p_voucher: id, p_offset: pageIndex(page) * 50 });
+    return { rows: rows.slice(0, 50), hasMore: rows.length > 50 };
+  }
+
+  @Post("vouchers/:id/release-premium")
+  async releasePremiumVoucher(@Param("id") id: string, @Body() body: { orderId?: unknown; confirmedUnpaid?: unknown },
+    @Req() req: Request, @Res({ passthrough: true }) res: Response) {
+    const access = await this.voucherAdmin(req, res, true);
+    if (!voucherUuid.test(id) || typeof body?.orderId !== "string" || !voucherUuid.test(body.orderId) || body.confirmedUnpaid !== true)
+      throw new HttpException("Periksa mutasi QRIS dan konfirmasi pesanan belum dibayar.", 400);
+    await this.voucherStore.rpc("voucher_release_premium", { p_voucher: id, p_order: body.orderId, p_actor: access.id });
+    return { released: true };
   }
 
   @Get("promotions/:category")

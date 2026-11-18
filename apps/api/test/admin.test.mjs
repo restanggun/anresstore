@@ -63,6 +63,27 @@ test('payment listing has pagination and never selects guest hashes or gateway d
  await assert.rejects(new AdminController().records('secrets','0',req,res),e=>e.getStatus()===404);
  await assert.rejects(new AdminController().records('orders','-1',req,res),e=>e.getStatus()===400);
 }));
+test('transaction workspace paginates filtered rows and reports require the current database migration',()=>isolated(async()=>{
+ const calls=[];
+ global.fetch=async(url,options)=>{
+  if(String(url).endsWith('/user'))return Response.json({id:admin});
+  calls.push({url:String(url),body:JSON.parse(options.body)});
+  if(String(url).includes('admin_list_transactions'))return Response.json(Array.from({length:51},(_,id)=>({id})));
+  return Response.json([{summary:{orders:2,paidCount:1}}]);
+ };
+ const controller=new AdminController();
+ const result=await controller.transactionRecords('payments','2','pending',' Contoh ',req,res);
+ assert.equal(result.rows.length,50);
+ assert.equal(result.hasMore,true);
+ assert.deepEqual(calls[0].body,{p_view:'payments',p_status:'pending',p_search:'Contoh',p_page:2});
+ assert.doesNotMatch(calls[0].url,/accounting_cost|access_hash|request_hash|details/);
+ await assert.rejects(controller.transactionRecords('payments','0','invalid','',req,res),e=>e.getStatus()===400);
+ await assert.rejects(controller.transactionRecords('payments','0','all','',{headers:{}},res),e=>e.getStatus()===401);
+ assert.equal((await controller.analytics('30',req,res)).summary.paidCount,1);
+ assert.deepEqual(calls[1].body,{p_days:30});
+ global.fetch=async url=>Response.json(String(url).endsWith('/user')?{id:admin}:[{summary:{orders:2}}]);
+ await assert.rejects(controller.analytics('30',req,res),e=>e.getStatus()===503);
+}));
 const product={id:admin,provider:'custom',provider_code:'SKU',category:'game',product:'Test game',product_slug:'test-game',name:'10 credits',price:12000,description:'Test',active:true};
 test('system monitor reports exact live counts and fails closed when database is unavailable',()=>isolated(async()=>{
  let count=0;const urls=[];
@@ -217,6 +238,7 @@ test('catalog lifecycle publishes edits, hides, removes and restores variants th
   if(url.endsWith('/user'))return Response.json({id:admin});
   if(url.includes('/catalog_versions'))return Response.json([{version:0}]);
   if(url.includes('/admin_audit_log')||url.includes('/catalog_promotions'))return Response.json([]);
+  if(url.includes('/task_price_rules'))return Response.json([...store.keys()].map(product_id=>({product_id,pricing_unit:'minute',base_fee:0,price_per_page:2000,max_pages:120,max_revisions:2,standard_days:5})));
   if(!url.includes('/managed_products'))throw new Error('Unexpected request');
   const params=new URL(url).searchParams;
   if(options.method==='POST'){
@@ -228,7 +250,7 @@ test('catalog lifecycle publishes edits, hides, removes and restores variants th
  };
  const variant={...product,provider:'manual',category:'tasks',description:'Baris pertama\nBaris kedua'};
  await controller.saveProduct(variant,req,res);
- let feed=await publicCatalog.list('tasks');assert.equal(feed.items.length,1);assert.equal(feed.items[0].price,12000);
+ let feed=await publicCatalog.list('tasks');assert.equal(feed.items.length,1);assert.equal(feed.items[0].price,12000);assert.equal(feed.items[0].taskPricing.unit,'minute');assert.equal(feed.items[0].taskPricing.startingPrice,2000);
  await controller.saveProduct({...variant,name:'Paket diperbarui',product:'Produk baru',product_slug:'produk-baru',price:18000},req,res);
  feed=await publicCatalog.list('tasks');assert.equal(feed.items[0].displayName,'Paket diperbarui');assert.equal(feed.products[0].slug,'produk-baru');assert.equal(feed.items[0].price,18000);
  await controller.saveProduct({...variant,active:false},req,res);

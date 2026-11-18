@@ -3,9 +3,11 @@ import type { OnModuleInit, OnModuleDestroy, RawBodyRequest } from "@nestjs/comm
 import { randomBytes } from "node:crypto";
 import type { Request, Response } from "express";
 import { CatalogController } from "../catalog/catalog.controller";
+import type { CatalogItem } from "../catalog/catalog-mapping";
 import { verifyTripayCallback } from "./tripay-signature";
 import { applyPaymentEvent, type PaymentEvent } from "./transaction-state";
-import { TripayClient, TripayRejectedError, tripayConfig, tripayCustomerEmail, type TripayTransaction } from "./tripay-client";
+import { TripayClient, TripayRejectedError, tripayConfig, tripayCustomerEmail, tripayMode, type TripayTransaction } from "./tripay-client";
+import { parseVoucher, promotedProduct, quoteVoucher, variantPattern, voucherBaseAmount, voucherCategories } from "./vouchers";
 import { writeSession } from "../auth/session";
 import { InvoiceAccountService } from "./invoice-account-service";
 import { invoiceCsv } from "./invoice-export";
@@ -55,7 +57,7 @@ export class PaymentsController implements OnModuleInit, OnModuleDestroy {
     const allowed = (process.env.CORS_ORIGINS ?? "http://localhost:3000,http://localhost:3001").split(",").map(value => value.trim());
     if (!req.headers.origin || !allowed.includes(req.headers.origin)) throw new HttpException("Origin tidak diizinkan.", 403);
   }
-  private db(query: string, method = "GET", body?: unknown) { return this.store.request<PaymentRow[]>(`payments${query}${query.includes("payment_mode=") ? "" : `${query.includes("?") ? "&" : "?"}payment_mode=eq.${tripayConfig().mode}`}`, method, body); }
+  private db(query: string, method = "GET", body?: unknown) { return this.store.request<PaymentRow[]>(`payments${query}${query.includes("payment_mode=") ? "" : `${query.includes("?") ? "&" : "?"}payment_mode=eq.${tripayMode()}`}`, method, body); }
   private async row(id: string) {
     const key = paymentId.test(id.toLowerCase()) ? "id" : invoiceNumber.test(id.toUpperCase()) ? "invoice_number" : null;
     if (!key) throw new HttpException("Pembayaran tidak ditemukan.", 404);
@@ -69,7 +71,7 @@ export class PaymentsController implements OnModuleInit, OnModuleDestroy {
   private publicPayment(row: PaymentRow, refreshDelayed = false) {
     const detail = row.details;
     return { ownership: row.owner_user_id || row.claimed_user_id ? "account" : "guest", id: row.id, invoiceNumber: row.invoice_number ?? null, source: row.source, mode: row.payment_mode, sandboxRealFulfillment: process.env.VIPAYMENT_SANDBOX_FULFILLMENT_ENABLED === "true" && process.env.VIPAYMENT_FULFILLMENT_ENABLED === "true", createdAt: row.created_at, product: row.product_name, amount: row.amount, status: row.status, target: row.target, targetZone: row.target_zone ?? null,
-      method: detail?.payment_name ?? row.method, reference: row.reference,
+      method: detail?.payment_name ?? (row.method === "VOUCHER" ? "Voucher" : row.method), reference: row.reference,
       total: detail?.amount ?? row.amount, fee: detail?.fee_customer ?? 0,
       payCode: detail?.pay_code ?? null, checkoutUrl: detail?.checkout_url ?? null, expiresAt: detail?.expired_time ?? null,
       lastVerifiedAt: row.provider_checked_at, needsReview: row.review_required, refreshDelayed };
@@ -113,6 +115,7 @@ export class PaymentsController implements OnModuleInit, OnModuleDestroy {
     throw new HttpException("Status sedang diperbarui. Coba kembali.", 503);
   }
   private async refresh(row: PaymentRow): Promise<{ row: PaymentRow; delayed: boolean }> {
+    if (row.method === "VOUCHER") return { row, delayed: false };
     // Credentials belong to one environment. Old invoices remain readable after cutover.
     if ((row.payment_mode) !== tripayConfig().mode) return { row, delayed: true };
     if (!["pending", "unknown", "paid"].includes(row.status)) return { row, delayed: false };
@@ -149,13 +152,48 @@ export class PaymentsController implements OnModuleInit, OnModuleDestroy {
     const channels = await this.tripay.channels();
     return { mode: tripayConfig().mode, sandboxRealFulfillment: process.env.VIPAYMENT_SANDBOX_FULFILLMENT_ENABLED === "true" && process.env.VIPAYMENT_FULFILLMENT_ENABLED === "true", channels: channels.map(({ code, name, group, icon_url, minimum_amount, maximum_amount, fee_customer }) => ({ code, name, group, iconUrl: safeChannelIcon(icon_url), minimum: minimum_amount, maximum: maximum_amount, fee: fee_customer })) };
   }
+  @Get("vouchers")
+  async accountVouchers(@Req() req: Request, @Res({ passthrough: true }) res: Response) {
+    res.setHeader("Cache-Control", "no-store");
+    this.coarseLimit(req, "voucher-list", 60);
+    const identity = await this.identities.resolve(req, res);
+    if (!identity.userId || !identity.emailVerified) return { signedIn: false, rows: [] };
+    const rows = await this.store.rpc("account_vouchers", { p_user: identity.userId });
+    return { signedIn: true, rows };
+  }
+
+  @Post("voucher-quote") @HttpCode(200)
+  async voucherQuote(@Body() input: unknown, @Req() req: Request, @Res({ passthrough: true }) res: Response) {
+    res.setHeader("Cache-Control", "no-store");
+    this.origin(req);
+    this.coarseLimit(req, "voucher-quote", 30);
+    await this.throttle(`voucher-ip:${paymentHash(this.ip(req))}`, 15);
+    const body = input as { source?: unknown; code?: unknown; voucher?: unknown; expectedQuantity?: unknown;
+      task?: { pages?: unknown; deadline_days?: unknown; revisions?: unknown; pricing_unit?: unknown } };
+    if (typeof body?.source !== "string" || !voucherCategories.includes(body.source) ||
+      typeof body.code !== "string" || !variantPattern.test(body.code)) throw new HttpException("Pilihan produk tidak valid.", 400);
+    const voucher = parseVoucher(body.voucher);
+    const identity = await this.identities.resolve(req, res);
+    if (identity.userId) await this.throttle(`voucher-user:${paymentHash(identity.userId)}`, 12);
+    const catalog = await this.catalog.list(body.source);
+    const product = catalog.items.find(item => item.code === body.code);
+    if (!product) throw new HttpException("Produk tidak tersedia.", 409);
+    const amount = await voucherBaseAmount(this.store, product, product.category, body);
+    return quoteVoucher(this.store, voucher, product, amount, identity.emailVerified ? identity.userId : null,
+      product.category === "apps" ? "live" : tripayMode());
+  }
+
   @Post("task-quote") @HttpCode(200)
   async taskQuote(@Body() input: unknown, @Req() req: Request, @Res({passthrough:true}) res: Response) {
     res.setHeader("Cache-Control","no-store"); this.origin(req); this.coarseLimit(req,"task-quote",60);
-    const body=input as {code?:unknown;pages?:unknown;deadlineDays?:unknown;revisions?:unknown};
+    const body=input as {code?:unknown;pages?:unknown;deadlineDays?:unknown;revisions?:unknown;pricingUnit?:unknown};
     if (!body || typeof body.code!=="string" || !/^managed\.[0-9a-f-]{36}$/.test(body.code) || !Number.isSafeInteger(body.pages) || Number(body.pages)<1 || Number(body.pages)>500 || !Number.isSafeInteger(body.deadlineDays) || Number(body.deadlineDays)<1 || Number(body.deadlineDays)>90 || !Number.isSafeInteger(body.revisions) || Number(body.revisions)<0 || Number(body.revisions)>20) throw new HttpException("Pilihan harga tugas tidak valid.",400);
     const catalog=await this.catalog.list("tasks");
-    if (!catalog.items.some(item=>item.code===body.code)) throw new HttpException("Paket tugas tidak tersedia.",404);
+    const item = catalog.items.find(item=>item.code===body.code);
+    if (!item) throw new HttpException("Paket tugas tidak tersedia.",404);
+    if (item.taskPricing?.unit === "custom") throw new HttpException("Paket ini memerlukan penawaran dari admin.",409);
+    if ((item.taskPricing?.unit ?? "page") !== (body.pricingUnit ?? "page"))
+      throw new HttpException("Satuan tarif telah berubah. Muat ulang katalog.",409);
     const amount=await this.store.rpc<number>("quote_task_order",{p_product:body.code.slice(8),p_pages:body.pages,p_days:body.deadlineDays,p_revisions:body.revisions});
     if (!Number.isSafeInteger(amount) || amount<1) throw new HttpException("Tarif tugas belum tersedia.",503);
     return {amount,catalogRevision:catalog.catalogRevision};
@@ -164,10 +202,12 @@ export class PaymentsController implements OnModuleInit, OnModuleDestroy {
   async create(@Body() input: unknown, @Req() req: Request, @Res({ passthrough: true }) res: Response) {
     res.setHeader("Cache-Control", "no-store"); this.origin(req); this.coarseLimit(req, "create", 40);
     await this.throttle(`create-ip:${paymentHash(this.ip(req))}`, 20);
-    const { mode } = tripayConfig();
     const body = parsePayment(input);
+    const mode = body.method === "VOUCHER" ? tripayMode() : tripayConfig().mode;
     if (mode === "live" && body.source === "apps") throw new HttpException("Pembayaran aplikasi premium melalui QRIS manual belum tersedia. Jangan bayar melalui Tripay.", 503);
     const identity = await this.identities.resolve(req, res);
+    if (body.voucher && identity.userId && !identity.emailVerified)
+      throw new HttpException("Verifikasi email akun sebelum memakai voucher.", 403);
     await this.accounts.attach(identity);
     body.email = tripayCustomerEmail(identity.userId ? identity.email ?? "" : body.email);
     const owner = identity.userId ?? identity.guestHash;
@@ -183,7 +223,7 @@ export class PaymentsController implements OnModuleInit, OnModuleDestroy {
     }
     const callback = process.env.TRIPAY_CALLBACK_URL?.trim();
     const returnUrl = process.env.TRIPAY_RETURN_URL?.trim();
-    try {
+    if (body.method !== "VOUCHER") try {
       const parsed = new URL(callback ?? "");
       if (parsed.protocol !== "https:" || parsed.username || parsed.password || parsed.search || parsed.hash || parsed.pathname !== "/v1/payments/callback") throw new Error();
       const redirect = new URL(returnUrl ?? "");
@@ -214,10 +254,16 @@ export class PaymentsController implements OnModuleInit, OnModuleDestroy {
     }
     if (product.productSlug === "mobile-legends" && (!/^[0-9]+$/.test(body.target) || !/^[0-9]+$/.test(body.targetZone ?? ""))) throw new HttpException("ID pemain dan server / zone Mobile Legends wajib berupa angka di kolom terpisah, tanpa tanda kurung.", 400);
     if (body.source === "tasks" && !/^managed\.[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/.test(body.code)) throw new HttpException("Paket tugas tidak valid.",400);
-    const quotedAmount = body.source === "tasks" && body.task ? await this.store.rpc<number>("quote_task_order", {p_product: body.code.replace(/^managed\./,""), p_pages:body.task.pages, p_days:body.task.deadline_days, p_revisions:body.task.revisions}) : body.source === "social" ? Math.ceil((product.unitPrice ?? product.price) * serviceQuantity! / 1000) : product.price;
+    if (body.source === "tasks" && (product.taskPricing?.unit ?? "page") !== (body.task?.pricing_unit ?? "page"))
+      throw new HttpException("Satuan tarif telah berubah. Muat ulang katalog.",409);
+    const baseAmount = await voucherBaseAmount(this.store, product, body.source as CatalogItem["category"], body);
+    const offer = body.voucher ? await quoteVoucher(this.store, body.voucher, product, baseAmount, identity.userId, mode) : null;
+    const quotedAmount = offer?.amount ?? baseAmount;
     if (quotedAmount !== body.expectedAmount) throw new HttpException("Harga telah berubah. Muat ulang katalog dan periksa harga sebelum melanjutkan.", 409);
-    const channel = (await this.tripay.channels()).find(item => item.code === body.method);
-    if (!channel || quotedAmount < channel.minimum_amount || quotedAmount > channel.maximum_amount) throw new HttpException("Metode pembayaran tidak tersedia untuk nominal ini.", 400);
+    if (body.method !== "VOUCHER") {
+      const channel = (await this.tripay.channels()).find(item => item.code === body.method);
+      if (!channel || quotedAmount < channel.minimum_amount || quotedAmount > channel.maximum_amount) throw new HttpException("Metode pembayaran tidak tersedia untuk nominal ini.", 400);
+    }
     const gatewayEmail = tripayCustomerEmail(body.email);
     const paymentSnapshot = {
       catalog_revision: catalog.catalogRevision ?? null,
@@ -232,11 +278,15 @@ export class PaymentsController implements OnModuleInit, OnModuleDestroy {
       owner_user_id: identity.userId, guest_session_hash: identity.userId ? null : identity.guestHash,
       checkout_hash: paymentHash(JSON.stringify([mode, body.source, body.code, body.target, body.targetZone ?? "", body.expectedQuantity ?? null, body.task ?? null])),
     };
-    const reservation = await this.store.rpc<{ payment: PaymentRow; claimed: boolean }>(body.source === "tasks" ? "reserve_task_payment" : "reserve_payment", body.source === "tasks" ? {p_payment:paymentSnapshot,p_task:body.task} : {p_payment:paymentSnapshot});
+    const reservation = await this.store.rpc<{ payment: PaymentRow; claimed: boolean }>(
+      body.voucher ? "reserve_voucher_payment" : body.source === "tasks" ? "reserve_task_payment" : "reserve_payment",
+      body.voucher ? { p_payment: paymentSnapshot, p_task: body.task ?? null, p_voucher: body.voucher,
+        p_base_amount: baseAmount, p_promoted: promotedProduct(product) }
+        : body.source === "tasks" ? { p_payment: paymentSnapshot, p_task: body.task } : { p_payment: paymentSnapshot });
     if (!reservation?.payment || typeof reservation.claimed !== "boolean") throw new HttpException("Reservasi pembayaran belum dapat dipastikan.", 503);
     let row = reservation.payment;
     this.authorize(row, identity);
-    if (!reservation.claimed) return this.publicPayment(row);
+    if (!reservation.claimed || row.method === "VOUCHER") return this.publicPayment(row);
     try {
       const detail = await this.tripay.create({ id: row.merchant_ref ?? row.id, method: row.method, amount: row.amount, name: body.name, email: gatewayEmail, phone: body.phone, product: row.product_name, code: row.provider_code, callback: callback!, returnUrl: new URL(`/invoice/${row.invoice_number ?? row.id}`, returnUrl!).href });
       row = await this.saveDetail(row, detail);
@@ -336,7 +386,8 @@ export class PaymentsController implements OnModuleInit, OnModuleDestroy {
     const refreshed = await this.refresh(row);
     const [fulfillment] = await this.store.request<{ fulfillment_status: string; provider_note: string | null; payment_mode: string }[]>("live_transactions?id=eq." + refreshed.row.id + "&select=fulfillment_status,provider_note,payment_mode");
     const [refund] = await this.store.request<{id:string;refund_status:string;refund_requires_admin:boolean;refund_resolution:string|null;refund_reference:string|null}[]>(`support_conversations?payment_id=eq.${refreshed.row.id}&kind=eq.refund&select=id,refund_status,refund_requires_admin,refund_resolution,refund_reference&limit=1`);
-    return { ...this.publicPayment(refreshed.row, refreshed.delayed), refund: refund ?? null, fulfillment: fulfillment ? { status: fulfillment.fulfillment_status, note: fulfillment.provider_note, mode: fulfillment.payment_mode } : null };
+    const voucher = refreshed.row.voucher_applied ? await this.store.voucherReceipt("payment_id", refreshed.row.id) : null;
+    return { ...this.publicPayment(refreshed.row, refreshed.delayed), voucher, refund: refund ?? null, fulfillment: fulfillment ? { status: fulfillment.fulfillment_status, note: fulfillment.provider_note, mode: fulfillment.payment_mode } : null };
   }
   @Post("transactions/:id/refund") @HttpCode(200)
   async requestRefund(@Param("id") id:string,@Body() input:unknown,@Req() req:Request,@Res({passthrough:true}) res:Response) {
@@ -344,6 +395,7 @@ export class PaymentsController implements OnModuleInit, OnModuleDestroy {
     const identity=await this.identities.resolve(req,res);
     if(!identity.userId) throw new HttpException("Masuk untuk mengajukan pengembalian melalui tiket CS. Gunakan browser yang dipakai saat memesan.",401);
     const row=await this.row(id); this.authorize(row,identity);
+    if(row.method==="VOUCHER") throw new HttpException("Pesanan hadiah tidak memiliki pembayaran untuk dikembalikan. Hubungi CS jika produk belum diterima.",409);
     await this.throttle(`refund:${paymentHash(identity.userId)}`,10);
     if(!input||typeof input!=="object"||Array.isArray(input)) throw new HttpException("Form pengembalian tidak valid.",400);
     const body=input as Record<string,unknown>;
@@ -382,7 +434,7 @@ export class PaymentsController implements OnModuleInit, OnModuleDestroy {
       const mode = tripayConfig().mode;
       const stale = await this.db(`?payment_mode=eq.${mode}&status=eq.creating&created_at=lt.${encodeURIComponent(new Date(Date.now() - 120000).toISOString())}&limit=25`);
       for (const row of stale) await this.markUnknown(row);
-      const candidates = await this.db(`?payment_mode=eq.${mode}&status=in.(pending,unknown,paid)&or=(provider_check_until.is.null,provider_check_until.lt.${encodeURIComponent(new Date().toISOString())})&order=provider_checked_at.asc.nullsfirst&limit=10`);
+      const candidates = await this.db(`?payment_mode=eq.${mode}&method=neq.VOUCHER&status=in.(pending,unknown,paid)&or=(provider_check_until.is.null,provider_check_until.lt.${encodeURIComponent(new Date().toISOString())})&order=provider_checked_at.asc.nullsfirst&limit=10`);
       for (const row of candidates) await this.refresh(row);
     } finally { this.reconciling = false; }
   }

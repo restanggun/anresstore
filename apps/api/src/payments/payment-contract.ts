@@ -3,6 +3,7 @@ import { createHash, timingSafeEqual } from "node:crypto";
 import type { PaymentIdentity } from "./payment-identity";
 import type { PaymentStatus } from "./transaction-state";
 import type { TripayTransaction } from "./tripay-client";
+import { parseVoucher, type VoucherReference } from "./vouchers";
 
 export const paymentId = /^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/;
 export const invoiceNumber = /^ANRS-(?:[0-9]{6}-[A-F0-9]{14}|[A-Z0-9]{1,12}-[A-Z0-9]{1,12}-[0-9]{8}-[A-F0-9]{16})$/;
@@ -10,6 +11,7 @@ export const paymentHash = (value: string) => createHash("sha256").update(value)
 export type PaymentRow = {
   invoice_number?: string; merchant_ref?: string; claimed_user_id?: string | null; claimed_at?: string | null;
   payment_mode?: "live" | "sandbox";
+  voucher_applied?: boolean;
   target_zone?: string | null; provider_cost?: number | null;
   id: string; access_hash: string; request_hash: string; created_at: string;
   source: string; product_name: string; provider_code: string; target: string;
@@ -17,15 +19,15 @@ export type PaymentRow = {
   owner_user_id: string | null; guest_session_hash: string | null; checkout_hash: string | null;
   revision: number; provider_checked_at: string | null; provider_check_until: string | null; review_required: boolean;
 };
-export type TaskInput = { pages: number; deadline_days: number; revisions: number; instructions: string; reference_url: string };
-export type PaymentInput = { expectedQuantity?: number; targetZone?: string; task?: TaskInput; id: string; source: string; code: string; target: string; method: string; name: string; email: string; phone: string; expectedAmount: number };
+export type TaskInput = { pricing_unit?: "page" | "slide" | "minute" | "item"; pages: number; deadline_days: number; revisions: number; instructions: string; reference_url: string };
+export type PaymentInput = { expectedQuantity?: number; targetZone?: string; task?: TaskInput; voucher?: VoucherReference; id: string; source: string; code: string; target: string; method: string; name: string; email: string; phone: string; expectedAmount: number };
 
 export function parsePayment(input: unknown): PaymentInput {
   const invalid = () => new HttpException("Data pembayaran tidak valid. Muat ulang checkout dan periksa isian.", 400);
   if (!input || typeof input !== "object" || Array.isArray(input)) throw invalid();
   const body = input as Record<string, unknown>;
   const fields = ["id", "source", "code", "target", "method", "name", "email", "phone"] as const;
-  const allowed: readonly string[] = [...fields, "expectedAmount", "targetZone", "expectedQuantity", "task"];
+  const allowed: readonly string[] = [...fields, "expectedAmount", "targetZone", "expectedQuantity", "task", "voucher"];
   if (Object.keys(body).some(key => !allowed.includes(key))) throw invalid();
   const values: Record<string, string> = {};
   for (const key of fields) {
@@ -40,7 +42,9 @@ export function parsePayment(input: unknown): PaymentInput {
   if (!paymentId.test(result.id) || !["game", "prepaid", "apps", "social", "tasks"].includes(result.source) ||
       result.code.length > 100 || result.target.length > 200 || result.name.length > 100 ||
       (!!result.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(result.email)) || (!!result.phone && !/^\+?\d{8,15}$/.test(result.phone)) ||
-      !/^[A-Z0-9_]{1,50}$/.test(result.method) || !Number.isSafeInteger(result.expectedAmount) || result.expectedAmount < 1 || result.expectedAmount > 100000000) throw invalid();
+      !/^[A-Z0-9_]{1,50}$/.test(result.method) || !Number.isSafeInteger(result.expectedAmount) || result.expectedAmount < 0 || result.expectedAmount > 100000000) throw invalid();
+  if (body.voucher !== undefined) result.voucher = parseVoucher(body.voucher);
+  if ((result.method === "VOUCHER") !== (result.expectedAmount === 0) || (result.method === "VOUCHER" && !result.voucher)) throw invalid();
   if (result.method === "OVO" && !result.phone) throw new HttpException("Nomor HP yang terdaftar di OVO wajib diisi untuk metode OVO.",400);
   if (body.expectedQuantity !== undefined) {
     if (result.source !== "social" || !Number.isSafeInteger(body.expectedQuantity) || Number(body.expectedQuantity) < 1 || Number(body.expectedQuantity) > 10000000) throw invalid();
@@ -53,8 +57,8 @@ export function parsePayment(input: unknown): PaymentInput {
   }
   if (body.task !== undefined) {
     const task = body.task as Partial<TaskInput>;
-    if (result.source !== "tasks" || !task || typeof task !== "object" || Array.isArray(task) || Object.keys(task).some(key=>!["pages","deadline_days","revisions","instructions","reference_url"].includes(key)) || !Number.isSafeInteger(task.pages) || Number(task.pages)<1 || Number(task.pages)>500 || !Number.isSafeInteger(task.deadline_days) || Number(task.deadline_days)<1 || Number(task.deadline_days)>90 || !Number.isSafeInteger(task.revisions) || Number(task.revisions)<0 || Number(task.revisions)>20 || typeof task.instructions!=="string" || task.instructions.trim().length<10 || task.instructions.length>3000 || /[\u0000-\u001f]/.test(task.instructions) || typeof task.reference_url!=="string" || task.reference_url.length>500 || task.reference_url && !/^https:\/\/[^\s]+$/.test(task.reference_url)) throw invalid();
-    result.task={pages:Number(task.pages),deadline_days:Number(task.deadline_days),revisions:Number(task.revisions),instructions:task.instructions.trim(),reference_url:task.reference_url.trim()};
+    if (result.source !== "tasks" || !task || typeof task !== "object" || Array.isArray(task) || Object.keys(task).some(key=>!["pages","deadline_days","revisions","instructions","reference_url","pricing_unit"].includes(key)) || (task.pricing_unit!==undefined && !["page","slide","minute","item"].some(unit=>unit===task.pricing_unit)) || !Number.isSafeInteger(task.pages) || Number(task.pages)<1 || Number(task.pages)>500 || !Number.isSafeInteger(task.deadline_days) || Number(task.deadline_days)<1 || Number(task.deadline_days)>90 || !Number.isSafeInteger(task.revisions) || Number(task.revisions)<0 || Number(task.revisions)>20 || typeof task.instructions!=="string" || task.instructions.trim().length<10 || task.instructions.length>3000 || /[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/.test(task.instructions) || typeof task.reference_url!=="string" || task.reference_url.length>500 || task.reference_url && !/^https:\/\/[^\s]+$/.test(task.reference_url)) throw invalid();
+    result.task={...(task.pricing_unit ? {pricing_unit:task.pricing_unit} : {}),pages:Number(task.pages),deadline_days:Number(task.deadline_days),revisions:Number(task.revisions),instructions:task.instructions.trim(),reference_url:task.reference_url.trim()};
   }
   if (result.source === "tasks" && !result.task) throw invalid();
   return result;

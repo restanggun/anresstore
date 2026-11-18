@@ -1,0 +1,15 @@
+.editor { margin-top: 18px; padding: clamp(16px, 3vw, 26px); }
+.editor form { display: grid; gap: 16px; justify-items: start; }
+.fields { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 235px), 1fr)); align-items: start; width: 100%; gap: 16px; border: 0; margin: 0; padding: 0; }
+.editor label { display: grid; gap: 6px; font-size: 0.875rem; font-weight: 650; min-width: 0; }
+.editor :is(input:not([type="checkbox"]), select) { width: 100%; min-width: 0; min-height: 44px; padding: 8px 10px; font: inherit; color: inherit; border: 1px solid #bbc4cd; border-radius: 10px; background: transparent; }
+.editor :is(input, select):focus-visible { outline: 2px solid currentColor; outline-offset: 2px; }
+.editor small, .hint { font-weight: 400; }
+.hint { padding: 0 0 8px; overflow-wrap: anywhere; }
+.editor .check { display: flex; align-items: center; gap: 8px; min-height: 44px; }
+.accounts { display: grid; gap: 12px; margin-top: 24px; padding-top: 20px; border-top: 1px solid #dce2e8; }
+.assign { grid-template-columns: minmax(0, 1fr) auto; align-items: end; }
+.assign label { width: 100%; }
+.accountRow { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; padding-block: 8px; }
+.accountRow span { overflow-wrap: anywhere; }
+@media (max-width: 520px) { .assign { grid-template-columns: minmax(0, 1fr); } }

@@ -29,7 +29,7 @@ export async function adminDb<T = Record<string, unknown>>(table: string, query:
 
 export type ManagedProduct = {
   id: string; provider: string; provider_code: string; category: CatalogItem["category"];
-  product: string; product_slug: string; section?: string | null; name: string; price: number; cost_price?: number | null; description: string; active: boolean; deleted_at?: string | null; fulfillment_mode?: "manual" | "vipayment"; supplier_code?: string; service_quantity?: number;
+  product: string; product_slug: string; section?: string | null; name: string; price: number; cost_price?: number | null; description: string; active: boolean; deleted_at?: string | null; updated_at?: string; fulfillment_mode?: "manual" | "vipayment"; supplier_code?: string; service_quantity?: number;
 };
 
 export function mergeProducts(items: CatalogItem[], rows: ManagedProduct[], category: string, sourceItems = items): CatalogItem[] {

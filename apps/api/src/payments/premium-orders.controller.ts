@@ -6,6 +6,8 @@ import { adminDb } from "../admin/admin-store";
 import { uuid, messageInput } from "../help/conversations.controller";
 import { PaymentStore } from "./payment-store";
 import { qrisForAmount } from "./qris-payload";
+import { parseVoucher, promotedProduct } from "./vouchers";
+import { paymentHash } from "./payment-contract";
 import QRCode from "qrcode";
 
 export function premiumImage(value:unknown,maxBytes=100000):string {
@@ -48,23 +50,32 @@ export class PremiumOrdersController {
   if(!catalog.items.some(item=>item.code===`managed.${id}`&&item.fulfillmentMode==="manual"))throw new HttpException("Paket tidak tersedia.",404);
   const [rule]=await adminDb<{access_type:string;duration_days:number;guarantee_days:number;guarantee_terms:string;updated_at:string}>("premium_product_rules",`?product_id=eq.${id}&select=access_type,duration_days,guarantee_days,guarantee_terms,updated_at`);
   if(!rule)throw new HttpException("Ketentuan paket belum diatur.",503);
-  const [qris]=await adminDb<{payload:string}>("premium_qris_settings","?id=eq.1&select=payload");
-  if(!qris)throw new HttpException("QRIS statis merchant belum diatur admin.",503);
   return rule;
  }
- @Post() async create(@Body() input:{id?:unknown;code?:unknown;expectedAmount?:unknown;expectedRuleAt?:unknown;email?:unknown;phone?:unknown},@Req() req:Request,@Res({passthrough:true}) res:Response){
+ @Post() async create(@Body() input:{id?:unknown;code?:unknown;expectedAmount?:unknown;expectedRuleAt?:unknown;email?:unknown;phone?:unknown;voucher?:unknown},@Req() req:Request,@Res({passthrough:true}) res:Response){
   const identity=await this.owner(req,res,true),user=identity.userId;
-  const email=String(identity.email||input.email||"").trim().toLowerCase(),phone=typeof input.phone==="string"?input.phone.trim():"";
+  const email=String(identity.email||(typeof input?.email==="string"?input.email:"")).trim().toLowerCase(),phone=typeof input?.phone==="string"?input.phone.trim():"";
   if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)||email.length>254||phone&&!/^\+?[0-9]{8,15}$/.test(phone))throw new HttpException("Isi email yang valid dan nomor WhatsApp yang benar jika ingin dicantumkan.",400);
-  if(!uuid(input?.id)||typeof input.code!=="string"||!/^managed\.[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/.test(input.code)||!Number.isSafeInteger(input.expectedAmount)||Number(input.expectedAmount)<1||typeof input.expectedRuleAt!=="string"||!Number.isFinite(Date.parse(input.expectedRuleAt)))throw new HttpException("Paket aplikasi tidak valid.",400);
+  if(!uuid(input?.id)||typeof input.code!=="string"||!/^managed\.[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/.test(input.code)||!Number.isSafeInteger(input.expectedAmount)||Number(input.expectedAmount)<0||Number(input.expectedAmount)>100000000||typeof input.expectedRuleAt!=="string"||!Number.isFinite(Date.parse(input.expectedRuleAt)))throw new HttpException("Paket aplikasi tidak valid.",400);
+  const voucher=input.voucher===undefined?null:parseVoucher(input.voucher);
+  if(voucher && user && !identity.emailVerified)throw new HttpException("Verifikasi email akun sebelum memakai voucher.",403);
+  if(voucher && await this.store.rpc<boolean>("consume_payment_rate",{p_key:`voucher-ip:${paymentHash(req.ip || req.socket?.remoteAddress || "unknown")}`,p_limit:15,p_seconds:60})!==true)
+    throw new HttpException("Terlalu banyak percobaan voucher. Coba lagi nanti.",429);
   if(await this.store.rpc<boolean>("consume_payment_rate",{p_key:`premium:${user??identity.guestHash}`,p_limit:10,p_seconds:3600})!==true)throw new HttpException("Terlalu banyak pesanan. Coba lagi nanti.",429);
   const catalog=await this.catalog.list("apps");
   const product=catalog.items.find(row=>row.code===input.code);
-  if(!product || product.price!==input.expectedAmount || product.fulfillmentMode!=="manual")throw new HttpException("Paket atau harga berubah. Muat ulang katalog.",409);
-  const [order]=await adminDb("rpc/reserve_premium_order","","POST",{p_id:input.id,p_user:user,p_guest_hash:user?null:identity.guestHash,p_email:email,p_phone:phone||null,p_product:input.code.slice(8),p_amount:product.price,p_rule_updated_at:input.expectedRuleAt});
-  const [qris]=await adminDb<{payload:string}>("premium_qris_settings","?id=eq.1&select=payload");
-  if(!qris)throw new HttpException("QRIS statis merchant belum diatur admin.",503);
-  const dynamicPayload=qrisForAmount(qris.payload,product.price);
+  if(!product || (!voucher && product.price!==input.expectedAmount) || product.fulfillmentMode!=="manual")throw new HttpException("Paket atau harga berubah. Muat ulang katalog.",409);
+  const amount=Number(input.expectedAmount);
+  const [qris]=amount>0?await adminDb<{payload:string}>("premium_qris_settings","?id=eq.1&select=payload"):[];
+  if(amount>0 && !qris)throw new HttpException("QRIS statis merchant belum diatur admin.",503);
+  const args={p_id:input.id,p_user:user,p_guest_hash:user?null:identity.guestHash,p_email:email,p_phone:phone||null,p_product:input.code.slice(8),p_rule_updated_at:input.expectedRuleAt};
+  const [order]=voucher
+    ? await this.store.rpc<Record<string,unknown>[]>("reserve_premium_voucher",{...args,p_voucher:voucher,p_base_amount:product.price,p_expected_amount:amount,
+        p_catalog_revision:catalog.catalogRevision ?? null,p_promoted:promotedProduct(product)})
+    : await adminDb("rpc/reserve_premium_order","","POST",{...args,p_amount:product.price});
+  if(!order)throw new HttpException("Pesanan belum dapat disiapkan. Periksa status sebelum mencoba lagi.",503);
+  if(order.status!=="awaiting_qr")return {order};
+  const dynamicPayload=qrisForAmount(qris!.payload,Number(order.amount));
   const image=await QRCode.toDataURL(dynamicPayload,{errorCorrectionLevel:"M",margin:2,width:480});
   const [prepared]=await adminDb("rpc/prepare_premium_order","","POST",{p_order:input.id,p_user:user,p_guest_hash:user?null:identity.guestHash,p_qr_image:image});
   if(!prepared)throw new HttpException("QRIS pesanan belum dapat disiapkan. Periksa status sebelum mencoba lagi.",503);
@@ -84,7 +95,8 @@ export class PremiumOrdersController {
  @Get(":id") async detail(@Param("id") id:string,@Req() req:Request,@Res({passthrough:true}) res:Response){
   const identity=await this.owner(req,res),order=await this.order(id,identity);
   const [claim]=await adminDb("premium_guarantee_claims",`?order_id=eq.${id}&select=*`);
-  return {order,claim:claim??null};
+  const voucher=order.voucher_applied?await this.store.voucherReceipt("premium_id",id):null;
+  return {order:{...order,voucher},claim:claim??null};
  }
  @Post(":id/proof") async proof(@Param("id") id:string,@Body() input:{image?:unknown;note?:unknown},@Req() req:Request,@Res({passthrough:true}) res:Response){
   const identity=await this.owner(req,res,true),order=await this.order(id,identity),ownership=identity.userId?`user_id=eq.${identity.userId}`:`guest_session_hash=eq.${identity.guestHash}`;

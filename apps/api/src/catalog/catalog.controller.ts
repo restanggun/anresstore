@@ -49,7 +49,23 @@ export class CatalogController {
     const [version] = process.env.ADMIN_CATALOG_ENABLED === "true"
       ? await adminDb<{version: number}>("catalog_versions", `?category=eq.${category}&select=version`) : [];
     if (process.env.ADMIN_CATALOG_ENABLED === "true" && !version) throw new HttpException("Versi katalog belum tersedia.", 503);
-    const items = await managedCatalog(value.items, category);
+    let items = await managedCatalog(value.items, category);
+    if (category === "tasks" && items.length) {
+      const rules = await adminDb<{product_id:string;pricing_unit:NonNullable<CatalogItem["taskPricing"]>["unit"];max_pages:number;max_revisions:number;standard_days:number;base_fee:number|null;price_per_page:number}>(
+        "task_price_rules", "?select=product_id,pricing_unit,max_pages,max_revisions,standard_days,base_fee,price_per_page");
+      const byProduct = new Map(rules.map(rule => [rule.product_id, rule]));
+      items = items.flatMap(item => {
+        const rule = byProduct.get(item.code.slice(8));
+        if (!rule) return [];
+        const startingPrice = (rule.base_fee ?? item.price) + rule.price_per_page;
+        if (rule.pricing_unit !== "custom" && (startingPrice < 1 || startingPrice > 100000000)) return [];
+        return [{
+          ...item,
+          taskPricing:{unit:rule.pricing_unit,maxUnits:rule.max_pages,maxRevisions:rule.max_revisions,standardDays:rule.standard_days,
+            ...(rule.pricing_unit === "custom" ? {} : {startingPrice})},
+        }];
+      });
+    }
     const campaigns = process.env.ADMIN_CATALOG_ENABLED === "true" ? await adminDb<CatalogCampaign>("catalog_promotions", `?category=eq.${category}&active=eq.true&select=*`) : [];
     return { ...presentCatalog({ ...value, items }, Date.now(), campaigns), catalogRevision: version ? String(version.version) : null };
   }

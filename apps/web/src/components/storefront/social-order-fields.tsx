@@ -1,7 +1,8 @@
 "use client";
 import { useState } from "react";
+import { Button } from "@anres/ui";
 import { Select } from "radix-ui";
-import { Check, ChevronDown } from "lucide-react";
+import { Check, ChevronDown, Minus, Plus } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { currentPrice, money, type CatalogItem } from "@/lib/catalog";
 
@@ -52,6 +53,9 @@ export function SocialOrderFields({ items, selected, target, quantity, onSelect,
   const kind = selected?.targetKind ?? "either";
   const label = kind === "username" ? "Username akun" : kind === "link" ? "Link tujuan" : "Username atau link";
   const rate = selected ? currentPrice(selected, now) : 0;
+  const minimum = selected?.minimum ?? selected?.serviceQuantity ?? 1;
+  const maximum = Math.min(selected?.maximum ?? selected?.serviceQuantity ?? 1, 10000000);
+  const stepQuantity = (next: number) => onQuantity(Math.min(maximum, Math.max(minimum, next)));
 
   if (state === "loading") return <p role="status">Memuat layanan...</p>;
   if (state === "error") return <p role="alert">Layanan belum dapat dimuat. <button type="button" className="shop-text-button" onClick={onRetry}>Coba lagi</button></p>;
@@ -76,12 +80,20 @@ export function SocialOrderFields({ items, selected, target, quantity, onSelect,
       </label>
       <p id="social-target-help">{kind === "username" ? "Masukkan username akun publik tanpa @." : kind === "link" ? "Tempel link HTTPS publik dari platform dan layanan yang dipilih." : "Masukkan username tanpa @ atau link HTTPS publik sesuai ketentuan layanan."}</p>
       {selected.description && selected.description !== selected.name && <p className="social-service-note">{selected.description}</p>}
-      <label htmlFor="social-quantity">Jumlah {(/followers?/i.test(selected.section) ? "followers" : /likes?/i.test(selected.section) ? "likes" : /views?/i.test(selected.section) ? "views" : /subscribers?/i.test(selected.section) ? "subscriber" : "item")}
-        <Input id="social-quantity" type="number" inputMode="numeric" min={selected.minimum ?? selected.serviceQuantity ?? 1}
-          max={Math.min(selected.maximum ?? selected.serviceQuantity ?? 1, 10000000)}
+      <label htmlFor="social-quantity">Jumlah {(/followers?/i.test(selected.section) ? "followers" : /likes?/i.test(selected.section) ? "likes" : /views?/i.test(selected.section) ? "views" : /subscribers?/i.test(selected.section) ? "subscriber" : "item")}</label>
+      <div className="social-quantity">
+        <Button type="button" variant="outline" aria-label="Kurangi jumlah" disabled={quantity <= minimum}
+          onClick={() => stepQuantity(Math.ceil(quantity) - 1)}>
+          <Minus size={18} aria-hidden="true"/>
+        </Button>
+        <Input id="social-quantity" name="quantity" type="number" inputMode="numeric" min={minimum} max={maximum}
           step={1} value={quantity || ""} aria-describedby="social-quantity-help" required onChange={event => onQuantity(Number(event.target.value))}/>
-      </label>
-      <p id="social-quantity-help">Min. {(selected.minimum ?? selected.serviceQuantity ?? 1).toLocaleString("id-ID")}, Maks. {Math.min(selected.maximum ?? selected.serviceQuantity ?? 1, 10000000).toLocaleString("id-ID")}. Tarif {money(rate)} per 1.000</p>
+        <Button type="button" aria-label="Tambah jumlah" disabled={quantity >= maximum}
+          onClick={() => stepQuantity(Math.floor(quantity) + 1)}>
+          <Plus size={18} aria-hidden="true"/>
+        </Button>
+      </div>
+      <p id="social-quantity-help">Min. {minimum.toLocaleString("id-ID")}, Maks. {maximum.toLocaleString("id-ID")}. Tarif {money(rate)} per 1.000</p>
     </>}
   </div>;
 }
