@@ -42,10 +42,6 @@ jobs:
       group: anres-production-deploy
       cancel-in-progress: false
     steps:
-      - name: Load VPS SSH key
-        uses: webfactory/ssh-agent@v0.9.0
-        with:
-          ssh-private-key: ${{ secrets.VPS_SSH_KEY }}
       - name: Trust VPS host key
         run: |
           install -m 700 -d ~/.ssh
@@ -54,7 +50,25 @@ jobs:
       - name: Deploy through restricted VPS key
         env:
           RELEASE_SHA: ${{ github.sha }}
-        run: ssh -p 32127 -o BatchMode=yes -o StrictHostKeyChecking=yes -o ConnectTimeout=15 root@202.155.143.177 deploy "$RELEASE_SHA"
+          DEPLOY_PRIVATE_KEY: ${{ secrets.VPS_SSH_KEY }}
+        run: |
+          if [[ -z "$DEPLOY_PRIVATE_KEY" ]]; then
+            echo "::error::Repository secret VPS_SSH_KEY is empty."
+            exit 1
+          fi
+          umask 077
+          key_file=$(mktemp)
+          trap 'rm -f -- "$key_file"' EXIT
+          normalized=$(printf '%s' "$DEPLOY_PRIVATE_KEY" | tr -d '\r')
+          printf '%s\n' "${normalized#$'\xef\xbb\xbf'}" > "$key_file"
+          unset DEPLOY_PRIVATE_KEY normalized
+          if ! grep -qx -- '-----BEGIN OPENSSH PRIVATE KEY-----' "$key_file" ||
+             ! grep -qx -- '-----END OPENSSH PRIVATE KEY-----' "$key_file" ||
+             ! ssh-keygen -y -P '' -f "$key_file" >/dev/null 2>&1; then
+            echo "::error::VPS_SSH_KEY must contain the complete, unencrypted OpenSSH private key, including the BEGIN and END lines."
+            exit 1
+          fi
+          ssh -i "$key_file" -o IdentitiesOnly=yes -p 32127 -o BatchMode=yes -o StrictHostKeyChecking=yes -o ConnectTimeout=15 root@202.155.143.177 deploy "$RELEASE_SHA"
       - name: Check production routes
         run: |
           for url in https://anresstore.site/ https://app.anresstore.site/katalog https://admin.anresstore.site/ https://api.anresstore.site/v1/health; do
