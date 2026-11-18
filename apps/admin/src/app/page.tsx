@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import { motion, useReducedMotion } from "motion/react";
 import { LayoutGrid, ShoppingBag, Box, CreditCard, CircleHelp, Users, ChartNoAxesCombined, Activity, ShieldCheck, ArrowRight, Menu, X, Bell, Clock } from "lucide-react";
@@ -43,11 +43,30 @@ function AdminDashboard(){
  useEffect(()=>{const handler=(event:Event)=>{const section=(event as CustomEvent<{section?:string}>).detail?.section;if(section==="apps"||section==="tasks")setActive(section)};window.addEventListener("anres-open-manual-order",handler);return()=>window.removeEventListener("anres-open-manual-order",handler)},[]);
  const {health,samples,refresh,fetching}=useApiHealth(); const reducedMotion=useReducedMotion();
  const select=(id:string)=>{setActive(id);setMenuOpen(false)}; const current=sections.find(x=>x.id===active)!;
- useEffect(()=>{if(!menuOpen)return;const close=(event:KeyboardEvent)=>{if(event.key==="Escape")setMenuOpen(false)};window.addEventListener("keydown",close);return()=>window.removeEventListener("keydown",close)},[menuOpen]);
+ const drawer = useRef<HTMLDialogElement>(null);
+ useEffect(() => {
+   const panel = drawer.current;
+   if (menuOpen && !panel?.open) panel?.showModal();
+   if (!menuOpen && panel?.open) panel.close();
+ }, [menuOpen]);
+ useEffect(() => {
+   const desktop = window.matchMedia("(min-width: 768px)");
+   const closeDrawer = () => { if (desktop.matches) setMenuOpen(false); };
+   desktop.addEventListener("change", closeDrawer);
+   return () => desktop.removeEventListener("change", closeDrawer);
+ }, []);
+
  const alerts=health==="offline"?1:0;
  const logout=async()=>{try{await fetch(`${(process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000/v1").replace(/\/$/, "")}/auth/logout`,{method:"POST",credentials:"include",headers:{"Content-Type":"application/json"},body:"{}"});}finally{window.location.reload();}};
- return <div className="admin-shell"><aside className={`sidebar ${menuOpen?"sidebar-open":""}`} aria-label="Navigasi admin"><div className="sidebar-top"><a className="brand" href="/" aria-label="Anres Store admin"><Brand/></a><button className="icon-button sidebar-close" onClick={()=>setMenuOpen(false)} aria-label="Tutup menu"><Icon name="close"/></button></div><div className="workspace"><span className="workspace-icon"><Icon name="grid" size={19}/></span><span><strong>Ruang kerja</strong><small>Anres Store admin</small></span><span className="workspace-dot"/></div><nav className="side-nav" aria-label="Menu utama">{["Utama","Operasional","Pelanggan","Analisis","Pengaturan"].map(group=><div className="nav-group" key={group}><p>{group}</p>{sections.filter(item=>item.group===group).map(item=><button key={item.id} onClick={()=>select(item.id)} className={`nav-item ${active===item.id?"active":""}`} aria-current={active===item.id?"page":undefined}><Icon name={item.icon}/><span>{item.label}</span>{item.id==="conversations"&&<SupportTicketBadge/>}{item.id==="system"&&alerts>0?<span className="notification-count" aria-label={`${alerts} masalah terdeteksi`}>{alerts}</span>:active===item.id?<span className="nav-indicator"/>:null}</button>)}</div>)}</nav><div className="sidebar-bottom"><div className="sidebar-footer"><span className="avatar">A</span><span><strong>Admin Anres</strong><small>Akses administrator</small></span></div></div></aside>{menuOpen&&<button className="backdrop" onClick={()=>setMenuOpen(false)} aria-label="Tutup navigasi"/>}
- <div className="main-wrap"><header className="topbar"><div className="topbar-left"><button className="icon-button mobile-menu" onClick={()=>setMenuOpen(true)} aria-label="Buka menu" aria-expanded={menuOpen}><Icon name="menu"/></button><span className="breadcrumb">Ruang kerja <span>/</span> <strong>{current.label}</strong></span></div><div className="topbar-right"><span className="setup-pill"><span/> Akses administrator</span><button className="text-button" onClick={() => void logout()}>Keluar</button><SupportNotifications onNavigate={select} systemAlerts={alerts}/><span className="top-avatar">A</span></div></header>
+ const sidebarContents = <><div className="sidebar-top"><a className="brand" href="/" aria-label="Anres Store admin"><Brand/></a><button className="icon-button sidebar-close" onClick={()=>setMenuOpen(false)} aria-label="Tutup menu"><Icon name="close"/></button></div><div className="workspace"><span className="workspace-icon"><Icon name="grid" size={19}/></span><span><strong>Ruang kerja</strong><small>Anres Store admin</small></span><span className="workspace-dot"/></div><nav className="side-nav" aria-label="Menu utama">{["Utama","Operasional","Pelanggan","Analisis","Pengaturan"].map(group=><div className="nav-group" key={group}><p>{group}</p>{sections.filter(item=>item.group===group).map(item=><button key={item.id} onClick={()=>select(item.id)} className={`nav-item ${active===item.id?"active":""}`} aria-current={active===item.id?"page":undefined}><Icon name={item.icon}/><span className="nav-item-label">{item.label}</span>{item.id==="conversations"&&<SupportTicketBadge/>}{item.id==="system"&&alerts>0?<span className="notification-count" aria-label={`${alerts} masalah terdeteksi`}>{alerts}</span>:active===item.id?<span className="nav-indicator"/>:null}</button>)}</div>)}</nav><div className="sidebar-bottom"><div className="sidebar-footer"><span className="avatar" aria-hidden="true">A</span><span className="sidebar-profile-copy"><strong>Admin Anres</strong><small>Akses administrator</small></span></div></div></>;
+ return <div className="admin-shell">
+ <aside className="sidebar sidebar-desktop" aria-label="Navigasi admin">{sidebarContents}</aside>
+ <dialog ref={drawer} id="admin-navigation" className="sidebar sidebar-drawer" aria-label="Navigasi admin"
+   onCancel={event=>{event.preventDefault();setMenuOpen(false);}}
+   onClick={event=>{if(event.target===event.currentTarget){const box=event.currentTarget.getBoundingClientRect();if(event.clientX<box.left||event.clientX>box.right||event.clientY<box.top||event.clientY>box.bottom)setMenuOpen(false);}}}>
+   {menuOpen&&sidebarContents}
+ </dialog>
+ <div className="main-wrap"><header className="topbar"><div className="topbar-left"><button className="icon-button mobile-menu" onClick={()=>setMenuOpen(true)} aria-label="Buka menu" aria-controls="admin-navigation" aria-expanded={menuOpen}><Icon name="menu"/></button><span className="breadcrumb"><span className="breadcrumb-root">Ruang kerja</span> <span className="breadcrumb-divider">/</span> <strong>{current.label}</strong></span></div><div className="topbar-right"><span className="setup-pill"><span/> Akses administrator</span><button className="text-button" onClick={() => void logout()}>Keluar</button><SupportNotifications onNavigate={select} systemAlerts={alerts}/><span className="top-avatar">A</span></div></header>
  <motion.main id="main" className="main-content" key={active} initial={reducedMotion ? false : {opacity:0}} animate={{opacity:1}} transition={{duration:reducedMotion ? 0 : 0.15}}>
  {active === "overview" && <TransactionAnalytics overview onNavigate={select}/>}
  {active === "reports" && <TransactionAnalytics onNavigate={select}/>}

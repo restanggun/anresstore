@@ -142,3 +142,29 @@
 .order-summary-details dd{margin:0;font-size:13px;line-height:1.7;font-weight:650;overflow-wrap:anywhere}
 .order-summary h3{overflow-wrap:anywhere}
 @media(max-width:800px){.order-layout-checkout>.order-summary{grid-row:1;position:static}.order-layout-checkout>.order-main{grid-row:2}.order-summary .order-summary-details{gap:12px}.order-summary .order-summary-details>div{flex-direction:row;justify-content:space-between;gap:16px}.order-summary-details dd{text-align:right;min-width:0;max-width:70%}}
+
+.social-order-fields { min-width:0; }
+.social-order-fields p { margin:8px 0 0; }
+.social-service-note { white-space:pre-line; overflow-wrap:anywhere; }
+.social-select-trigger { display:flex;align-items:center;justify-content:space-between;gap:12px;width:100%;min-height:50px;margin-top:8px;padding:12px 14px;border:1px solid var(--field-border);border-radius:14px;background:var(--surface);color:var(--foreground);text-align:left;font-size:14px; }
+.social-select-trigger > span { min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap; }
+.social-select-trigger svg { flex-shrink:0; }
+.social-select-trigger[data-placeholder] { color:var(--muted); }
+.social-select-trigger:disabled { opacity:.55; }
+.social-select-menu { z-index:100;box-sizing:border-box;width:var(--radix-select-trigger-width);max-width:var(--radix-select-content-available-width, 100vw);max-height:min(320px,var(--radix-select-content-available-height));overflow:auto;padding:5px;border:1px solid var(--field-border);border-radius:14px;background:var(--surface);color:var(--foreground); }
+.social-select-option { position:relative;display:grid;gap:4px;padding:10px 32px 10px 12px;border-radius:9px;font-size:13px;line-height:1.5;overflow-wrap:anywhere;cursor:pointer;outline:none; }
+.social-select-option small { color:var(--muted); }
+.social-select-option[data-highlighted] { background:var(--primary-soft); }
+.social-select-option[data-state=checked] { background:var(--pink-soft);color:var(--pink-ink); }
+.social-select-option > span:last-child:not(:first-child) { position:absolute;inset:12px 10px auto auto; }
+
+.catalog-product-art-social { height:auto;aspect-ratio:16 / 9; }
+.social-thumbnail { display:grid;place-items:center;width:74px;aspect-ratio:1;border-radius:20px;background:var(--surface); }
+.catalog-product-art-social .social-thumbnail img { width:46px;height:46px;object-fit:contain; }
+.social-product-title { display:flex;align-items:center;gap:12px; }
+.social-product-title .catalog-product-game-icon { flex-shrink:0; }
+
+.social-mobile-total { display:none; }
+@media(max-width:800px) {
+ .social-mobile-total { display:flex;justify-content:space-between;gap:12px;margin-top:20px;padding:12px 14px;border-radius:14px;background:var(--pink-soft);color:var(--pink-ink); }
+}

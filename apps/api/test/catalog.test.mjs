@@ -131,3 +131,16 @@ test('unmapped supplier services are importable for manual work and stay unpubli
  global.fetch=async url=>String(url).includes('vip-reseller')?Response.json({result:true,data:[game(),game({code:'UNKNOWN',game:'New provider flow',name:'Service with custom destination'})]}):Response.json(String(url).includes('/catalog_versions')?[{version:0}]:[]);
  try{const c=new CatalogController(),raw=await c.list('game',true),live=await c.list('game');assert.equal(raw.items.find(i=>i.code==='UNKNOWN').requiresManualReview,true);assert.equal(raw.items.find(i=>i.code==='UNKNOWN').fulfillmentMode,'manual');assert.equal(live.items.some(i=>i.code==='UNKNOWN'),false);}finally{process.env=env;global.fetch=original;}
 });
+
+test('social destination follows the supplier service category', () => {
+ const service = { min: 10, max: 1000, price: { basic: 2000 }, status: 'available' };
+ const mapped = mapCatalog('social', [
+  { ...service, id: '21', name: 'Followers', category: 'Instagram Followers' },
+  { ...service, id: '22', name: 'Followers', category: 'TikTok Followers' },
+  { ...service, id: '23', name: 'Subscribers', category: 'YouTube Subscribers' },
+  { ...service, id: '24', name: 'Likes', category: 'Instagram Likes' },
+ ]);
+ assert.deepEqual(Object.fromEntries(mapped.map(item => [item.code, item.targetKind])), {
+  '21': 'username', '22': 'either', '23': 'link', '24': 'link',
+ });
+});

@@ -290,10 +290,12 @@ test('manual task checkout stores authoritative work mode and customer contact s
  assert.equal(s.read().service_quantity,1);assert.equal(s.read().amount,input.expectedAmount);
 });
 
-test('social checkout validates quantity and calculates the authoritative amount',async()=>{
- const s=setup();s.controller.catalog={list:async()=>({items:[{code:'SKU',price:20000,unitPrice:6500,minimum:100,maximum:50000,product:'TikTok',name:'Likes',serviceQuantity:100,providerServiceCode:'17',providerCost:6500,fulfillmentMode:'vipayment'}]})};
+test('social checkout validates the destination and quantity and calculates the authoritative amount',async()=>{
+ const s=setup();s.controller.catalog={list:async()=>({items:[{code:'SKU',price:20000,unitPrice:6500,minimum:100,maximum:50000,product:'TikTok',name:'Likes',targetKind:'link',targetHosts:['tiktok.com'],serviceQuantity:100,providerServiceCode:'17',providerCost:6500,fulfillmentMode:'vipayment'}]})};
  await assert.rejects(s.controller.create({...input,source:'social',expectedQuantity:50001},req,res),e=>e.getStatus()===400);assert.equal(s.creates(),0);
- await s.controller.create({...input,source:'social',expectedQuantity:500,expectedAmount:3250},req,res);assert.equal(s.read().service_quantity,500);assert.equal(s.read().provider_service_code,'17');assert.equal(s.read().provider_cost,3250);assert.equal(s.read().amount,3250);
+ await assert.rejects(s.controller.create({...input,source:'social',expectedQuantity:500,expectedAmount:3250},req,res),e=>e.getStatus()===400);assert.equal(s.creates(),0);
+ await assert.rejects(s.controller.create({...input,source:'social',target:'https://tiktok.com.example.net/@public/video/123',expectedQuantity:500,expectedAmount:3250},req,res),e=>e.getStatus()===400);assert.equal(s.creates(),0);
+ await s.controller.create({...input,source:'social',target:'https://www.tiktok.com/@public/video/123',expectedQuantity:500,expectedAmount:3250},req,res);assert.equal(s.read().service_quantity,500);assert.equal(s.read().provider_service_code,'17');assert.equal(s.read().provider_cost,3250);assert.equal(s.read().amount,3250);
 });
 
 test('guest game checkout requires email but allows empty WhatsApp',async()=>{

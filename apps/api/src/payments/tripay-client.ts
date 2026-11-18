@@ -81,19 +81,22 @@ export class TripayClient {
     return data.filter(channel => channel.active === true && /^[A-Z0-9_]{1,50}$/.test(channel.code));
   }
 
-  /** Balance for the Tripay PPOB/H2H account used by fulfillment. */
+  /** Balance for the separate Tripay PPOB/H2H account. */
   async balance(): Promise<number> {
     const apiKey = process.env.TRIPAY_H2H_API_KEY?.trim();
     if (!apiKey) throw new HttpException("API key Tripay H2H belum dikonfigurasi.", 503);
-    const mode = process.env.TRIPAY_H2H_MODE?.trim() === "sandbox" ? "sandbox" : "live";
+    const mode = process.env.TRIPAY_H2H_MODE?.trim() || "live";
+    if (mode !== "live" && mode !== "sandbox") throw new HttpException("Mode Tripay H2H tidak valid.", 503);
     const base = mode === "sandbox" ? "https://tripay.id/api-sandbox" : "https://tripay.id/api";
     try {
       const response = await this.transport(`${base}/v2/ceksaldo`, {
-        method: "GET", redirect: "error", headers: { Authorization: `Bearer ${apiKey}` }, signal: AbortSignal.timeout(15000),
+        method: "GET", redirect: "error", headers: { Authorization: `Bearer ${apiKey}`, Accept: "application/json" }, signal: AbortSignal.timeout(15000),
       });
       const result = await response.json() as { success?: unknown; data?: unknown };
-      if (!response.ok || result.success !== true || typeof result.data !== "number" || !Number.isFinite(result.data) || result.data < 0) throw new Error("Invalid balance response");
-      return result.data;
+      const raw = result.data;
+      const balance = typeof raw === "number" ? raw : typeof raw === "string" && /^\d+(?:\.\d{1,2})?$/.test(raw.trim()) ? Number(raw) : NaN;
+      if (!response.ok || result.success !== true || !Number.isFinite(balance) || balance < 0 || balance > Number.MAX_SAFE_INTEGER) throw new Error("Invalid balance response");
+      return balance;
     } catch {
       throw new HttpException("Saldo Tripay tidak dapat dimuat. Periksa konfigurasi API H2H.", 502);
     }

@@ -72,3 +72,28 @@ test('QRIS always sends the optional phone field, including an empty value, to m
  await client.create({id:'invoice-optional-phone',method:'QRISC',amount:2100,name:'Pelanggan',email:'test@example.com',phone:'',product:'Game',code:'SKU',callback:'https://api.example/v1/payments/callback',returnUrl:'https://shop.example/invoice/test'});
  assert.ok(Object.hasOwn(sent,'customer_phone'));assert.equal(sent.customer_phone,'');assert.equal(sent.method,'QRISC');
 });
+
+test('H2H balance has independent configuration and accepts a real zero balance', async () => {
+  const client = new TripayClient(async (url, options) => {
+    assert.equal(url, 'https://tripay.id/api/v2/ceksaldo');
+    assert.equal(options.headers.Authorization, 'Bearer h2h-only');
+    assert.equal(options.redirect, 'error');
+    return Response.json({success:true,data:'0.00'});
+  });
+  const originalKey = process.env.TRIPAY_H2H_API_KEY, originalMode = process.env.TRIPAY_H2H_MODE;
+  try {
+    process.env.TRIPAY_H2H_API_KEY = '';
+    await assert.rejects(client.balance(), error => error.getStatus() === 503);
+    process.env.TRIPAY_H2H_API_KEY = 'h2h-only';
+    process.env.TRIPAY_H2H_MODE = 'invalid';
+    await assert.rejects(client.balance(), error => error.getStatus() === 503);
+    process.env.TRIPAY_H2H_MODE = 'live';
+    assert.equal(await client.balance(), 0);
+    for (const data of [null, '', 'Rp0', -1, {balance:0}]) {
+      await assert.rejects(new TripayClient(async () => Response.json({success:true,data})).balance(), error => error.getStatus() === 502);
+    }
+  } finally {
+    if (originalKey === undefined) delete process.env.TRIPAY_H2H_API_KEY; else process.env.TRIPAY_H2H_API_KEY = originalKey;
+    if (originalMode === undefined) delete process.env.TRIPAY_H2H_MODE; else process.env.TRIPAY_H2H_MODE = originalMode;
+  }
+});

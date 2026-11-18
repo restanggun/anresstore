@@ -30,10 +30,17 @@ export const appArtwork: Record<string, string> = Object.fromEntries(
 export const appCoverArtwork: Record<string, string> = Object.fromEntries(
   Object.entries(appSlugs).map(([name, slug]) => [name, `/brand/apps/${slug}-thumbnail.webp`]),
 );
+export const socialArtwork: Record<string, string> = {
+  Instagram: "/brand/social/instagram.svg", TikTok: "/brand/social/tiktok.svg",
+  YouTube: "/brand/social/youtube.svg", Facebook: "/brand/social/facebook.svg",
+  Telegram: "/brand/social/telegram.svg", Twitter: "/brand/social/x.svg",
+  "X": "/brand/social/x.svg", WhatsApp: "/brand/social/whatsapp.svg",
+  Threads: "/brand/social/threads.svg", Spotify: "/brand/products/spotify.svg",
+};
 export const artwork: Record<string, string> = {
   ...gameArtwork,
   ...appArtwork,
-  Instagram: "/brand/social/instagram.svg", TikTok: "/brand/social/tiktok.svg", YouTube: "/brand/social/youtube.svg", Facebook: "/brand/social/facebook.svg",
+  ...socialArtwork,
   Netflix: "/brand/products/netflix.svg", Spotify: "/brand/products/spotify.svg",
 };
 export const gameDevelopers: Record<string, string> = {
@@ -82,6 +89,7 @@ export function CatalogProductCard({ name, category, developer, pinned = false, 
   const Icon = icons[category] ?? AppWindow;
   const PpobIcon = ({ "Pulsa": Smartphone, "Paket data": Wifi, "Token listrik": Zap, "E-wallet": Wallet } as Record<string, typeof Smartphone>)[name] ?? Smartphone;
   const image = artwork[name];
+  const social = category === "Booster media sosial";
   const cover = category === "Top up game" ? gameCoverArtwork[name] : category === "Aplikasi premium" ? appCoverArtwork[name] : undefined;
   const video = category === "Top up game" ? gamePreviews[name] : undefined;
   useEffect(() => {
@@ -104,10 +112,10 @@ export function CatalogProductCard({ name, category, developer, pinned = false, 
     initial={{ opacity: 0, y: 14 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, amount: .12 }}
     transition={{ duration: reduce ? 0 : .35, delay: reduce ? 0 : Math.min(index, 5) * .04 }}
     whileHover={reduce ? undefined : { y: -4 }} whileTap={reduce ? undefined : { scale: .99 }}>
-    <span className={`catalog-product-art${category === "PPOB" ? " catalog-product-art-ppob" : category === "Aplikasi premium" ? " catalog-product-art-apps" : ""}`} aria-hidden="true">{category === "PPOB" ? <span className="ppob-thumbnail"><PpobIcon size={46} strokeWidth={1.5}/></span> : cover ? <img className="catalog-product-cover" src={cover} alt="" loading="lazy"/> : image ? <img src={image} alt="" loading="lazy"/> : <Icon size={38} strokeWidth={1.5} />}{preview && video && <video ref={videoRef} className={`catalog-product-video${videoReady ? " is-ready" : ""}`} src={video} poster={cover} muted loop playsInline preload="metadata" onCanPlay={() => setVideoReady(true)} onLoadedData={() => setVideoReady(true)} onError={stopPreview}/>} {pinned && <span className="catalog-product-pin"><Star size={17} fill="currentColor" strokeWidth={1.8}/></span>}</span>{pinned && <span className="sr-only">Produk pilihan. </span>}
+    <span className={`catalog-product-art${category === "PPOB" ? " catalog-product-art-ppob" : category === "Aplikasi premium" ? " catalog-product-art-apps" : social ? " catalog-product-art-social" : ""}`} aria-hidden="true">{category === "PPOB" ? <span className="ppob-thumbnail"><PpobIcon size={46} strokeWidth={1.5}/></span> : cover ? <img className="catalog-product-cover" src={cover} alt="" loading="lazy"/> : social && image ? <span className="social-thumbnail"><img src={image} alt="" loading="lazy"/></span> : image ? <img src={image} alt="" loading="lazy"/> : <Icon size={38} strokeWidth={1.5} />}{preview && video && <video ref={videoRef} className={`catalog-product-video${videoReady ? " is-ready" : ""}`} src={video} poster={cover} muted loop playsInline preload="metadata" onCanPlay={() => setVideoReady(true)} onLoadedData={() => setVideoReady(true)} onError={stopPreview}/>} {pinned && <span className="catalog-product-pin"><Star size={17} fill="currentColor" strokeWidth={1.8}/></span>}</span>{pinned && <span className="sr-only">Produk pilihan. </span>}
     <span className="catalog-product-content">
-      {category === "PPOB" ? <span className="catalog-product-game-heading"><span className="catalog-product-game-icon ppob-heading-icon" aria-hidden="true"><PpobIcon size={22}/></span><span className="catalog-product-game-copy"><TextGenerateEffect as="strong" words={name} className="catalog-product-title" duration={.22} revealOnView/><span className="catalog-product-developer">PPOB</span></span></span> : cover && image ? <span className="catalog-product-game-heading"><span className="catalog-product-game-icon" aria-hidden="true"><img src={image} alt="" loading="lazy"/></span><span className="catalog-product-game-copy"><TextGenerateEffect as="strong" words={name} className="catalog-product-title" duration={.22} revealOnView/>{(developer || gameDevelopers[name] || category === "Aplikasi premium") && <span className="catalog-product-developer">{developer || gameDevelopers[name] || "Aplikasi premium"}</span>}</span></span> : <TextGenerateEffect as="strong" words={name} className="catalog-product-title" duration={.22} revealOnView/>}
-      {!cover && category !== "PPOB" && (category === "Top up game" ? (developer || gameDevelopers[name]) && <span className="catalog-product-developer">{developer || gameDevelopers[name]}</span> : <span className="catalog-product-category">{category}</span>)}
+      {category === "PPOB" ? <span className="catalog-product-game-heading"><span className="catalog-product-game-icon ppob-heading-icon" aria-hidden="true"><PpobIcon size={22}/></span><span className="catalog-product-game-copy"><TextGenerateEffect as="strong" words={name} className="catalog-product-title" duration={.22} revealOnView/><span className="catalog-product-developer">PPOB</span></span></span> : (cover || social) && image ? <span className="catalog-product-game-heading"><span className="catalog-product-game-icon" aria-hidden="true"><img src={image} alt="" loading="lazy"/></span><span className="catalog-product-game-copy"><TextGenerateEffect as="strong" words={name} className="catalog-product-title" duration={.22} revealOnView/>{(developer || gameDevelopers[name] || category === "Aplikasi premium" || social) && <span className="catalog-product-developer">{developer || gameDevelopers[name] || category}</span>}</span></span> : <TextGenerateEffect as="strong" words={name} className="catalog-product-title" duration={.22} revealOnView/>}
+      {!cover && (!social || !image) && category !== "PPOB" && (category === "Top up game" ? (developer || gameDevelopers[name]) && <span className="catalog-product-developer">{developer || gameDevelopers[name]}</span> : <span className="catalog-product-category">{category}</span>)}
       <span className="catalog-product-action">{label}<ArrowUpRight size={16}/></span>
     </span>
   </motion.button>;

@@ -191,11 +191,11 @@ test('product overrides preserve supplier fulfillment metadata and cannot revive
  assert.deepEqual(mergeProducts([],[override],'game'),[]);
 });
 
-test('social packages keep supplier code separate and scale authoritative cost without publishing unselected services',()=>{
+test('social packages keep supplier code separate and preserve the supplier rate without publishing unselected services',()=>{
  const source={code:'17',category:'social',name:'TikTok Likes',displayName:'TikTok Likes',product:'TikTok',productSlug:'tiktok',group:'TikTok Likes',type:'social',brand:'TikTok',section:'Likes',description:'',price:8000,providerCost:6497,minimum:100,maximum:50000};
  const managed={...product,id:'social-package',category:'social',provider:'vipayment',provider_code:'17-500',supplier_code:'17',service_quantity:500,product:'TikTok',product_slug:'tiktok',name:'500 Likes',price:5000,fulfillment_mode:'vipayment'};
  const [item]=mergeProducts([],[managed],'social',[source]);
- assert.equal(item.code,'managed.social-package');assert.equal(item.providerServiceCode,'17');assert.equal(item.serviceQuantity,500);assert.equal(item.providerCost,3249);assert.equal(item.price,5000);
+ assert.equal(item.code,'managed.social-package');assert.equal(item.providerServiceCode,'17');assert.equal(item.serviceQuantity,500);assert.equal(item.providerCost,6497);assert.equal(item.price,5000);
  assert.deepEqual(mergeProducts([],[{...managed,service_quantity:50}],'social',[source]),[]);
  const [manual]=mergeProducts([],[{...product,category:'tasks',provider:'manual',fulfillment_mode:'manual'}],'tasks');
  assert.equal(manual.fulfillmentMode,'manual');assert.equal(manual.providerCost,undefined);

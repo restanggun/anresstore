@@ -49,7 +49,7 @@ export function mergeProducts(items: CatalogItem[], rows: ManagedProduct[], cate
       : row.name;
     result.set(code, { ...original, code, category: row.category, name: row.name, displayName, product: row.product,
       productSlug: row.product_slug, price: row.price, description: row.description, group: original?.group ?? row.product,
-      type: original?.type ?? row.category, brand: original?.brand ?? row.product, section, fulfillmentMode: ["tasks", "apps"].includes(row.category) || original?.requiresManualReview ? "manual" : row.provider === "vipayment" ? (row.fulfillment_mode || "vipayment") : "manual", providerServiceCode: row.supplier_code || row.provider_code, serviceQuantity: quantity, unitPrice: original?.unitPrice, minimum: original?.minimum, maximum: original?.maximum, providerCost: category === "social" && original?.providerCost ? Math.ceil(original.providerCost * quantity / 1000) : original?.providerCost });
+      type: original?.type ?? row.category, brand: original?.brand ?? row.product, section, fulfillmentMode: ["tasks", "apps"].includes(row.category) || original?.requiresManualReview ? "manual" : row.provider === "vipayment" ? (row.fulfillment_mode || "vipayment") : "manual", providerServiceCode: row.supplier_code || row.provider_code, serviceQuantity: quantity, unitPrice: original?.unitPrice, minimum: original?.minimum, maximum: original?.maximum, providerCost: original?.providerCost });
   }
   return [...result.values()].sort((a, b) => a.product.localeCompare(b.product) || a.price - b.price);
 }

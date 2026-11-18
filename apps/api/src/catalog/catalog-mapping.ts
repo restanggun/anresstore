@@ -4,6 +4,8 @@ export type CatalogItem = {
   code: string; name: string; group: string; type: string; price: number;
   product: string; productSlug: string; brand: string; description: string; category: "game" | "prepaid" | "apps" | "social" | "tasks";
   fulfillmentMode?: "vipayment" | "manual"; providerServiceCode?: string; serviceQuantity?: number; unitPrice?: number; minimum?: number; maximum?: number;
+  targetHosts?: readonly string[];
+  targetKind?: "username" | "link" | "either";
   requiresManualReview?: boolean;
   displayName: string; section: string; developer?: string;
 };
@@ -224,6 +226,18 @@ export function mapCatalog(source: CatalogSource, rows: unknown[]): CatalogItem[
   return [...items.values()].sort((a, b) => a.product.localeCompare(b.product, "id") || a.brand.localeCompare(b.brand, "id") || a.price - b.price || a.code.localeCompare(b.code));
 }
 
+const socialTargetHosts: Readonly<Record<string, readonly string[]>> = {
+  Instagram: ["instagram.com"],
+  TikTok: ["tiktok.com"],
+  YouTube: ["youtube.com", "youtu.be"],
+  Facebook: ["facebook.com", "fb.com", "fb.watch"],
+  Telegram: ["t.me", "telegram.me"],
+  Twitter: ["twitter.com", "x.com"],
+  Spotify: ["spotify.com"],
+  WhatsApp: ["whatsapp.com", "wa.me"],
+  Threads: ["threads.com", "threads.net"],
+};
+
 function mapSocialCatalog(rows: unknown[]): CatalogItem[] {
   const items = new Map<string, CatalogItem>();
   const duplicate = new Set<string>();
@@ -233,8 +247,12 @@ function mapSocialCatalog(rows: unknown[]): CatalogItem[] {
     const code = text(String(row.id ?? ""), 100), name = text(row.name), group = text(row.category), cost = Number(row.price?.basic), minimum = Number(row.min), maximum = Number(row.max);
     if (row.status !== "available" || !/^[A-Za-z0-9._-]+$/.test(code) || !name || !group || !Number.isSafeInteger(cost) || cost < 1 || !Number.isSafeInteger(minimum) || minimum < 1 || !Number.isSafeInteger(maximum) || maximum < minimum) continue;
     const platform = ["Instagram","TikTok","YouTube","Facebook","Telegram","Twitter","Spotify","WhatsApp","Threads"].find(p => group.toLowerCase().includes(p.toLowerCase())) || group;
+    const service = group + " " + name;
+    const targetKind = platform === "Instagram" && /followers?|story|stories|live|profile visits?/i.test(group) ? "username"
+      : platform === "TikTok" && /followers?/i.test(group) ? "either"
+      : /likes?|views?|comments?|shares?|impressions?|saves?|subscribers?|followers?|live|members?|reactions?/i.test(service) ? "link" : "either";
     if (items.has(code)) duplicate.add(code);
-    items.set(code, { code, name, displayName:name, category:"social", group, type:"social", brand:platform, product:platform, productSlug:slugify(platform), section:group, price:sellingPrice(cost), providerCost:cost, providerServiceCode:code, serviceQuantity:minimum, unitPrice:cost, minimum, maximum, fulfillmentMode:"vipayment", description:text(row.note,2000) });
+    items.set(code, { code, name, displayName:name, category:"social", group, type:"social", brand:platform, product:platform, productSlug:slugify(platform), section:group, targetKind, targetHosts: Object.hasOwn(socialTargetHosts, platform) ? socialTargetHosts[platform] : undefined, price:sellingPrice(cost), providerCost:cost, providerServiceCode:code, serviceQuantity:minimum, unitPrice:cost, minimum, maximum, fulfillmentMode:"vipayment", description:text(row.note,2000) });
   }
   for (const code of duplicate) items.delete(code);
   return [...items.values()].sort((a,b)=>a.product.localeCompare(b.product)||a.price-b.price);

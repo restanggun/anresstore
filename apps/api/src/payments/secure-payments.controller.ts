@@ -199,6 +199,19 @@ export class PaymentsController implements OnModuleInit, OnModuleDestroy {
     }
     const serviceQuantity = body.source === "social" ? body.expectedQuantity : product.serviceQuantity || 1;
     if (body.source === "social" && (!Number.isSafeInteger(serviceQuantity) || serviceQuantity! < (product.minimum ?? product.serviceQuantity ?? 1) || serviceQuantity! > (product.maximum ?? product.serviceQuantity ?? 1))) throw new HttpException("Jumlah item di luar batas layanan. Periksa kembali jumlah minimum dan maksimum.",400);
+    if (body.source === "social" && product.targetKind) {
+      const username = /^[a-z0-9._-]+$/i.test(body.target);
+      let link = false;
+      try {
+        const url = new URL(body.target);
+        const allowedHost = !product.targetHosts?.length ||
+          product.targetHosts.some(host => url.hostname === host || url.hostname.endsWith("." + host));
+        link = allowedHost && url.protocol === "https:" && url.hostname.includes(".") &&
+          !url.port && !url.username && !url.password && !/\s/.test(body.target);
+      } catch { /* A username does not parse as a URL. */ }
+      const valid = product.targetKind === "username" ? username : product.targetKind === "link" ? link : username || link;
+      if (!valid) throw new HttpException("Format tujuan tidak sesuai dengan layanan yang dipilih.", 400);
+    }
     if (product.productSlug === "mobile-legends" && (!/^[0-9]+$/.test(body.target) || !/^[0-9]+$/.test(body.targetZone ?? ""))) throw new HttpException("ID pemain dan server / zone Mobile Legends wajib berupa angka di kolom terpisah, tanpa tanda kurung.", 400);
     if (body.source === "tasks" && !/^managed\.[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/.test(body.code)) throw new HttpException("Paket tugas tidak valid.",400);
     const quotedAmount = body.source === "tasks" && body.task ? await this.store.rpc<number>("quote_task_order", {p_product: body.code.replace(/^managed\./,""), p_pages:body.task.pages, p_days:body.task.deadline_days, p_revisions:body.task.revisions}) : body.source === "social" ? Math.ceil((product.unitPrice ?? product.price) * serviceQuantity! / 1000) : product.price;

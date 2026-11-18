@@ -120,7 +120,9 @@ html { scrollbar-gutter: stable; }
 
 
 /* Route content stays visible even when client animation cannot start. */
-.page-transition { animation: page-arrive 220ms cubic-bezier(.22,1,.36,1); }
+@media (prefers-reduced-motion: no-preference) {
+  .page-transition { animation: page-arrive 220ms cubic-bezier(.22,1,.36,1); }
+}
 @keyframes page-arrive { from { opacity: .9; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
 .form-field input, .search input { font-size: 14px; }
 @media(max-width:600px) { .form-field input, .search input { font-size: 16px; } }

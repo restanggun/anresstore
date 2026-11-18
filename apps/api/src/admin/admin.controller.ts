@@ -451,8 +451,10 @@ export class AdminController {
   async providerBalances(@Req() req:Request,@Res({passthrough:true}) res:Response) {
     const access=await this.authorize(req,res); this.permit(access,"orders.read"); this.permit(access,"payments.read"); this.allServices(access);
     const results=await Promise.allSettled([new TripayClient().balance(),new VipaymentClient().balance()]);
+    const tripayConfigMissing = results[0].status === "rejected" &&
+      results[0].reason instanceof HttpException && results[0].reason.getStatus() === 503;
     return {
-      tripay: results[0].status === "fulfilled" ? { balance: results[0].value, available: true } : { balance: null, available: false, message: "Saldo Tripay tidak dapat dimuat." },
+      tripay: results[0].status === "fulfilled" ? { balance: results[0].value, available: true } : { balance: null, available: false, status: tripayConfigMissing ? "setup_required" : "unavailable" },
       vipayment: results[1].status === "fulfilled" ? { balance: results[1].value, available: true } : { balance: null, available: false, message: "Saldo VIPayment tidak dapat dimuat." },
       checkedAt: new Date().toISOString(),
     };

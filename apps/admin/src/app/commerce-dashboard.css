@@ -473,3 +473,66 @@ html,body,.admin-shell *, .anres-select-content { scrollbar-width:thin; scrollba
 .premium-order-drawer .premium-review-section button{align-self:flex-start;border-radius:14px}
 .premium-order-drawer .review-box{border:0;background:var(--pink-soft);border-radius:20px;padding:20px}
 .premium-workspace .premium-order-status:is(.status-paid,.status-delivered,.status-closed){background:var(--primary-soft);color:var(--focus)}
+
+/* Keep each navigation label in its own column and let long rows grow. */
+.admin-shell .sidebar { min-height:0; }
+.admin-shell .sidebar-top, .admin-shell .workspace, .admin-shell .sidebar-bottom { flex-shrink:0; }
+.admin-shell .side-nav { flex:1 1 auto; min-height:0; overflow:auto; overscroll-behavior:contain; scrollbar-color:var(--field-border) transparent; padding:3px; margin:-3px; }
+.admin-shell .nav-item { display:grid; grid-template-columns:18px minmax(0,1fr) auto; gap:9px; height:auto; min-height:43px; padding:9px 10px; }
+.admin-shell .nav-item-label { min-width:0; line-height:1.4; white-space:normal; overflow-wrap:anywhere; }
+.admin-shell .nav-item .nav-indicator { margin:0 3px; }
+.admin-shell .workspace-icon, .admin-shell .workspace-dot, .admin-shell .sidebar-footer .avatar { flex-shrink:0; }
+.admin-shell .workspace > span:nth-child(2), .admin-shell .sidebar-footer > span:nth-child(2) { min-width:0; overflow-wrap:anywhere; }
+.admin-shell .sidebar-drawer { display:none; }
+.admin-shell .topbar-left { flex:1 1 auto; min-width:0; }
+.admin-shell .topbar-left .icon-button, .admin-shell .topbar-right { flex-shrink:0; }
+.admin-shell .breadcrumb { display:block; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.admin-shell .breadcrumb-root { padding:0; color:inherit; }
+.admin-shell .commerce-metric > div > svg { flex:none; }
+.admin-shell .commerce-metric > strong, .admin-shell .commerce-metric > small { overflow-wrap:anywhere; }
+.admin-shell .commerce-metric:not(button) { cursor:default; }
+.admin-shell .commerce-metric:not(button):hover { border-color:var(--border); }
+.admin-shell .commerce-panel, .admin-shell .commerce-analytics, .admin-shell .workspace-heading > div { min-width:0; }
+.admin-shell .workspace-heading, .admin-shell .panel-title { flex-wrap:wrap; }
+.admin-shell .panel-title > div, .admin-shell .commerce-workspace { min-width:0; }
+@media(max-width:767px) {
+ .admin-shell .sidebar-desktop { display:none; }
+ .admin-shell .sidebar-drawer[open] { display:flex; visibility:visible; transform:none; inset:0 auto 0 0; height:100dvh; max-height:none; margin:0; color:var(--foreground); border:0; border-right:1px solid var(--border); overflow:hidden; }
+ .admin-shell .sidebar-drawer::backdrop { background:rgb(23 25 28 / 48%); }
+ .admin-shell .sidebar-drawer .brand { min-width:0; }
+ .admin-shell .sidebar-drawer .sidebar-close { flex:none; }
+ .admin-shell .breadcrumb-root, .admin-shell .breadcrumb-divider { display:none; }
+}
+@media(max-width:359px) {
+ .admin-shell .commerce-metrics { grid-template-columns:minmax(0,1fr); }
+ .admin-shell .sidebar-drawer .sidebar-top { padding-inline:0; }
+}
+
+@media(max-width:767px) {
+ body:has(.admin-shell .sidebar-drawer[open]) { overflow:hidden; }
+ .admin-shell .sidebar-drawer .sidebar-bottom {
+  margin-top:8px;
+  padding-top:10px;
+  padding-bottom:env(safe-area-inset-bottom, 0px);
+  border-top:1px solid var(--border);
+ }
+ .admin-shell .sidebar-drawer .sidebar-footer {
+  display:grid;
+  grid-template-columns:36px minmax(0,1fr);
+  align-items:center;
+  column-gap:12px;
+  padding:8px 10px;
+ }
+ .admin-shell .sidebar-drawer .sidebar-profile-copy {
+  display:grid;
+  gap:4px;
+  min-width:0;
+ }
+ .admin-shell .sidebar-drawer .sidebar-profile-copy strong,
+ .admin-shell .sidebar-drawer .sidebar-profile-copy small {
+  margin:0;
+  line-height:1.4;
+  white-space:normal;
+  overflow-wrap:anywhere;
+ }
+}

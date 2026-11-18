@@ -1,10 +1,10 @@
 "use client";
 
 import Link from "@/components/storefront/domain-link";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Button } from "@anres/ui";
 import { ArrowRight, ArrowUpRight, BookOpenCheck, Search, ShieldCheck } from "lucide-react";
-import { AnimatePresence, motion, useReducedMotion } from "motion/react";
+import { motion, useReducedMotion } from "motion/react";
 import { TextGenerateEffect } from "@/components/ui/text-generate-effect";
 import { Input } from "@/components/ui/input";
 import { useReveal } from "@/components/ui/use-reveal";
@@ -26,29 +26,41 @@ const faq = [
 ] as const;
 const categoryUrl = (category:string) => `/katalog?kategori=${encodeURIComponent(category)}`;
 
-export function HomeContent() {
-  const [active, setActive] = useState<string>(categoryInfo[0].name);
-  const current = categoryInfo.find(category => category.name === active) ?? categoryInfo[0];
+function LandingHero() {
+  const [activeIndex, setActiveIndex] = useState(0);
+  const current = categoryInfo[activeIndex] ?? categoryInfo[0];
+  const heroRef = useRef<HTMLElement>(null);
   const reduce = useReducedMotion();
   const reveal = useReveal();
   useEffect(() => {
     if (reduce) return;
-    const timer = window.setInterval(() => setActive(value => {
-      const index = categoryInfo.findIndex(category => category.name === value);
-      return categoryInfo[(index + 1) % categoryInfo.length]!.name;
-    }), 5200);
+    const hover = window.matchMedia("(any-hover: hover)");
+    const timer = window.setInterval(() => {
+      const hero = heroRef.current;
+      if (!hero || document.hidden || hero.matches(":focus-within") || (hover.matches && hero.matches(":hover"))) return;
+      setActiveIndex(index => (index + 1) % categoryInfo.length);
+    }, 5200);
     return () => window.clearInterval(timer);
   }, [reduce]);
-  return <main id="main" className="container landing-page">
-    <section className="hero landing-hero landing-hero-switch" aria-labelledby="hero-title">
+  return <section ref={heroRef} className="hero landing-hero landing-hero-switch" aria-labelledby="hero-title">
       <motion.div className="landing-hero-copy" {...reveal()}>
         <h1 id="hero-title"><TextGenerateEffect as="span" words="Satu tempat," className="landing-headline-line" duration={.34}/><TextGenerateEffect as="span" words="banyak kebutuhan." className="landing-headline-line" duration={.34} delay={.12}/></h1>
         <p>Temukan pilihan untuk bermain, berkarya, terhubung, dan memenuhi kebutuhan digital harian.</p>
         <div className="landing-hero-actions"><Button asChild><Link href={categoryUrl(current.name)}>Jelajahi {current.name}<ArrowRight size={18}/></Link></Button><Link href="/about" className="landing-secondary">Kenali Anres</Link></div>
       </motion.div>
-      <AnimatePresence mode="wait"><motion.div key={current.name} className={`landing-hero-art landing-hero-art-${current.art}`} role="tabpanel" aria-label={current.name} initial={{opacity:0,y:12,filter:"blur(8px)"}} animate={{opacity:1,y:0,filter:"blur(0px)"}} exit={reduce?{opacity:0}:{opacity:0,y:-8,filter:"blur(6px)"}} transition={{duration:reduce?0:.34,ease:[.22,1,.36,1]}}><span className="landing-art-kicker">{current.detail}</span><div className="landing-art-visual"><ServiceIllustration categoryName={current.name} featured/></div><div className="landing-art-caption"><TextGenerateEffect as="h2" words={current.title} duration={.25}/><p>{current.description}</p></div><Link href={categoryUrl(current.name)} className="landing-art-link">Lihat kategori<ArrowUpRight size={18}/></Link></motion.div></AnimatePresence>
-    </section>
+      <motion.div key={current.name} className={`landing-hero-art landing-hero-art-${current.art}`} role="group" aria-label={current.name} initial={reduce ? false : { opacity: .65, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: .28, ease: [.22, 1, .36, 1] }}>
+        <span className="landing-art-kicker">{current.detail}</span>
+        <div className="landing-art-visual"><ServiceIllustration categoryName={current.name} featured/></div>
+        <div className="landing-art-caption"><TextGenerateEffect as="h2" words={current.title} duration={.25}/><p>{current.description}</p></div>
+        <Link href={categoryUrl(current.name)} className="landing-art-link">Lihat kategori<ArrowUpRight size={18}/></Link>
+      </motion.div>
+  </section>;
+}
 
+export function HomeContent() {
+  const reveal = useReveal();
+  return <main id="main" className="container landing-page">
+    <LandingHero />
     <section className="landing-services" aria-labelledby="services-title"><motion.div className="section-heading" {...reveal()}><div><h2 id="services-title">Cari yang kamu perlukan.</h2><p>Lima kategori yang mencakup kebutuhan digital sehari-hari.</p></div><form className="landing-search" role="search" action="/katalog"><label className="sr-only" htmlFor="landing-search">Cari layanan</label><Search size={19}/><Input id="landing-search" name="q" type="search" placeholder="Cari game atau layanan"/><Button type="submit" aria-label="Cari layanan"><ArrowRight size={18}/></Button></form></motion.div>
     <ServiceCategoryGrid /></section>
     <section className="landing-guide" aria-labelledby="guide-title"><motion.div className="guide-intro" {...reveal()}><div className="guide-brand" aria-hidden="true"><img src="/logo.svg" alt="" width="37" height="44"/></div><h2 id="guide-title">Kenali layanannya.<br/>Pilih dengan tenang.</h2><p>Kebutuhan digital tidak selalu sama. Mulai dari informasi yang jelas untuk menemukan pilihan yang tepat.</p><TextLink href="/about">Tentang Anres Store</TextLink></motion.div><ol className="guide-steps">{guide.map(({icon:Icon,title,description,href,action},index)=><motion.li key={title} {...reveal(index*.08)}><span className="guide-step-icon"><Icon size={22}/></span><div><h3>{title}</h3><p>{description}</p><Link href={href}>{action}<ArrowUpRight size={15}/></Link></div></motion.li>)}</ol></section>
