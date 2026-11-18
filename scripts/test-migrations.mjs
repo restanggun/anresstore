@@ -49,4 +49,6 @@ try {
   console.log('Guest linking, verified email/cookie isolation, account projection, pending-intent deduplication and recovery attempt/expiry/replay protection passed');
   await db.exec(await readFile('supabase/tests/ai-help-sessions.sql','utf8'));
   console.log('AI sessions: history, ownership, idempotent turns and complete atomic CS handoff passed');
+  await db.exec(await readFile('supabase/tests/admin-assistant.sql','utf8'));
+  console.log('Admin assistant proposal ownership, expiry, conflict, idempotency and audit passed');
 } finally { await db.close(); }

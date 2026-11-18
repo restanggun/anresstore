@@ -120,6 +120,19 @@
 .composerSurface textarea:focus-visible { outline: none; }
 .composerRow { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
 .composerNote { margin: 7px 0 0; color: var(--muted); font-size: 11px; line-height: 1.5; }
+.chatError { margin: 7px 0 0; color: #9f263f; font-size: 13px; line-height: 1.5; }
+.connectionError { padding: 10px 20px; border-top: 1px solid var(--border); margin: 0; }
+.connectionError p { margin: 0 0 6px; }
+.catalogChoices { display: grid; gap: 5px; margin: 0; padding: 0; list-style: none; }
+.catalogChoices li { display: grid; gap: 3px; padding: 7px 8px; background: var(--primary-soft); border-radius: 8px; overflow-wrap: anywhere; }
+.catalogChoices span, .proposal small { color: var(--muted); font-size: 12px; }
+.proposal { display: grid; min-width: 0; gap: 10px; }
+.proposal strong, .proposal small { display: block; overflow-wrap: anywhere; }
+.proposalActions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; }
+.proposalActions button { margin-inline-start: auto; }
+.messageBubble > button { justify-self: start; }
+.variantAi { display: grid; gap: 10px; min-width: 0; padding: 12px; border: 1px solid var(--border); border-radius: 12px; background: var(--primary-soft); }
+.variantAi > button { justify-self: start; }
 .addButton {
   display: grid;
   width: 44px;

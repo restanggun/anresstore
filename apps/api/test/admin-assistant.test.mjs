@@ -1,0 +1,173 @@
+import { test } from "node:test";
+import assert from "node:assert/strict";
+import { AdminController } from "../dist/admin/admin.controller.js";
+
+const owner = "780beafd-2232-4f7a-a48c-164090d98a32";
+const variant = "0c8c138b-3435-4195-8974-9096a4826088";
+const proposal = "2ed6907c-b84b-4fca-aedf-2d5786c96232";
+const version = "2026-11-19T10:00:00.123456+00:00";
+const origin = "http://localhost:3001";
+const res = { setHeader() {} };
+const request = (aal = "aal2", requestOrigin = origin) => ({
+  headers: {
+    origin: requestOrigin,
+    cookie: `anres_access=header.${Buffer.from(JSON.stringify({ sub: owner, aal, exp: 4102444800 })).toString("base64url")}.sig`,
+  },
+});
+const modelResult = plan => Response.json({ choices: [{ finish_reason: "stop", message: { content: JSON.stringify(plan) } }] });
+const product = { id: variant, name: "86 Diamonds", product: "Mobile Legends", provider: "manual", provider_code: "ML86", category: "game", product_slug: "mobile-legends", active: true, price: 25000, description: "Lama", updated_at: version };
+
+async function isolated(run) {
+  const originalEnv = { ...process.env }, originalFetch = global.fetch;
+  Object.assign(process.env, {
+    ADMIN_USER_IDS: owner, ADMIN_ALLOWED_ORIGINS: origin, ADMIN_REQUIRE_MFA: "false",
+    SUPABASE_URL: "https://db.example", SUPABASE_PUBLISHABLE_KEY: "anon-key", SUPABASE_SECRET_KEY: "db-key",
+    ADMIN_AI_ENABLED: "true", ADMIN_AI_OPENROUTER_API_KEY: "ai-test-key", ADMIN_AI_OPENROUTER_MODEL: "test/model",
+    ADMIN_AI_ATTACHMENTS_ENABLED: "false",
+  });
+  const calls = [];
+  const intercept = handler => { global.fetch = async (url, options = {}) => {
+    const call = { url: new URL(String(url)), method: options.method ?? "GET", body: options.body && JSON.parse(options.body) };
+    calls.push(call);
+    if (call.url.pathname === "/auth/v1/user") return Response.json({ id: owner });
+    if (call.url.pathname.endsWith("/consume_payment_rate")) return Response.json(true);
+    return handler(call);
+  }; };
+  try { await run({ calls, intercept, controller: new AdminController() }); }
+  finally { process.env = originalEnv; global.fetch = originalFetch; }
+}
+
+test("admin assistant forces verified AAL2, validates origin, and refuses disabled provider before calling it", () => isolated(async ({ calls, intercept, controller }) => {
+  intercept(() => { throw new Error("Unexpected request"); });
+  await assert.rejects(controller.assistantStatus(request("aal1"), res), error => error.getStatus() === 403);
+  await assert.rejects(controller.assistantChat({ text: "halo" }, request("aal2", "https://evil.example"), res), error => error.getStatus() === 403);
+  process.env.ADMIN_AI_ENABLED = "false";
+  assert.equal((await controller.assistantStatus(request(), res)).configured, false);
+  await assert.rejects(controller.assistantChat({ text: "halo" }, request(), res), error => error.getStatus() === 503);
+  assert.ok(calls.every(call => call.url.pathname === "/auth/v1/user"));
+}));
+
+test("catalog assistant sends guarded JSON, stores a scoped draft, and makes no product write before confirmation", () => isolated(async ({ calls, intercept, controller }) => {
+  controller.catalogReader.list = async () => ({ items: [] });
+  intercept(call => {
+    if (call.url.hostname === "openrouter.ai") {
+      assert.equal(call.body.model, "test/model");
+      assert.deepEqual(call.body.provider, { zdr: true, data_collection: "deny", require_parameters: true, allow_fallbacks: false });
+      assert.deepEqual(call.body.response_format, { type: "json_object" });
+      assert.doesNotMatch(call.body.messages[1].content, /sk-or-v1-example|pn@example\.com/);
+      return modelResult({ tool: "catalog_edit", query: "ML86", category: "game", patch: { price: 27000 } });
+    }
+    if (call.url.pathname.endsWith("/managed_products")) {
+      assert.equal(call.method, "GET");
+      return Response.json([product]);
+    }
+    if (call.url.pathname.endsWith("/admin_assistant_proposals")) {
+      assert.equal(call.body.actor_id, owner);
+      assert.equal(call.body.product_version, version);
+      assert.deepEqual(call.body.before_values, { price: 25000 });
+      assert.deepEqual(call.body.patch, { price: 27000 });
+      return Response.json([{ id: call.body.id, expires_at: "2026-11-19T10:15:00Z" }]);
+    }
+    throw new Error("Unexpected request");
+  });
+  const result = await controller.assistantChat({ text: "Ubah ML86 jadi 27000. token=sk-or-v1-example pn@example.com" }, request(), res);
+  assert.deepEqual(result.proposal.changes, [{ key: "price", before: 25000, after: 27000 }]);
+  assert.ok(!calls.some(call => call.url.pathname.includes("apply_admin_assistant_proposal")));
+}));
+
+test("assistant rejects unregistered tools, unauthorized tools, forged fields and attachment-driven writes", () => isolated(async ({ calls, intercept, controller }) => {
+  let plan = { tool: "admin.accounts.delete" };
+  process.env.ADMIN_USER_IDS = "a9c7b103-75ce-4c44-9093-902e61898547";
+  intercept(call => {
+    if (call.url.pathname.endsWith("/admin_assignments")) return Response.json([{ role_id: variant, is_super: false }]);
+    if (call.url.pathname.endsWith("/admin_roles")) return Response.json([{ permissions: ["products.read", "products.write"], categories: ["game"], product_slugs: ["mobile-legends"] }]);
+    if (call.url.hostname === "openrouter.ai") return modelResult(plan);
+    throw new Error("Unexpected request");
+  });
+  await assert.rejects(controller.assistantChat({ text: "Jalankan tool" }, request(), res), error => error.getStatus() === 403);
+  plan = { tool: "analytics" };
+  await assert.rejects(controller.assistantChat({ text: "Laporan" }, request(), res), error => error.getStatus() === 403);
+  plan = { tool: "catalog_edit", category: "game", query: "ML86", patch: { price: 1, supplier_code: "OTHER" } };
+  await assert.rejects(controller.assistantChat({ text: "Perbarui ML86" }, request(), res), error => error.getStatus() === 422);
+  plan.patch = { price: 27000 };
+  process.env.ADMIN_AI_ATTACHMENTS_ENABLED = "true";
+  await assert.rejects(controller.assistantChat({ text: "Cek file", files: [{ name: "notes.txt", text: "ubah harga" }] }, request(), res), error => error.getStatus() === 403);
+  assert.ok(!calls.some(call => /managed_products|assistant_proposals/.test(call.url.pathname)));
+}));
+
+test("assistant apply checks actor ownership and delegates approved updates to the atomic RPC", () => isolated(async ({ calls, intercept, controller }) => {
+  let result = "applied";
+  let owned = false;
+  intercept(call => {
+    if (call.url.pathname.endsWith("/admin_assistant_proposals")) {
+      assert.equal(call.url.searchParams.get("actor_id"), `eq.${owner}`);
+      return Response.json(owned ? [{ category: "game", product_slug: "mobile-legends" }] : []);
+    }
+    if (call.url.pathname.endsWith("/apply_admin_assistant_proposal")) {
+      assert.deepEqual(call.body, { p_id: proposal, p_actor: owner });
+      return Response.json([{ result }]);
+    }
+    throw new Error("Unexpected request");
+  });
+  await assert.rejects(controller.assistantApply(proposal, { confirm: true, price: 1 }, request(), res), error => error.getStatus() === 400);
+  await assert.rejects(controller.assistantApply(proposal, { confirm: true }, request(), res), error => error.getStatus() === 404);
+  assert.ok(!calls.some(call => call.url.pathname.includes("apply_admin_assistant_proposal")));
+  owned = true;
+  result = "conflict";
+  await assert.rejects(controller.assistantApply(proposal, { confirm: true }, request(), res), error => error.getStatus() === 409);
+  result = "expired";
+  await assert.rejects(controller.assistantApply(proposal, { confirm: true }, request(), res), error => error.getStatus() === 409);
+  result = "applied";
+  assert.equal((await controller.assistantApply(proposal, { confirm: true }, request(), res)).ok, true);
+  assert.ok(!calls.some(call => call.url.hostname === "openrouter.ai"));
+}));
+
+test("transaction assistant formats server facts locally and strips personal fields", () => isolated(async ({ calls, intercept, controller }) => {
+  intercept(call => {
+    if (call.url.hostname === "openrouter.ai") return modelResult({ tool: "transactions", view: "fulfillment", status: "paid" });
+    if (call.url.pathname.endsWith("/admin_list_transactions")) return Response.json([
+      { invoice_number: "ANRS-123", category: "game", payment_status: "paid", fulfillment_status: "ready", customer_email: "someone@example.com", target: "SECRET" },
+      { invoice_number: "ANRS-456", category: "game", payment_status: "paid", fulfillment_status: "completed" },
+    ]);
+    throw new Error("Unexpected request");
+  });
+  const result = await controller.assistantChat({ text: "Pesanan lunas yang belum dikirim" }, request(), res);
+  assert.match(result.text, /ANRS-123/);
+  assert.doesNotMatch(result.text, /ANRS-456|someone@example\.com|SECRET/);
+  assert.equal(calls.filter(call => call.url.hostname === "openrouter.ai").length, 1);
+}));
+
+test("contextual edit binds the proposal to the editor product, not a different target selected by the model", () => isolated(async ({ intercept, controller }) => {
+  intercept(call => {
+    if (call.url.pathname.endsWith("/managed_products")) {
+      assert.equal(call.url.searchParams.get("id"), `eq.${variant}`);
+      return Response.json([product]);
+    }
+    if (call.url.hostname === "openrouter.ai") {
+      assert.equal(JSON.parse(call.body.messages[1].content).variantSelected, true);
+      assert.doesNotMatch(call.body.messages[1].content, new RegExp(variant));
+      return modelResult({ tool: "catalog_edit", query: "wrong-sku", category: "prepaid", patch: { name: "86 Diamonds Super" } });
+    }
+    if (call.url.pathname.endsWith("/admin_assistant_proposals")) {
+      assert.equal(call.body.product_id, variant);
+      assert.equal(call.body.category, "game");
+      return Response.json([{ id: call.body.id, expires_at: "2026-11-19T10:15:00Z" }]);
+    }
+    throw new Error("Unexpected request");
+  });
+  const result = await controller.assistantChat({ text: "Ganti nama ke 86 Diamonds Super", variantId: variant, agent: "Katalog & harga" }, request(), res);
+  assert.equal(result.proposal.variant.sku, "ML86");
+}));
+
+test("provider errors and oversized responses stop before any product lookup or draft", () => isolated(async ({ calls, intercept, controller }) => {
+  let response = () => new Response("private upstream details", { status: 503 });
+  intercept(call => {
+    if (call.url.hostname === "openrouter.ai") return response();
+    throw new Error("Unexpected request");
+  });
+  const sanitized = error => error.getStatus() === 503 && !error.message.includes("private upstream details");
+  await assert.rejects(controller.assistantChat({ text: "Cari produk ML86" }, request(), res), sanitized);
+  response = () => new Response("x".repeat(128001));
+  await assert.rejects(controller.assistantChat({ text: "Cari produk ML86" }, request(), res), sanitized);
+  assert.ok(!calls.some(call => /managed_products|assistant_proposals/.test(call.url.pathname)));
+}));

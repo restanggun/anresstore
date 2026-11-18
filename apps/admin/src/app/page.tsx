@@ -2,7 +2,7 @@
 import { useEffect, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import { motion, useReducedMotion } from "motion/react";
-import { LayoutGrid, ShoppingBag, Box, CreditCard, CircleHelp, Users, ChartNoAxesCombined, Activity, ShieldCheck, ArrowRight, Menu, X, Bell, Clock, Sparkles, Ticket } from "lucide-react";
+import { LayoutGrid, ShoppingBag, Box, CreditCard, CircleHelp, Users, ChartNoAxesCombined, Activity, ShieldCheck, ArrowRight, Menu, X, Bell, Clock, Sparkles, Ticket, Star } from "lucide-react";
 import { useApiHealth } from "../components/health-chart";
 import { AdminGate } from "../components/admin-gate";
 import { Brand } from "../components/brand";
@@ -14,14 +14,15 @@ const AssistantWorkspace = dynamic(() => import("../components/assistant-workspa
 const OrderWorkspace = dynamic(() => import("../components/order-workspace").then(module => module.OrderWorkspace), { loading: WorkspaceLoading });
 const ProductWorkspace = dynamic(() => import("../components/product-workspace").then(module => module.ProductWorkspace), { loading: WorkspaceLoading });
 const VoucherWorkspace = dynamic(() => import("../components/voucher-workspace").then(module => module.VoucherWorkspace), { loading: WorkspaceLoading });
+const ReviewWorkspace = dynamic(() => import("../components/review-workspace").then(module => module.ReviewWorkspace), { loading: WorkspaceLoading });
 const TransactionAnalytics = dynamic(() => import("../components/transaction-analytics").then(module => module.TransactionAnalytics), { loading: WorkspaceLoading });
 const ServiceWorkspace = dynamic(() => import("../components/service-workspace").then(module => module.ServiceWorkspace), { loading: WorkspaceLoading });
 const TaskWorkspace = dynamic(() => import("../components/task-workspace").then(module => module.TaskWorkspace), { loading: WorkspaceLoading });
 const PremiumWorkspace = dynamic(() => import("../components/premium-workspace").then(module => module.PremiumWorkspace), { loading: WorkspaceLoading });
 const SystemMonitor = dynamic(() => import("../components/system-monitor").then(module => module.SystemMonitor), { loading: WorkspaceLoading });
 
-type IconName = "grid"|"bag"|"box"|"card"|"help"|"users"|"chart"|"pulse"|"shield"|"arrow"|"menu"|"close"|"bell"|"clock"|"assistant"|"ticket";
-const icons: Record<IconName, typeof LayoutGrid> = {grid:LayoutGrid,bag:ShoppingBag,box:Box,card:CreditCard,help:CircleHelp,users:Users,chart:ChartNoAxesCombined,pulse:Activity,shield:ShieldCheck,arrow:ArrowRight,menu:Menu,close:X,bell:Bell,clock:Clock,assistant:Sparkles,ticket:Ticket};
+type IconName = "grid"|"bag"|"box"|"card"|"help"|"users"|"chart"|"pulse"|"shield"|"arrow"|"menu"|"close"|"bell"|"clock"|"assistant"|"ticket"|"star";
+const icons: Record<IconName, typeof LayoutGrid> = {grid:LayoutGrid,bag:ShoppingBag,box:Box,card:CreditCard,help:CircleHelp,users:Users,chart:ChartNoAxesCombined,pulse:Activity,shield:ShieldCheck,arrow:ArrowRight,menu:Menu,close:X,bell:Bell,clock:Clock,assistant:Sparkles,ticket:Ticket,star:Star};
 function Icon({name,size=20}:{name:IconName;size?:number}) { const Component=icons[name]; return <Component size={size} strokeWidth={1.7} aria-hidden="true"/>; }
 type Section={id:string;label:string;icon:IconName;group:string;description:string;metrics:string[];chart:string;chartDescription:string;list:string;listDescription:string};
 const sections:Section[]=[
@@ -35,6 +36,7 @@ const sections:Section[]=[
  {id:"payments",label:"Pembayaran",icon:"card",group:"Operasional",description:"Pantau pembayaran, kegagalan, dan transaksi yang membutuhkan tindak lanjut.",metrics:["Menunggu pembayaran","Pembayaran berhasil","Gagal atau kedaluwarsa","Pengembalian dana"],chart:"Status pembayaran",chartDescription:"Perbandingan status pembayaran dalam periode terpilih.",list:"Aktivitas pembayaran",listDescription:"Status pembayaran nyata akan muncul setelah integrasi tersedia."},
  {id:"catalog",label:"Katalog & harga",icon:"box",group:"Operasional",description:"Pantau produk, kategori, harga, dan ketersediaan layanan.",metrics:["Produk tersedia","Kategori layanan","Produk tidak tersedia","Perubahan harga"],chart:"Produk per kategori",chartDescription:"Sebaran produk yang tersedia di katalog.",list:"Kondisi katalog",listDescription:"Katalog game dan prabayar mengambil data dari penyedia; kategori lainnya masih dalam persiapan."},
  {id:"customers",label:"Pelanggan",icon:"users",group:"Pelanggan",description:"Kelola profil akun pelanggan dari website utama.",metrics:["Total akun","Akun baru","Pelanggan berpesanan","Aktivitas akun"],chart:"Pertumbuhan akun",chartDescription:"Jumlah akun baru berdasarkan waktu.",list:"Akun terbaru",listDescription:"Data profil pelanggan hanya dapat ditampilkan melalui akses admin yang aman."},
+ {id:"reviews",label:"Rating & ulasan",icon:"star",group:"Pelanggan",description:"Tinjau rating dan komentar pada setiap produk.",metrics:[],chart:"",chartDescription:"",list:"",listDescription:""},
  {id:"conversations",label:"Room chat CS",icon:"help",group:"Pelanggan",description:"Percakapan dan tiket customer dari halaman Bantuan.",metrics:[],chart:"",chartDescription:"",list:"",listDescription:""},
  {id:"support",label:"Bantuan pelanggan",icon:"help",group:"Pelanggan",description:"Pantau permintaan bantuan dari formulir di website.",metrics:["Permintaan baru","Sedang ditangani","Selesai","Total permintaan"],chart:"Permintaan bantuan",chartDescription:"Jumlah permintaan bantuan berdasarkan waktu.",list:"Permintaan terbaru",listDescription:"Formulir bantuan menyimpan permintaan, tetapi akses dan balasan admin belum tersedia."},
  {id:"reports",label:"Laporan",icon:"chart",group:"Analisis",description:"Pahami perkembangan toko dari pesanan, pembayaran, dan pelanggan.",metrics:["Nilai transaksi","Pesanan selesai","Pelanggan baru","Tingkat keberhasilan"],chart:"Perkembangan toko",chartDescription:"Tren transaksi yang telah terverifikasi berdasarkan waktu.",list:"Ringkasan laporan",listDescription:"Laporan akan tersedia setelah data transaksi terverifikasi terhubung."},
@@ -81,6 +83,7 @@ function AdminDashboard(){
  {active === "apps" && <PremiumWorkspace/>}
  {active === "catalog" && <ProductWorkspace/>}
  {active === "vouchers" && <VoucherWorkspace/>}
+ {active === "reviews" && <ReviewWorkspace/>}
  {["customers","conversations","support"].includes(active) && <><div className="workspace-heading"><div><h1>{current.label}</h1><p>{current.description}</p></div></div><ServiceWorkspace kind={active==="support"?"conversations":active as "customers"|"conversations"}/></>}
  {["access"].includes(active) && <><div className="workspace-heading"><div><h1>{current.label}</h1><p>{current.description}</p></div></div><Operations section={active}/></>}
  {active === "system" && <SystemMonitor samples={samples} refresh={refresh} fetching={fetching}/>}

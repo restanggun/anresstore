@@ -1,10 +1,10 @@
-import type { Metadata } from "next";
+import { publicPageMetadata } from "@/lib/seo";
 import Link from "@/components/storefront/domain-link";
 import { ArrowRight, Gamepad2, FileText, Smartphone, AppWindow, Users } from "lucide-react";
 import { Button } from "@anres/ui";
 import { TextGenerateEffect } from "@/components/ui/text-generate-effect";
 import { TextLink } from "@/components/storefront/text-link";
-export const metadata: Metadata = {title:"Tentang | Anres Store",description:"Kenali Anres Store dan layanan digital yang sedang kami siapkan."};
+export const metadata = publicPageMetadata("web", "/about", "Tentang Anres Store", "Kenali Anres Store dan pilihan layanannya, mulai dari top up game, pulsa dan paket data hingga aplikasi premium.");
 const areas = [
   [Gamepad2,"Waktu main","Kebutuhan top up Mobile Legends, Free Fire, dan Roblox."],
   [AppWindow,"Ruang berkarya","Aplikasi premium untuk kebutuhan desain dan produktivitas."],

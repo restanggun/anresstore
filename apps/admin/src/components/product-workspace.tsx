@@ -109,6 +109,11 @@ export function ProductWorkspace(){
     variant={draft}
     activePromoPrice={activePromoPrice}
     onClose={()=>setAssistantOpen(false)}
+    onAiApplied={published=>{
+      setAssistantOpen(false);
+      setDraft(null);
+      setMessage(published?"Perubahan AI disimpan. Publikasi katalog admin aktif.":"Perubahan AI disimpan. Publikasi katalog admin belum aktif.");
+    }}
     onApply={fields=>{
       setDraft(current=>current?{...current,...fields}:current);
       setFormMessage("Perubahan dimasukkan ke editor. Pilih Simpan varian untuk menyimpan.");

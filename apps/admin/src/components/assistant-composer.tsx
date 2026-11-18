@@ -7,8 +7,10 @@ import styles from "./assistant-workspace.module.css";
 
 const skills = [
   { label: "Cari produk", tool: "catalog_search" }, { label: "Edit harga", tool: "catalog_edit" },
-  { label: "Edit produk", tool: "catalog_edit" }, { label: "Susun promo", tool: "promotions" },
+  { label: "Edit produk", tool: "catalog_edit" }, { label: "Cek promo", tool: "promotions" },
   { label: "Ringkas transaksi", tool: "analytics" }, { label: "Draf balasan CS", tool: "support_draft" },
+  { label: "Pantau joki tugas", tool: "task_orders" }, { label: "Pantau pesanan premium", tool: "premium_orders" },
+  { label: "Analisis lampiran", tool: "file_review" },
 ];
 const agents = [
   { label: "Katalog & harga", tool: "catalog_search" }, { label: "Operasional pesanan", tool: "transactions" },

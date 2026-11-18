@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import { publicPageMetadata } from "@/lib/seo";
 import { HelpContent } from "@/components/storefront/help";
-export const metadata: Metadata = {title:"Bantuan | Anres Store",description:"Temukan jawaban tentang katalog, layanan, dan akun Anres Store."};
+export const metadata = publicPageMetadata("web", "/bantuan", "Pusat Bantuan | Anres Store", "Temukan panduan dan jawaban atas pertanyaan tentang katalog, akun, dan pemesanan di Anres Store.");
 export default function HelpPage(){return <HelpContent/>;}

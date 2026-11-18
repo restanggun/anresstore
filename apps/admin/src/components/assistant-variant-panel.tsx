@@ -1,10 +1,12 @@
 "use client";
 
 import { useEffect, useId, useRef, useState } from "react";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { ArrowRight, Sparkles, X } from "lucide-react";
 import { AdminInput, AdminTextarea } from "./form-controls";
 import { AssistantChanges } from "./assistant-changes";
-import { rupiah } from "./workspace-api";
+import { AssistantProposal, type AssistantProposalData } from "./assistant-proposal";
+import { adminRequest, rupiah } from "./workspace-api";
 import styles from "./assistant-workspace.module.css";
 
 type VariantFields = {
@@ -17,15 +19,18 @@ type VariantFields = {
 type VariantContext = VariantFields & {
   product: string;
   provider_code: string;
+  id: string;
+  managed: boolean;
 };
 
 export function AssistantVariantPanel({
-  variant, activePromoPrice, onClose, onApply,
+  variant, activePromoPrice, onClose, onApply, onAiApplied,
 }: {
   variant: VariantContext;
   activePromoPrice?: number;
   onClose: () => void;
   onApply: (fields: VariantFields) => void;
+  onAiApplied: (published: boolean) => void;
 }) {
   const titleId = useId();
   const dialog = useRef<HTMLDialogElement>(null);
@@ -33,6 +38,19 @@ export function AssistantVariantPanel({
   const [price, setPrice] = useState(variant.price ? String(variant.price) : "");
   const [description, setDescription] = useState(variant.description);
   const [active, setActive] = useState(variant.active);
+  const [prompt, setPrompt] = useState("");
+  const connection = useQuery({
+    queryKey: ["admin-assistant"],
+    queryFn: ({ signal }) => adminRequest("assistant", "GET", undefined, signal) as Promise<{ configured: boolean; tools: string[] }>,
+    enabled: variant.managed,
+    retry: false,
+  });
+  const aiEnabled = variant.managed && connection.data?.configured && connection.data.tools.includes("catalog_edit");
+  const aiDraft = useMutation({
+    mutationFn: (text: string) => adminRequest("assistant/chat", "POST", {
+      text, variantId: variant.id, agent: "Katalog & harga", skills: ["Edit produk"],
+    }) as Promise<{ text: string; proposal?: AssistantProposalData }>,
+  });
   const fields = { name: name.trim(), price: Number(price), description: description.trim(), active };
   const priceValid = Number.isSafeInteger(fields.price) && fields.price >= 1 && fields.price <= 100000000;
   const rows = [
@@ -55,7 +73,7 @@ export function AssistantVariantPanel({
     <dialog ref={dialog} className={styles.drawer} aria-labelledby={titleId} onClose={onClose}>
       <header className={styles.panelHeader}>
         <span className={styles.icon}><Sparkles size={19} aria-hidden="true" /></span>
-        <div><h2 id={titleId}>Bantu edit varian</h2><p>Pratinjau manual</p></div>
+        <div><h2 id={titleId}>Bantu edit varian</h2><p>{aiEnabled ? "Asisten katalog" : "Pratinjau manual"}</p></div>
         <button type="button" autoFocus className="square-button" aria-label="Tutup Bantu edit" onClick={close}><X size={19} aria-hidden="true" /></button>
       </header>
       <form className={styles.drawerForm} onSubmit={event => {
@@ -69,7 +87,17 @@ export function AssistantVariantPanel({
             <strong>{variant.name || "Varian baru"}</strong>
             <span>{[variant.product, variant.provider_code].filter(Boolean).join(" / ")}</span>
           </div>
-          <p className={styles.note}>AI belum terhubung. Isi perubahan untuk meninjau dan memasukkannya ke editor varian.</p>
+          {aiEnabled ? <section className={styles.variantAi} aria-label="Siapkan draf dengan AI">
+            <label>Perintah untuk varian ini<AdminTextarea aria-label="Perintah untuk varian ini" rows={2} maxLength={3000} value={prompt}
+              onChange={event => setPrompt(event.target.value)} placeholder="Contoh: Ubah harga jual menjadi Rp27.000" /></label>
+            <p className={styles.note}>Draf AI memakai varian yang tersimpan. Perubahan manual di editor perlu disimpan terpisah.</p>
+            <button type="button" className="outline-button" disabled={!prompt.trim() || aiDraft.isPending} onClick={() => aiDraft.mutate(prompt.trim())}>
+              <Sparkles size={15} aria-hidden="true" /> {aiDraft.isPending ? "Menyiapkan draf…" : "Minta draf AI"}
+            </button>
+            {aiDraft.data && <p className={styles.note} role="status">{aiDraft.data.text}</p>}
+            {aiDraft.data?.proposal && <AssistantProposal key={aiDraft.data.proposal.id} proposal={aiDraft.data.proposal} onApplied={onAiApplied} />}
+            {aiDraft.error && <p className={styles.chatError} role="alert">{aiDraft.error.message}</p>}
+          </section> : <p className={styles.note}>Isi perubahan untuk meninjau dan memasukkannya ke editor varian.</p>}
           <label>Nama varian<AdminInput required maxLength={200} value={name} onChange={event => setName(event.target.value)} /></label>
           <label>Harga jual (Rp)<AdminInput required type="number" min={1} max={100000000} step={1} value={price} onChange={event => setPrice(event.target.value)} /></label>
           <label>Deskripsi varian<AdminTextarea aria-label="Deskripsi varian" rows={3} maxLength={2000} value={description} onChange={event => setDescription(event.target.value)} /></label>

@@ -21,7 +21,7 @@ function valueText(value: VariantValue) {
   return value || "Kosong";
 }
 
-export function AssistantProposal({ proposal }: { proposal: AssistantProposalData }) {
+export function AssistantProposal({ proposal, onApplied }: { proposal: AssistantProposalData; onApplied?: (published: boolean) => void }) {
   const query = useQueryClient();
   const apply = useMutation({
     mutationFn: () => adminRequest(`assistant/proposals/${proposal.id}/apply`, "POST", { confirm: true }) as Promise<{ published: boolean }>,
@@ -45,7 +45,8 @@ export function AssistantProposal({ proposal }: { proposal: AssistantProposalDat
       ) : (
         <div className={styles.proposalActions}>
           <small>Berlaku sampai <time dateTime={proposal.expiresAt}>{new Date(proposal.expiresAt).toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" })}</time></small>
-          <button type="button" className="primary-button" disabled={apply.isPending} onClick={() => apply.mutate()}>
+          <button type="button" className="primary-button" disabled={apply.isPending} onClick={() =>
+            apply.mutate(undefined, { onSuccess: result => onApplied?.(result.published) })}>
             {apply.isPending ? "Menyimpan…" : "Terapkan perubahan"}
           </button>
         </div>

@@ -53,7 +53,7 @@ const sentTime = new Intl.DateTimeFormat("id-ID", { hour: "2-digit", minute: "2-
 const destinations = {
   catalog: "Buka katalog", fulfillment: "Buka antrean", orders: "Buka pesanan", payments: "Buka pembayaran",
   reports: "Buka laporan", system: "Buka status sistem", conversations: "Buka room chat CS",
-  vouchers: "Buka voucher", overview: "Buka ringkasan",
+  vouchers: "Buka voucher", overview: "Buka ringkasan", tasks: "Buka joki tugas", apps: "Buka aplikasi premium",
 };
 type AssistantStatus = { configured: boolean; attachments: boolean; tools: string[] };
 type AssistantReply = Pick<Message, "text" | "section" | "choices" | "proposal">;

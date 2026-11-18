@@ -8,7 +8,8 @@ create table public.admin_assistant_proposals (
   product_slug text not null,
   product_version timestamptz not null,
   before_values jsonb not null,
-  patch jsonb not null,
+  patch jsonb not null check (jsonb_typeof(patch) = 'object' and patch <> '{}'::jsonb
+    and (patch - array['name','price','description','active']::text[]) = '{}'::jsonb),
   created_at timestamptz not null default now(),
   expires_at timestamptz not null default now() + interval '15 minutes',
   applied_at timestamptz
@@ -36,6 +37,7 @@ begin
     or current_product.updated_at is distinct from draft.product_version
     or current_product.category is distinct from draft.category
     or current_product.product_slug is distinct from draft.product_slug
+    or not (to_jsonb(current_product) @> draft.before_values)
     or (not current_product.active and current_product.provider = 'vipayment' and draft.patch->'active' = 'true'::jsonb)
   then
     return query select 'conflict'::text, draft.product_id;
