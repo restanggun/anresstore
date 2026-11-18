@@ -33,7 +33,7 @@ test('login and dashboard history connect through HTTP API with account-isolated
  await new Promise(resolve=>api.listen(0,'127.0.0.1',resolve));
  const apiPort=api.address().port;
  await new Promise((resolve,reject)=>api.close(error=>error?reject(error):resolve()));
- const server=spawn(process.execPath,['dist/main.js'],{cwd:new URL('..',import.meta.url),env:{...process.env,NODE_ENV:'test',PORT:String(apiPort),SUPABASE_URL:`http://127.0.0.1:${database.address().port}`,SUPABASE_PUBLISHABLE_KEY:'public-test',SUPABASE_SECRET_KEY:'sb_secret_test',CORS_ORIGINS:'http://localhost:3000',TRIPAY_MODE:'sandbox',PAYMENT_RECONCILIATION_ENABLED:'false',VIPAYMENT_FULFILLMENT_ENABLED:'false'},stdio:'ignore'});
+ const server=spawn(process.execPath,['dist/main.js'],{cwd:new URL('..',import.meta.url),env:{...process.env,NODE_ENV:'test',PORT:String(apiPort),SUPABASE_URL:`http://127.0.0.1:${database.address().port}`,SUPABASE_PUBLISHABLE_KEY:'public-test',SUPABASE_SECRET_KEY:'sb_secret_test',CORS_ORIGINS:'http://localhost:3000',TRIPAY_MODE:'sandbox',TRIPAY_API_KEY:'test-api',TRIPAY_PRIVATE_KEY:'test-private',TRIPAY_MERCHANT_CODE:'TTEST',TRIPAY_BASE_URL:'https://tripay.co.id/api-sandbox',PAYMENT_RECONCILIATION_ENABLED:'false',VIPAYMENT_FULFILLMENT_ENABLED:'false'},stdio:'ignore'});
  const base=`http://127.0.0.1:${apiPort}/v1`;
  try {
   let ready=false;for(let i=0;i<300;i++){try{if((await fetch(`${base}/health`)).ok){ready=true;break;}}catch{}await delay(100);}

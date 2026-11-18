@@ -17,7 +17,7 @@ test("keranjang memakai identitas sesi dan menolak akses atau data yang tidak va
  });
  await new Promise(resolve => mock.listen(0, "127.0.0.1", resolve));
  const api = createServer(); await new Promise(resolve => api.listen(0,"127.0.0.1",resolve)); const port=api.address().port; await new Promise((resolve,reject)=>api.close(error=>error?reject(error):resolve()));
- const server = spawn(process.execPath, ["dist/main.js"], {env:{...process.env,PORT:String(port),SUPABASE_URL:`http://127.0.0.1:${mock.address().port}`,SUPABASE_PUBLISHABLE_KEY:"test-key",SUPABASE_SECRET_KEY:"sb_secret_test"},stdio:"ignore"});
+ const server = spawn(process.execPath, ["dist/main.js"], {cwd:new URL("..",import.meta.url),env:{...process.env,NODE_ENV:"test",CORS_ORIGINS:"http://localhost:3000,http://localhost:3001",PAYMENT_RECONCILIATION_ENABLED:"false",VIPAYMENT_FULFILLMENT_ENABLED:"false",PORT:String(port),SUPABASE_URL:`http://127.0.0.1:${mock.address().port}`,SUPABASE_PUBLISHABLE_KEY:"test-key",SUPABASE_SECRET_KEY:"sb_secret_test"},stdio:"ignore"});
  try {
   const base = `http://127.0.0.1:${port}/v1/auth/cart`;
   let ready = false; for (let i=0;i<300;i++) { try { await fetch(base); ready=true; break; } catch { await delay(100); } } assert.ok(ready);

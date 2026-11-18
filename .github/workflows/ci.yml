@@ -2,14 +2,13 @@ name: CI
 on:
   push:
   pull_request:
+  workflow_dispatch:
 permissions:
   contents: read
-concurrency:
-  group: anres-${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
 jobs:
   validate:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     env:
       NEXT_PUBLIC_WEB_URL: https://anresstore.site
       NEXT_PUBLIC_AUTH_URL: https://auth.anresstore.site
@@ -21,6 +20,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 24
+          cache: npm
       - name: Install dependencies
         run: npm ci
       - run: npm run typecheck
@@ -35,8 +35,9 @@ jobs:
   deploy:
     name: Deploy production VPS
     needs: validate
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && vars.VPS_DEPLOY_ENABLED == 'true'
+    if: (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/main' && vars.VPS_DEPLOY_ENABLED == 'true'
     runs-on: ubuntu-latest
+    timeout-minutes: 35
     concurrency:
       group: anres-production-deploy
       cancel-in-progress: false
@@ -51,9 +52,11 @@ jobs:
           printf '%s\n' '[202.155.143.177]:32127 ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIGsDdKagNjzm8YzcqMewoBKcS+1tvNBMKvQNIvZnYVJd' > ~/.ssh/known_hosts
           chmod 600 ~/.ssh/known_hosts
       - name: Deploy through restricted VPS key
-        run: ssh -p 32127 -o BatchMode=yes root@202.155.143.177 deploy
+        env:
+          RELEASE_SHA: ${{ github.sha }}
+        run: ssh -p 32127 -o BatchMode=yes -o StrictHostKeyChecking=yes -o ConnectTimeout=15 root@202.155.143.177 deploy "$RELEASE_SHA"
       - name: Check production routes
         run: |
           for url in https://anresstore.site/ https://app.anresstore.site/katalog https://admin.anresstore.site/ https://api.anresstore.site/v1/health; do
-            curl --fail --silent --show-error --retry 8 --retry-delay 5 --retry-all-errors "$url" --output /dev/null
+            curl --fail --silent --show-error --connect-timeout 10 --max-time 20 --retry 8 --retry-delay 5 --retry-all-errors "$url" --output /dev/null
           done
