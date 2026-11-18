@@ -16,10 +16,18 @@ import { parseVoucherSettings, voucherUuid } from "../payments/vouchers";
 import nodemailer from "nodemailer";
 import {
   assistantAnswer, assistantCategories, assistantConfig, assistantInput, assistantObject,
-  assistantPatch, assistantPlan, assistantQuota, redactAssistantText, type AssistantTool,
+  assistantPatch, assistantPlan, assistantQuota, redactAssistantText, type AssistantStep, type AssistantTool,
 } from "./assistant-model";
+import {
+  assistantLegacyAgents, assistantLegacySkills, assistantPolicyAllows, assistantRegistryEnabled,
+  definitions, loadAssistantRegistry, resolvedRegistry, validateAssistantRegistry, editingTools,
+} from "./assistant-registry";
+import { tavilyEnabled, tavilySearch } from "./assistant-research";
+import { parseAssistantPriceCsv, percentage, targetPrice } from "./assistant-pricing";
 
 const assistantRupiah = new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 });
+type AssistantEvidence = { invoice?: Record<string, unknown>; choices?: unknown[] };
+type AssistantOutput = { text: string; section?: string; choices?: unknown[]; proposal?: unknown; batch?: unknown; sources?: { title: string; url: string; checkedAt: string }[] };
 
 @Controller("admin")
 export class AdminController {
@@ -48,6 +56,7 @@ export class AdminController {
     let permissions: string[] = ["*"];
     let categories: string[] = ["game", "prepaid", "apps", "social", "tasks"];
     let productSlugs: string[] = [];
+    let roleId: string | null = null;
     let superAdmin = allowed.includes(user.id);
     if (!superAdmin) {
       const [assignment] = await adminDb<{ role_id: string | null; is_super: boolean }>("admin_assignments", `?user_id=eq.${encodeURIComponent(user.id)}&select=role_id,is_super&limit=1`);
@@ -55,12 +64,13 @@ export class AdminController {
       superAdmin = assignment.is_super === true;
       if (!superAdmin) {
         if (!assignment.role_id) throw new HttpException("Role admin tidak tersedia.", 403);
+        roleId = assignment.role_id;
         const [role] = await adminDb<{ permissions: string[]; categories: string[]; product_slugs: string[] }>("admin_roles", `?id=eq.${encodeURIComponent(assignment.role_id)}&select=permissions,categories,product_slugs&limit=1`);
         if (!role || !Array.isArray(role.permissions) || !Array.isArray(role.categories) || !Array.isArray(role.product_slugs) || role.product_slugs.length > 50 || role.product_slugs.some(s => typeof s !== "string" || s.length > 100 || !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(s)) || role.categories.some(c => !["game", "prepaid", "apps", "social", "tasks"].includes(c))) throw new HttpException("Role admin tidak tersedia.", 403);
         permissions = role.permissions; categories = role.categories; productSlugs = role.product_slugs;
       }
     }
-    return { id: user.id, superAdmin, permissions, categories, productSlugs };
+    return { id: user.id, superAdmin, permissions, categories, productSlugs, roleId };
   }
 
   private permit(access: { permissions: string[] }, permission: string) {
@@ -372,6 +382,10 @@ export class AdminController {
       tools.push("catalog_search");
       if (!access.productSlugs.length) tools.push("promotions");
       if (can("products.write")) tools.push("catalog_edit");
+      if (assistantRegistryEnabled()) {
+        tools.push("pricing", "duplicates", "promo_preview", "content_draft");
+        if (can("products.write")) tools.push("pricing_batch");
+      }
     }
     if (full && (can("orders.read") || can("payments.read"))) tools.push("transactions");
     if (can("orders.read") && access.categories.includes("tasks")) tools.push("task_orders");
@@ -380,14 +394,134 @@ export class AdminController {
     if (full && can("support.read")) tools.push("support", "support_draft");
     if (assistantConfig().attachments) tools.push("file_review");
     if (access.superAdmin) tools.push("vouchers");
+    if (assistantRegistryEnabled()) {
+      tools.push("sop_search");
+      if (full && can("support.read")) tools.push("support_handoff");
+      if (tavilyEnabled()) tools.push("web_search");
+      if (full && can("orders.read") && can("payments.read")) tools.push("invoice_timeline", "reconcile", "finance_category");
+    }
     return tools;
+  }
+
+  private async assistantCapabilities(access: Awaited<ReturnType<AdminController["authorize"]>>) {
+    const registry = assistantRegistryEnabled() ? await loadAssistantRegistry() : resolvedRegistry();
+    const tools = this.assistantTools(access).filter(tool => assistantPolicyAllows(registry.skills[tool], access));
+    const agents = registry.agents.filter(profile => assistantPolicyAllows(profile, access) && profile.tools.some(tool => tools.includes(tool)));
+    return { registry, tools, agents };
   }
 
   @Get("assistant")
   async assistantStatus(@Req() req: Request, @Res({ passthrough: true }) res: Response) {
     const access = await this.authorize(req, res, false, true, true);
     const { configured, attachments } = assistantConfig();
-    return { configured, attachments, tools: this.assistantTools(access) };
+    const { tools, agents, registry } = await this.assistantCapabilities(access);
+    return { configured, attachments: attachments && (tools.includes("file_review") || tools.includes("pricing_batch")), tools, canManage: access.superAdmin && assistantRegistryEnabled(),
+      canManageLanding: access.superAdmin,
+      skills: [...tools.filter(tool => tool !== "reply").map(id => ({ id: id as string, label: definitions[id][0] as string, description: definitions[id][1] as string, example: registry.skills[id]?.example })),
+        ...(tools.includes("catalog_edit") ? [{ id: "Edit harga", label: "Edit harga", description: "Siapkan draf harga satu SKU." }] : [])],
+      agents: agents.map(profile => ({ id: profile.id, label: profile.name, tools: profile.tools.filter(tool => tools.includes(tool)) })),
+    };
+  }
+
+  @Get("assistant/registry")
+  async assistantRegistry(@Req() req: Request, @Res({ passthrough: true }) res: Response) {
+    const access = await this.authorize(req, res, false, true, true);
+    if (!access.superAdmin) throw new HttpException("Pengelola Skill & Agent memerlukan super admin.", 403);
+    if (!assistantRegistryEnabled()) throw new HttpException("Pengelola Skill & Agent belum diaktifkan.", 503);
+    const [registry, roles, runs] = await Promise.all([
+      loadAssistantRegistry(),
+      adminDb("admin_roles", "?select=id,name&order=name.asc&limit=100"),
+      adminDb("admin_assistant_runs", "?select=id,actor_id,steps,created_at&order=created_at.desc&limit=20"),
+    ]);
+    return { ...registry, roles, runs, definitions: Object.entries(definitions).filter(([id]) => id !== "reply").map(([id, [label, description]]) => ({ id, label, description })), tavily: tavilyEnabled() };
+  }
+
+  @Get("storefront/landing")
+  async storefrontLanding(@Req() req: Request, @Res({ passthrough: true }) res: Response) {
+    const access = await this.authorize(req, res, false, true, true);
+    if (!access.superAdmin) throw new HttpException("Pengaturan landing page memerlukan super admin.", 403);
+    const [settings] = await adminDb<{ revision: number; config: Record<string, unknown> }>("storefront_landing_settings", "?id=eq.1&select=revision,config&limit=1");
+    if (!settings) throw new HttpException("Terapkan migrasi pengaturan landing page terlebih dahulu.", 503);
+    return settings;
+  }
+
+  @Post("storefront/landing")
+  async saveStorefrontLanding(@Body() raw: unknown, @Req() req: Request, @Res({ passthrough: true }) res: Response) {
+    const access = await this.authorize(req, res, true, true, true);
+    if (!access.superAdmin) throw new HttpException("Pengaturan landing page memerlukan super admin.", 403);
+    const body = raw && typeof raw === "object" && !Array.isArray(raw) ? raw as Record<string, unknown> : {};
+    const text = (key: string, max: number, min = 0) => {
+      const value = body[key];
+      if (typeof value !== "string" || value.trim().length < min || value.trim().length > max || /[\u0000-\u001f\u007f]/.test(value))
+        throw new HttpException("Periksa kembali teks pengumuman dan CTA.", 400);
+      return value.trim();
+    };
+    const bool = (key: string) => {
+      if (typeof body[key] !== "boolean") throw new HttpException("Pengaturan aktif/nonaktif tidak valid.", 400);
+      return body[key] as boolean;
+    };
+    const date = (key: string) => {
+      const value = body[key];
+      if (value === null || value === "") return null;
+      if (typeof value !== "string" || !Number.isFinite(Date.parse(value))) throw new HttpException("Jadwal banner tidak valid.", 400);
+      return new Date(value).toISOString();
+    };
+    if (!Number.isSafeInteger(body.revision) || Number(body.revision) < 0 || Number(body.revision) >= 2147483647)
+      throw new HttpException("Versi pengaturan tidak valid.", 400);
+    const announcementEnabled = bool("announcementEnabled");
+    const announcementText = text("announcementText", 220, announcementEnabled ? 3 : 0);
+    const announcementHref = text("announcementHref", 200);
+    const announcementLabel = text("announcementLabel", 50);
+    if (announcementHref && (!announcementHref.startsWith("/") || announcementHref.startsWith("//") || /[\\?#]/.test(announcementHref)))
+      throw new HttpException("Tautan banner hanya boleh menuju path internal Anres.", 400);
+    if (announcementHref && announcementLabel.length < 2) throw new HttpException("Isi label tautan banner.", 400);
+    const startsAt = date("startsAt");
+    const endsAt = date("endsAt");
+    if (startsAt && endsAt && Date.parse(endsAt) <= Date.parse(startsAt)) throw new HttpException("Waktu selesai harus setelah waktu mulai.", 400);
+    const config = {
+      announcementEnabled, announcementText, announcementHref, announcementLabel,
+      announcementMoving: bool("announcementMoving"), startsAt, endsAt,
+      closingTitle: text("closingTitle", 90, 3), closingBody: text("closingBody", 220, 3),
+      showAuthCta: bool("showAuthCta"),
+    };
+    const [saved] = await adminDb<{ revision: number }>("rpc/save_storefront_landing_settings", "", "POST", {
+      p_actor: access.id, p_revision: body.revision, p_config: config,
+    });
+    if (!saved) throw new HttpException("Pengaturan berubah. Muat ulang sebelum menyimpan.", 409);
+    return { revision: saved.revision };
+  }
+
+  @Post("assistant/registry")
+  async saveAssistantRegistry(@Body() raw: unknown, @Req() req: Request, @Res({ passthrough: true }) res: Response) {
+    const access = await this.authorize(req, res, true, true, true);
+    if (!access.superAdmin) throw new HttpException("Pengelola Skill & Agent memerlukan super admin.", 403);
+    if (!assistantRegistryEnabled()) throw new HttpException("Pengelola Skill & Agent belum diaktifkan.", 503);
+    const body = assistantObject(raw);
+    if (!Number.isSafeInteger(body.revision) || Number(body.revision) < 0 || Number(body.revision) >= 2147483647) {
+      throw new HttpException("Versi pengaturan tidak valid.", 400);
+    }
+    const roles = await adminDb<{ id: string }>("admin_roles", "?select=id&limit=100");
+    const config = validateAssistantRegistry(body, roles.map(role => role.id));
+    const [result] = await adminDb<{ revision: number }>("rpc/save_admin_assistant_registry", "", "POST", {
+      p_actor: access.id, p_revision: body.revision, p_config: config,
+    });
+    if (!result) throw new HttpException("Pengaturan telah berubah. Muat ulang sebelum menyimpan.", 409);
+    return { revision: result.revision };
+  }
+
+  @Post("assistant/registry/test")
+  async testAssistantRegistry(@Body() raw: unknown, @Req() req: Request, @Res({ passthrough: true }) res: Response) {
+    const access = await this.authorize(req, res, true, true, true);
+    if (!access.superAdmin) throw new HttpException("Pengujian skill memerlukan super admin.", 403);
+    if (!assistantRegistryEnabled() || !assistantConfig().configured) throw new HttpException("Model atau Pengelola Skill & Agent belum aktif.", 503);
+    const body = assistantObject(raw);
+    const input = assistantInput({ text: body.text, agent: body.agent }, false);
+    const { tools, agents, registry } = await this.assistantCapabilities(access);
+    const profile = input.agent ? agents.find(agent => agent.id === input.agent) : undefined;
+    if (input.agent && !profile) throw new HttpException("Agent tidak tersedia.", 403);
+    await assistantQuota(access.id);
+    const plans = await assistantPlan(input, tools.filter(tool => tool === "reply" || !profile || profile.tools.includes(tool)), profile, registry.skills);
+    return { steps: plans.map(({ tool }) => ({ tool, label: definitions[tool][0] })) };
   }
 
   @Post("assistant/chat")
@@ -400,9 +534,62 @@ export class AdminController {
     if (variantId !== undefined && !uuid(variantId)) throw new HttpException("Varian editor tidak valid.", 422);
     await assistantQuota(access.id);
     const scopedProduct = variantId === undefined ? null : await this.assistantEditorProduct(access, variantId as string);
-    const available = this.assistantTools(access).filter(tool =>
-      (!scopedProduct || tool === "reply" || tool === "catalog_edit") && (tool !== "catalog_edit" || !input.attachments.length));
-    const plan = await assistantPlan(input, available);
+    const { registry, tools, agents } = await this.assistantCapabilities(access);
+    const profile = input.agent ? agents.find(item => item.id === (Object.hasOwn(assistantLegacyAgents, input.agent) ? assistantLegacyAgents[input.agent] : input.agent) || item.name === input.agent) : undefined;
+    if (input.agent && !profile) throw new HttpException("Agent tidak tersedia untuk sesi ini.", 403);
+    const selection = input.skills.map(skill => tools.find(tool => tool === skill || definitions[tool][0] === skill ||
+      (Object.hasOwn(assistantLegacySkills, skill) && assistantLegacySkills[skill] === tool)));
+    if (selection.some(skill => !skill)) throw new HttpException("Skill tidak tersedia untuk sesi ini.", 403);
+    if (profile && selection.some(skill => skill && skill !== "file_review" && !profile.tools.includes(skill))) {
+      throw new HttpException("Skill pilihan berada di luar cakupan agent.", 403);
+    }
+    const webRequested = selection.includes("web_search") || profile?.id === "research" || /\b(?:cari di web|tavily|cari di internet|riset publik|pencarian web)\b/i.test(input.text);
+    const available = tools.filter(tool => (tool === "reply" || !profile || profile.tools.includes(tool) || tool === "file_review") &&
+      (!scopedProduct || tool === "reply" || tool === "catalog_edit") &&
+      (tool !== "web_search" || (webRequested && !input.attachments.length)) &&
+      (!input.attachments.length || !editingTools.includes(tool)));
+    const csv = selection.includes("pricing_batch") && input.attachments.length > 0;
+    if (csv && (scopedProduct || !tools.includes("pricing_batch") || profile && !profile.tools.includes("pricing_batch"))) throw new HttpException("Draf CSV di luar cakupan agent.", 403);
+    if (input.attachments.length && !csv && !tools.includes("file_review")) throw new HttpException("Analisis lampiran tidak diizinkan.", 403);
+    const plan: AssistantStep[] = csv ? [{ tool: "pricing_batch", csv: true }]
+      : await assistantPlan({ ...input, skills: selection.filter((skill): skill is AssistantTool => !!skill) }, available, profile, registry.skills);
+    const trace: { tool: AssistantTool; label: string; status: string; section?: string }[] = [];
+    const evidence: AssistantEvidence = {};
+    const outputs: Awaited<ReturnType<AdminController["assistantStep"]>>[] = [];
+    for (const step of plan) {
+      try {
+        const result = await this.assistantStep(step, input, access, req, res, scopedProduct, registry.sops, evidence);
+        outputs.push(result);
+        trace.push({ tool: step.tool, label: definitions[step.tool][0], status: result.proposal || result.batch ? "review" : "done", section: result.section });
+      } catch (error) {
+        trace.push({ tool: step.tool, label: definitions[step.tool][0], status: "failed" });
+        if (!outputs.length) {
+          await this.logAssistantRun(access.id, trace);
+          throw error;
+        }
+        outputs.push({ text: error instanceof HttpException ? error.message : "Langkah berikutnya belum berhasil dijalankan." });
+        break;
+      }
+    }
+    await this.logAssistantRun(access.id, trace);
+    const last = outputs.at(-1)!;
+    return { ...last, text: outputs.map(result => result.text).join("\n\n"),
+      section: [...outputs].reverse().find(result => result.section)?.section,
+      choices: [...outputs].reverse().find(result => result.choices?.length)?.choices,
+      sources: outputs.flatMap(result => result.sources ?? []),
+      trace,
+    };
+  }
+
+  private async logAssistantRun(actor: string, steps: { tool: AssistantTool; label: string; status: string; section?: string }[]) {
+    if (assistantRegistryEnabled()) await adminDb("admin_assistant_runs", "", "POST", { id: randomUUID(), actor_id: actor, steps });
+  }
+
+  private async assistantStep(
+    plan: AssistantStep, input: ReturnType<typeof assistantInput>, access: Awaited<ReturnType<AdminController["authorize"]>>,
+    req: Request, res: Response, scopedProduct: ManagedProduct | null, sops: ReturnType<typeof resolvedRegistry>["sops"],
+    evidence: AssistantEvidence,
+  ): Promise<AssistantOutput> {
     const arg = (key: string) => (plan as Record<string, unknown>)[key];
 
     switch (plan.tool) {
@@ -411,8 +598,11 @@ export class AdminController {
         if (typeof text !== "string" || !text.trim() || text.length > 1500) throw new HttpException("Jawaban AI tidak valid.", 502);
         return { text: redactAssistantText(text.trim()) };
       }
-      case "catalog_search":
-        return this.assistantCatalog(access, arg("query"), arg("category"), null);
+      case "catalog_search": {
+        const result = await this.assistantCatalog(access, arg("query"), arg("category"), null);
+        if ("choices" in result) evidence.choices = result.choices;
+        return result;
+      }
       case "catalog_edit":
         return scopedProduct ? this.draftAssistantProduct(access, scopedProduct, assistantPatch(arg("patch")))
           : this.assistantCatalog(access, arg("query"), arg("category"), assistantPatch(arg("patch")));
@@ -481,7 +671,33 @@ export class AdminController {
         return { text: `${count} tiket baru dan ${unreadCount} percakapan belum dibaca.`, section: "conversations" };
       }
       case "support_draft":
-        return { text: await assistantAnswer(input.text, plan.tool, { context: "Situasi anonim yang dijelaskan admin", attachments: input.attachments }), section: "conversations" };
+      case "support_handoff":
+        return { text: await assistantAnswer(input.text, plan.tool, { context: "Situasi anonim yang dijelaskan admin", attachments: input.attachments, verified: evidence.invoice }), section: "conversations" };
+      case "content_draft":
+        if (!evidence.choices?.length) return { text: "Tentukan varian yang ingin dijadikan sumber draf konten.", section: "catalog" };
+        return { text: await assistantAnswer(input.text, plan.tool, { variants: evidence.choices }), section: "catalog" };
+      case "pricing":
+      case "duplicates":
+      case "promo_preview":
+      case "pricing_batch":
+        return this.assistantPricing(access, plan, input);
+      case "invoice_timeline":
+      case "reconcile":
+        return this.assistantInvoice(access, plan, input.text, evidence);
+      case "finance_category":
+        return this.assistantFinance(plan.days);
+      case "sop_search": {
+        if (typeof plan.query !== "string" || plan.query.trim().length < 3 || plan.query.length > 120) throw new HttpException("Tulis topik SOP yang ingin dicari.", 422);
+        const words = plan.query.toLowerCase().split(/\W+/).filter(word => word.length > 2);
+        const matches = sops.filter(sop => words.some(word => (sop.title + " " + sop.body).toLowerCase().includes(word))).slice(0, 3);
+        return { text: matches.length ? matches.map(sop => `${sop.title}\n${sop.body}`).join("\n\n") : "SOP yang cocok belum tersedia." };
+      }
+      case "web_search": {
+        const { query, checkedAt, results } = await tavilySearch(plan.query, input.text);
+        if (!results.length) return { text: "Tavily belum menemukan sumber publik yang cocok." };
+        const text = await assistantAnswer(query, plan.tool, results);
+        return { text, sources: results.map(({ title, url }) => ({ title, url, checkedAt })) };
+      }
       case "file_review":
         if (!input.attachments.length) return { text: "Lampirkan file teks untuk dianalisis." };
         return { text: await assistantAnswer(input.text, plan.tool, { attachments: input.attachments }) };
@@ -490,6 +706,152 @@ export class AdminController {
         return { text: `${rows.length} voucher pada halaman pertama${hasMore ? ", masih ada halaman berikutnya" : ""}. Buka Voucher untuk melihat kode dan pengaturannya.`, section: "vouchers" };
       }
     }
+  }
+
+  private async assistantPricing(
+    access: Awaited<ReturnType<AdminController["authorize"]>>, plan: AssistantStep, input: ReturnType<typeof assistantInput>,
+  ): Promise<AssistantOutput> {
+    const csv = plan.csv === true && input.attachments.length > 0;
+    if (plan.csv === true && !csv) throw new HttpException("Lampiran CSV diperlukan.", 422);
+    if (plan.tool === "pricing_batch" && !/\b(draf|draft|siapkan|usulkan|rancangan)\b/i.test(input.text)) {
+      throw new HttpException("Minta draf harga secara eksplisit sebelum menyiapkan perubahan massal.", 422);
+    }
+    const category = plan.category;
+    if ((!csv || category !== undefined) && !assistantCategories.some(item => item === category)) throw new HttpException("Pilih kategori katalog yang valid.", 422);
+    if (typeof category === "string") this.category(access, category);
+    this.permit(access, "products.read");
+    if (plan.tool === "pricing_batch") this.permit(access, "products.write");
+    const scope = access.productSlugs.length ? `&product_slug=in.(${access.productSlugs.join(",")})` : "";
+    const categories = access.categories.filter(item => !category || item === category);
+    if (!categories.length) throw new HttpException("Kategori katalog tidak tersedia.", 403);
+    const catalog = await adminDb<ManagedProduct>("managed_products",
+      `?category=in.(${categories.join(",")})${scope}&deleted_at=is.null&select=id,category,product,product_slug,name,provider_code,price,cost_price,active,updated_at&order=id.asc&limit=501`);
+    if (catalog.length > 500) throw new HttpException("Pilih kategori atau cakupan katalog yang lebih kecil untuk analisis.", 422);
+    if (plan.query !== undefined && (typeof plan.query !== "string" || plan.query.length > 120)) throw new HttpException("Kata kunci katalog tidak valid.", 422);
+    const query = typeof plan.query === "string" ? plan.query.trim().toLowerCase() : "";
+    if (!csv && ["pricing_batch", "promo_preview"].includes(plan.tool) && !query) throw new HttpException("Sebutkan nama produk atau SKU.", 422);
+    const words = query.split(/[^\p{L}\p{N}]+/u).filter(Boolean);
+    const selected = catalog.filter(row => !query || row.provider_code.toLowerCase() === query || (words.length > 0 && words.every(word =>
+      `${row.name} ${row.product} ${row.provider_code}`.toLowerCase().split(/[^\p{L}\p{N}]+/u).some(item => /\d/.test(word) ? item === word : item.includes(word)))));
+    const money = (value: number) => assistantRupiah.format(value);
+    const margin = (row: ManagedProduct, price = Number(row.price)) => (price - Number(row.cost_price)) * 100 / price;
+    const hasCost = (row: ManagedProduct) => row.cost_price != null && Number(row.cost_price) > 0;
+    const below = plan.below === undefined ? undefined : percentage(plan.below, 100);
+    if (plan.tool === "duplicates") {
+      const groups = new Map<string, ManagedProduct[]>();
+      for (const row of selected) {
+        const key = `${row.category}/${row.product_slug}/${row.name.normalize("NFKC").trim().toLowerCase()}`;
+        groups.set(key, [...(groups.get(key) ?? []), row]);
+      }
+      const duplicates = [...groups.values()].filter(group => group.length > 1);
+      return { text: `${duplicates.length} kelompok nama varian sama dari ${selected.length} varian tersimpan.` +
+        duplicates.slice(0, 8).map(group => `\n${group[0]!.name}: ${group.slice(0, 8).map(row => row.provider_code).join(", ")}`).join(""), section: "catalog" };
+    }
+    if (plan.tool === "promo_preview") {
+      if (selected.length !== 1) return { text: "Pilih satu SKU untuk simulasi promo.", choices: selected.slice(0, 8).map(row => this.assistantCatalogChoice(row)), section: "catalog" };
+      const row = selected[0]!;
+      const discount = percentage(plan.discount);
+      const price = Math.max(1, Math.ceil(Number(row.price) * (10000 - Math.round(discount * 100)) / 10000));
+      return { text: `Simulasi ${row.provider_code}: ${money(Number(row.price))} → ${money(price)} (diskon ${discount}%). ` +
+        (hasCost(row) ? `Estimasi margin setelah diskon ${margin(row, price).toFixed(2)}%.` : "Modal tercatat belum tersedia."), section: "catalog" };
+    }
+    const withCost = selected.filter(row => hasCost(row) && (below === undefined || margin(row) < below));
+    if (plan.tool === "pricing") {
+      return { text: `${withCost.length} varian sesuai filter dari ${selected.length} varian tersimpan. ${selected.filter(row => !hasCost(row)).length} varian tanpa modal positif.` +
+        withCost.slice(0, 12).map(row => `\n${row.provider_code}: jual ${money(Number(row.price))}, modal ${money(Number(row.cost_price))}, margin ${margin(row).toFixed(2)}%, markup ${((Number(row.price) / Number(row.cost_price) - 1) * 100).toFixed(2)}%.`).join(""), section: "catalog" };
+    }
+    let staged: { row: ManagedProduct; price: number }[];
+    if (csv) {
+      const [file] = input.attachments;
+      if (input.attachments.length !== 1 || !file?.name.toLowerCase().endsWith(".csv")) throw new HttpException("Gunakan satu lampiran CSV harga.", 422);
+      staged = parseAssistantPriceCsv(file.text).map(({ sku, price }) => {
+        const matches = catalog.filter(row => row.provider_code.toLowerCase() === sku.toLowerCase());
+        if (matches.length !== 1) throw new HttpException(`SKU ${sku} tidak tersedia atau ambigu dalam cakupan katalog.`, 422);
+        return { row: matches[0]!, price };
+      });
+    } else {
+      const mode = plan.mode;
+      if (mode !== "margin" && mode !== "markup") throw new HttpException("Tentukan target margin atau markup.", 422);
+      const target = percentage(plan.target, mode === "markup" ? 500 : 95);
+      staged = withCost.map(row => ({ row, price: targetPrice(Number(row.cost_price), target, mode) }));
+    }
+    const changes = staged.filter(({ row, price }) => Number(row.price) !== price);
+    if (!changes.length) return { text: "Tidak ada harga yang perlu diubah pada filter ini.", section: "catalog" };
+    if (changes.length > 20 || changes.some(({ row, price }) => !row.updated_at || price < 1 || price > 100000000)) {
+      throw new HttpException("Batasi draf ke 20 varian dengan harga valid. Persempit filter atau periksa modal.", 422);
+    }
+    const id = randomUUID();
+    const [entry] = await adminDb<{ expires_at: string }>("rpc/stage_admin_assistant_batch", "", "POST", {
+      p_id: id, p_actor: access.id, p_items: changes.map(({ row, price }) => ({
+        id: randomUUID(), product_id: row.id, category: row.category, product_slug: row.product_slug,
+        product_version: row.updated_at, before_price: Number(row.price), after_price: price,
+      })),
+    });
+    if (!entry?.expires_at) throw new HttpException("Draf harga massal belum dapat disimpan.", 503);
+    return { text: `Tinjau perubahan ${changes.length} varian. Promo aktif dapat memengaruhi harga yang terlihat pelanggan.`, section: "catalog",
+      batch: { id, expiresAt: entry.expires_at, rows: changes.map(({ row, price }) => ({ ...this.assistantCatalogChoice(row), after: price })) } };
+  }
+
+  private async assistantInvoice(
+    access: Awaited<ReturnType<AdminController["authorize"]>>, plan: AssistantStep, prompt: string, evidence: AssistantEvidence,
+  ): Promise<AssistantOutput> {
+    this.permit(access, "orders.read"); this.permit(access, "payments.read"); this.allServices(access);
+    const invoice = plan.invoice;
+    if (typeof invoice !== "string" || !/^ANRS-[A-Z0-9-]{4,50}$/i.test(invoice) || !prompt.toLowerCase().includes(invoice.toLowerCase())) {
+      throw new HttpException("Tulis nomor invoice ANRS lengkap di pesan terbaru.", 422);
+    }
+    const [row] = await adminDb("admin_transaction_records",
+      `?invoice_number=ilike.${encodeURIComponent(invoice)}&select=id,source,created_at,updated_at,amount,payment_status,fulfillment_status&limit=1`);
+    if (!row) return { text: "Invoice tidak ditemukan dalam transaksi produksi.", section: "orders" };
+    evidence.invoice = { amount: row.amount, payment_status: row.payment_status, fulfillment_status: row.fulfillment_status, created_at: row.created_at, updated_at: row.updated_at };
+    if (plan.tool === "invoice_timeline") {
+      const events = typeof row.id === "string" && uuid(row.id) && row.source === "checkout"
+        ? await adminDb("payment_audit_events", `?payment_id=eq.${row.id}&select=created_at,next_status&order=created_at.asc&limit=20`) : [];
+      return { text: `${invoice.toUpperCase()}\nDibuat: ${row.created_at}.\nPembayaran: ${row.payment_status}. Pemenuhan: ${row.fulfillment_status}.\nPembaruan terakhir: ${row.updated_at ?? "tidak tersedia"}.` +
+        events.map(event => `\n${event.created_at}: ${event.next_status}`).join(""), section: "orders" };
+    }
+    if (row.source !== "checkout" || !uuid(row.id)) return { text: "Invoice ini bukan transaksi Tripay yang bisa dicocokkan lewat gateway.", section: "payments" };
+    const [payment] = await adminDb("payments", `?id=eq.${row.id}&payment_mode=eq.live&select=id,merchant_ref,reference,amount,method,status&limit=1`);
+    if (!payment || typeof payment.reference !== "string" || !/^[A-Za-z0-9-]{1,100}$/.test(payment.reference)) {
+      return { text: "Referensi Tripay belum tersedia untuk invoice ini.", section: "payments" };
+    }
+    const gateway = await new TripayClient().detail(payment.reference);
+    if (gateway.reference !== payment.reference || gateway.merchant_ref !== (payment.merchant_ref ?? payment.id) || gateway.payment_method !== payment.method ||
+      !["UNPAID", "PAID", "FAILED", "EXPIRED", "REFUND"].includes(gateway.status) ||
+      !Number.isSafeInteger(gateway.amount) || !Number.isSafeInteger(gateway.fee_customer) || gateway.fee_customer < 0 || gateway.amount < gateway.fee_customer) {
+      throw new HttpException("Identitas atau nominal transaksi Tripay belum dapat diverifikasi.", 409);
+    }
+    const total = Number(gateway.amount) - Number(gateway.fee_customer);
+    const state = gateway.status.toUpperCase() === "UNPAID" ? "pending" : gateway.status.toUpperCase() === "REFUND" ? "refunded" : gateway.status.toLowerCase();
+    return { text: `${invoice.toUpperCase()}: Anres ${payment.status} / ${assistantRupiah.format(Number(payment.amount))}. Tripay ${gateway.status} / ${assistantRupiah.format(total)} sebelum biaya pelanggan. ` +
+      (state === payment.status && total === Number(payment.amount) ? "Status dan nominal cocok." : "Ada selisih yang perlu ditinjau di dashboard."), section: "payments" };
+  }
+
+  private async assistantFinance(days: unknown): Promise<AssistantOutput> {
+    days ??= 7;
+    if (![7, 30, 90, "7", "30", "90"].includes(days as number | string)) throw new HttpException("Gunakan periode 7, 30, atau 90 hari.", 422);
+    const records = await adminDb("rpc/admin_assistant_finance_by_category", "", "POST", { p_days: Number(days) });
+    return { text: `Omzet ${days} hari kalender (WIB), transaksi lunas.` +
+      (records.length ? records.map(row => `\n${row.category}: ${row.paid_count} transaksi, omzet ${assistantRupiah.format(Number(row.revenue))}, keuntungan tercatat ${assistantRupiah.format(Number(row.profit))}, margin ${Number(row.known_revenue) > 0 ? (100 * Number(row.profit) / Number(row.known_revenue)).toFixed(2) + "%" : "belum tersedia"} atas transaksi dengan modal diketahui. ${row.missing_cost} transaksi tanpa modal.`).join("") : " Belum ada transaksi lunas."), section: "reports" };
+  }
+
+  @Post("assistant/batches/:id/apply")
+  async assistantApplyBatch(@Param("id") id: string, @Body() raw: unknown, @Req() req: Request, @Res({ passthrough: true }) res: Response) {
+    const access = await this.authorize(req, res, true, true, true);
+    if (!assistantConfig().configured || !(await this.assistantCapabilities(access)).tools.includes("pricing_batch")) {
+      throw new HttpException("Konfirmasi draf massal tidak tersedia untuk sesi ini.", 403);
+    }
+    const body = assistantObject(raw);
+    if (!uuid(id) || body.confirm !== true || Object.keys(body).length !== 1) throw new HttpException("Konfirmasi tidak valid.", 400);
+    const [batch] = await adminDb<{ proposal_ids: string[] }>("admin_assistant_batches", `?id=eq.${id}&actor_id=eq.${access.id}&select=proposal_ids`);
+    if (!batch?.proposal_ids.length || batch.proposal_ids.length > 20 || !batch.proposal_ids.every(uuid)) throw new HttpException("Draf massal tidak ditemukan.", 404);
+    const entries = await adminDb<{ category: string; product_slug: string }>("admin_assistant_proposals",
+      `?id=in.(${batch.proposal_ids.join(",")})&actor_id=eq.${access.id}&select=category,product_slug`);
+    if (entries.length !== batch.proposal_ids.length) throw new HttpException("Draf massal tidak lengkap.", 409);
+    for (const entry of entries) { this.category(access, entry.category); this.product(access, entry.product_slug); }
+    const [result] = await adminDb<{ result: string }>("rpc/apply_admin_assistant_batch", "", "POST", { p_id: id, p_actor: access.id });
+    if (result?.result !== "applied") throw new HttpException(result?.result === "expired" ? "Draf massal kedaluwarsa." : "Draf massal sudah berubah. Buat draf baru.", 409);
+    return { ok: true, published: process.env.ADMIN_CATALOG_ENABLED === "true" };
   }
 
   private async assistantEditorProduct(access: Awaited<ReturnType<AdminController["authorize"]>>, id: string) {
@@ -572,6 +934,9 @@ export class AdminController {
     if (!assistantConfig().configured) throw new HttpException("Asisten Anres belum diaktifkan.", 503);
     this.permit(access, "products.read");
     this.permit(access, "products.write");
+    if (assistantRegistryEnabled() && !(await this.assistantCapabilities(access)).tools.includes("catalog_edit")) {
+      throw new HttpException("Skill Edit produk tidak tersedia untuk sesi ini.", 403);
+    }
     const body = assistantObject(input);
     if (!uuid(id) || body.confirm !== true || Object.keys(body).length !== 1) throw new HttpException("Konfirmasi draf tidak valid.", 400);
     const [draft] = await adminDb<{ category: string; product_slug: string }>("admin_assistant_proposals", `?id=eq.${id}&actor_id=eq.${access.id}&select=category,product_slug&limit=1`);

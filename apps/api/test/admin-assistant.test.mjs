@@ -23,11 +23,11 @@ async function isolated(run) {
     ADMIN_USER_IDS: owner, ADMIN_ALLOWED_ORIGINS: origin, ADMIN_REQUIRE_MFA: "false",
     SUPABASE_URL: "https://db.example", SUPABASE_PUBLISHABLE_KEY: "anon-key", SUPABASE_SECRET_KEY: "db-key",
     ADMIN_AI_ENABLED: "true", ADMIN_AI_OPENROUTER_API_KEY: "ai-test-key", ADMIN_AI_OPENROUTER_MODEL: "test/model",
-    ADMIN_AI_ATTACHMENTS_ENABLED: "false",
+    ADMIN_AI_ATTACHMENTS_ENABLED: "false", ADMIN_AI_REGISTRY_ENABLED: "false", ADMIN_AI_TAVILY_ENABLED: "false",
   });
   const calls = [];
   const intercept = handler => { global.fetch = async (url, options = {}) => {
-    const call = { url: new URL(String(url)), method: options.method ?? "GET", body: options.body && JSON.parse(options.body) };
+    const call = { url: new URL(String(url)), method: options.method ?? "GET", body: options.body && JSON.parse(options.body), headers: options.headers };
     calls.push(call);
     if (call.url.pathname === "/auth/v1/user") return Response.json({ id: owner });
     if (call.url.pathname.endsWith("/consume_payment_rate")) return Response.json(true);
@@ -170,4 +170,89 @@ test("provider errors and oversized responses stop before any product lookup or 
   response = () => new Response("x".repeat(128001));
   await assert.rejects(controller.assistantChat({ text: "Cari produk ML86" }, request(), res), sanitized);
   assert.ok(!calls.some(call => /managed_products|assistant_proposals/.test(call.url.pathname)));
+}));
+
+test("multi-step assistant validates all tool permissions before reading catalog and records a safe trace", () => isolated(async ({ calls, intercept, controller }) => {
+  process.env.ADMIN_AI_REGISTRY_ENABLED = "true";
+  let plan = { steps: [{ tool: "pricing", category: "game" }, { tool: "vouchers" }] };
+  intercept(call => {
+    if (call.url.pathname.endsWith("/admin_assistant_registry")) return Response.json([{ revision: 5, config: { skills: { vouchers: { enabled: false, roleIds: [] } } } }]);
+    if (call.url.hostname === "openrouter.ai") return modelResult(plan);
+    if (call.url.pathname.endsWith("/managed_products")) return Response.json([{ ...product, cost_price: 20000 }]);
+    if (call.url.pathname.endsWith("/admin_assistant_runs")) {
+      assert.deepEqual(call.body.steps.map(step => step.tool), ["pricing", "duplicates"]);
+      assert.doesNotMatch(JSON.stringify(call.body), /Mobile Legends|ML86|modal/);
+      return Response.json([{}]);
+    }
+    throw new Error("Unexpected request");
+  });
+  await assert.rejects(controller.assistantChat({ text: "Cek modal dan varian" }, request(), res), e => e.getStatus() === 403);
+  assert.ok(!calls.some(call => call.url.pathname.endsWith("/managed_products")));
+  plan = { steps: [{ tool: "pricing", category: "game" }, { tool: "duplicates", category: "game" }] };
+  const reply = await controller.assistantChat({ text: "Cek modal dan varian duplikat", agent: "catalog" }, request(), res);
+  assert.match(reply.text, /20\.00%/);
+  assert.deepEqual(reply.trace.map(step => step.status), ["done", "done"]);
+}));
+
+test("Tavily receives only the explicit public query and returns safe evidence links", () => isolated(async ({ calls, intercept, controller }) => {
+  Object.assign(process.env, { ADMIN_AI_REGISTRY_ENABLED: "true", ADMIN_AI_TAVILY_ENABLED: "true", TAVILY_API_KEY: "testing-key" });
+  let query = "dokumentasi VIPayment";
+  intercept(call => {
+    if (call.url.pathname.endsWith("/admin_assistant_registry")) return Response.json([{ revision: 0, config: {} }]);
+    if (call.url.pathname.endsWith("/admin_assistant_runs")) return Response.json([{}]);
+    if (call.url.hostname === "openrouter.ai") return call.body.response_format ? modelResult({ steps: [{ tool: "web_search", query }] })
+      : Response.json({ choices: [{ finish_reason: "stop", message: { content: "Dokumentasi tersedia [1]." } }] });
+    if (call.url.hostname === "api.tavily.com") {
+      assert.deepEqual(call.body, { query, search_depth: "basic", max_results: 5, include_raw_content: false, include_answer: false, include_images: false, auto_parameters: false, safe_search: true });
+      assert.equal(call.headers.Authorization, "Bearer testing-key");
+      return Response.json({ results: [
+        { title: "Dokumentasi", url: "https://example.com/docs", content: "Dokumentasi publik" },
+        { title: "Bukan sumber", url: "https://127.0.0.1/private", content: "disaring" },
+      ] });
+    }
+    throw new Error("Unexpected request");
+  });
+  const response = await controller.assistantChat({ text: "Cari di web dokumentasi VIPayment. Catatan internal.", agent: "research" }, request(), res);
+  assert.deepEqual(response.sources.map(source => source.url), ["https://example.com/docs"]);
+  query = "ANRS-SECRET123";
+  await assert.rejects(controller.assistantChat({ text: "Cari di web ANRS-SECRET123", agent: "research" }, request(), res), e => e.getStatus() === 422);
+  assert.equal(calls.filter(call => call.url.hostname === "api.tavily.com").length, 1);
+}));
+
+test("CSV price preparation stays local and stages a batch without applying it", () => isolated(async ({ calls, intercept, controller }) => {
+  Object.assign(process.env, { ADMIN_AI_REGISTRY_ENABLED: "true", ADMIN_AI_ATTACHMENTS_ENABLED: "true" });
+  intercept(call => {
+    if (call.url.pathname.endsWith("/admin_assistant_registry")) return Response.json([{ revision: 0, config: {} }]);
+    if (call.url.pathname.endsWith("/managed_products")) return Response.json([product]);
+    if (call.url.pathname.endsWith("/stage_admin_assistant_batch")) {
+      assert.equal(call.body.p_items[0].before_price, 25000);
+      assert.equal(call.body.p_items[0].after_price, 27000);
+      return Response.json([{ expires_at: "2026-11-19T10:15:00Z" }]);
+    }
+    if (call.url.pathname.endsWith("/admin_assistant_runs")) return Response.json([{}]);
+    throw new Error("Unexpected request");
+  });
+  const reply = await controller.assistantChat({
+    text: "Siapkan draf harga dari CSV", skills: ["pricing_batch"], files: [{ name: "harga.csv", text: "sku,harga\nML86,27000" }],
+  }, request(), res);
+  assert.equal(reply.batch.rows[0].after, 27000);
+  assert.equal(reply.trace[0].status, "review");
+  assert.ok(!calls.some(call => call.url.hostname === "openrouter.ai" || /apply_admin_assistant/.test(call.url.pathname)));
+}));
+
+test("registry rejects non-super-admin, arbitrary tools and stale writes", () => isolated(async ({ calls, intercept, controller }) => {
+  process.env.ADMIN_AI_REGISTRY_ENABLED = "true";
+  process.env.ADMIN_USER_IDS = "a9c7b103-75ce-4c44-9093-902e61898547";
+  intercept(call => {
+    if (call.url.pathname.endsWith("/admin_assignments")) return Response.json([{ role_id: variant, is_super: false }]);
+    if (call.url.pathname.endsWith("/admin_roles")) return Response.json([{ id: variant, permissions: ["products.read"], categories: ["game"], product_slugs: [] }]);
+    if (call.url.pathname.endsWith("/save_admin_assistant_registry")) return Response.json([]);
+    throw new Error("Unexpected request");
+  });
+  await assert.rejects(controller.assistantRegistry(request(), res), e => e.getStatus() === 403);
+  process.env.ADMIN_USER_IDS = owner;
+  const body = { revision: 3, skills: { raw_http: { enabled: true, roleIds: [] } }, agents: [], sops: [] };
+  await assert.rejects(controller.saveAssistantRegistry(body, request(), res), e => e.getStatus() === 400);
+  assert.ok(!calls.some(call => call.url.pathname.endsWith("/save_admin_assistant_registry")));
+  await assert.rejects(controller.saveAssistantRegistry({ ...body, skills: {} }, request(), res), e => e.getStatus() === 409);
 }));

@@ -51,4 +51,6 @@ try {
   console.log('AI sessions: history, ownership, idempotent turns and complete atomic CS handoff passed');
   await db.exec(await readFile('supabase/tests/admin-assistant.sql','utf8'));
   console.log('Admin assistant proposal ownership, expiry, conflict, idempotency and audit passed');
+  await db.exec(await readFile('supabase/tests/admin-assistant-registry.sql','utf8'));
+  console.log('Assistant registry versioning, permissions, and atomic batch approval passed');
 } finally { await db.close(); }

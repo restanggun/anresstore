@@ -1,0 +1,20 @@
+.workspace { display:grid; gap:16px; }
+.form { display:grid; gap:16px; }
+.panel { display:grid; gap:18px; padding:22px; border:1px solid var(--border); border-radius:18px; background:var(--surface,#fff); }
+.panelHeading h2 { margin:0; font-size:16px; font-weight:750; letter-spacing:-.2px; }
+.panelHeading p { margin:6px 0 0; color:var(--muted); font-size:12px; line-height:1.7; }
+.field { display:grid; gap:7px; min-width:0; font-size:12px; font-weight:700; }
+.field > label { font-size:12px; font-weight:700; }
+.field > .counter { justify-self:end; margin-bottom:-25px; color:var(--muted); font-size:10px; font-weight:500; }
+.fieldTitle b { color:#a5264d; font-weight:800; }
+.field small,.switch span { color:var(--muted); font-size:11px; font-weight:450; line-height:1.6; }
+.grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:14px; }
+.switch { display:flex; align-items:center; gap:10px; min-height:44px; font-size:12px; font-weight:700; }
+.switch > label { min-height:44px; display:inline-flex; align-items:center; cursor:pointer; }
+.switch input { width:19px; height:19px; accent-color:var(--primary); }
+.switch span { margin-left:-4px; }
+.actions { display:flex; align-items:center; justify-content:space-between; gap:14px; padding:0 2px; }
+.actions > span { color:var(--muted); font-size:11px; line-height:1.6; }
+.success,.error { margin:0; padding:12px 14px; border-radius:12px; font-size:12px; line-height:1.6; }
+.success { background:#e9f8ef; color:#20633b; }.error { background:#fff0f2; color:#9b2338; }
+@media(max-width:700px) { .panel { padding:17px; }.grid { grid-template-columns:1fr; }.actions { align-items:stretch; flex-direction:column; }.actions button { min-height:44px; } }

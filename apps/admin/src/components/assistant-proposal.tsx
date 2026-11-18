@@ -14,6 +14,7 @@ export type AssistantProposalData = {
   variant: AssistantVariant;
   changes: { key: keyof typeof labels; before: VariantValue; after: VariantValue }[];
 };
+export type AssistantBatchData = { id: string; expiresAt: string; rows: (AssistantVariant & { after: number })[] };
 
 function valueText(value: VariantValue) {
   if (typeof value === "number") return rupiah(value);
@@ -21,10 +22,10 @@ function valueText(value: VariantValue) {
   return value || "Kosong";
 }
 
-export function AssistantProposal({ proposal, onApplied }: { proposal: AssistantProposalData; onApplied?: (published: boolean) => void }) {
+function useAssistantApproval(path: string) {
   const query = useQueryClient();
-  const apply = useMutation({
-    mutationFn: () => adminRequest(`assistant/proposals/${proposal.id}/apply`, "POST", { confirm: true }) as Promise<{ published: boolean }>,
+  return useMutation({
+    mutationFn: () => adminRequest(path, "POST", { confirm: true }) as Promise<{ published: boolean }>,
     onSuccess: async () => {
       await Promise.all([
         query.invalidateQueries({ queryKey: ["product-management"] }),
@@ -33,7 +34,10 @@ export function AssistantProposal({ proposal, onApplied }: { proposal: Assistant
       ]);
     },
   });
+}
 
+export function AssistantProposal({ proposal, onApplied }: { proposal: AssistantProposalData; onApplied?: (published: boolean) => void }) {
+  const apply = useAssistantApproval(`assistant/proposals/${proposal.id}/apply`);
   return (
     <section className={styles.proposal} aria-label="Draf perubahan varian">
       <div><strong>{proposal.variant.name}</strong><small>{proposal.variant.product} / {proposal.variant.sku} / {proposal.variant.category}</small></div>
@@ -51,6 +55,23 @@ export function AssistantProposal({ proposal, onApplied }: { proposal: Assistant
           </button>
         </div>
       )}
+      {apply.error && <p className={styles.chatError} role="alert">{apply.error.message}</p>}
+    </section>
+  );
+}
+
+export function AssistantBatch({ batch }: { batch: AssistantBatchData }) {
+  const apply = useAssistantApproval(`assistant/batches/${batch.id}/apply`);
+  return (
+    <section className={styles.proposal} aria-label="Draf perubahan harga massal">
+      <AssistantChanges rows={batch.rows.map(row => ({ label: `${row.name} · ${row.sku} · ${row.category}`, before: rupiah(row.price), after: rupiah(row.after) }))} />
+      {apply.isSuccess ? <p role="status">{apply.data.published ? "Seluruh perubahan harga disimpan." : "Seluruh perubahan harga disimpan. Publikasi katalog admin belum aktif."}</p>
+        : <div className={styles.proposalActions}>
+          <small>Berlaku sampai <time dateTime={batch.expiresAt}>{new Date(batch.expiresAt).toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" })}</time></small>
+          <button type="button" className="primary-button" disabled={apply.isPending} onClick={() => apply.mutate()}>
+            {apply.isPending ? "Menyimpan…" : `Terapkan ${batch.rows.length} perubahan harga`}
+          </button>
+        </div>}
       {apply.error && <p className={styles.chatError} role="alert">{apply.error.message}</p>}
     </section>
   );

@@ -18,10 +18,13 @@ const agents = [
 ];
 
 export type ComposerContext = { skills: string[]; agent: string; files: File[] };
+export type AssistantOption = { id: string; label: string };
+type AssistantAgentOption = AssistantOption & { tools?: string[] };
+export type AssistantOptions = { skills: AssistantOption[]; agents: AssistantAgentOption[] };
 const emptyContext: ComposerContext = { skills: [], agent: "", files: [] };
 
 export function AssistantComposer({
-  text, onTextChange, onSend, responding, messageInput, attachments, demo, tools, disabled,
+  text, onTextChange, onSend, responding, messageInput, attachments, demo, tools, disabled, options,
 }: {
   text: string;
   onTextChange: (text: string) => void;
@@ -31,6 +34,7 @@ export function AssistantComposer({
   demo: boolean;
   disabled: boolean;
   tools: string[];
+  options?: AssistantOptions;
   messageInput: RefObject<HTMLTextAreaElement | null>;
 }) {
   const menuId = useId();
@@ -41,8 +45,14 @@ export function AssistantComposer({
   const menu = useRef<HTMLDivElement>(null);
   const trigger = useRef<HTMLButtonElement>(null);
   const fileInput = useRef<HTMLInputElement>(null);
-  const availableSkills = skills.filter(item => demo || tools.includes(item.tool));
-  const availableAgents = agents.filter(item => demo || tools.includes(item.tool));
+  const knownSkills = !demo && options ? options.skills : skills.filter(item => demo || tools.includes(item.tool)).map(item => ({ id: item.label, label: item.label }));
+  const availableAgents: AssistantAgentOption[] = !demo && options ? options.agents : agents.filter(item => demo || tools.includes(item.tool)).map(item => ({ id: item.label, label: item.label }));
+  const agentAllows = (agentId: string, skillId: string) => {
+    const scope = availableAgents.find(item => item.id === agentId)?.tools;
+    return !scope || skillId === "file_review" || scope.includes(skillId === "Edit harga" ? "catalog_edit" : skillId);
+  };
+  const availableSkills = knownSkills.filter(item => agentAllows(context.agent, item.id));
+  const optionLabel = (items: AssistantOption[], id: string) => items.find(item => item.id === id)?.label ?? id;
 
   useEffect(() => {
     const panel = menu.current;
@@ -58,12 +68,12 @@ export function AssistantComposer({
   }
 
   const chips = [
-    ...context.skills.map(label => ({
-      label, icon: Sparkles, key: `skill-${label}`,
-      remove: () => setContext(current => ({ ...current, skills: current.skills.filter(skill => skill !== label) })),
+    ...context.skills.map(id => ({
+      label: optionLabel(availableSkills, id), icon: Sparkles, key: `skill-${id}`,
+      remove: () => setContext(current => ({ ...current, skills: current.skills.filter(skill => skill !== id) })),
     })),
     ...(context.agent ? [{
-      label: context.agent, icon: Bot, key: "agent",
+      label: optionLabel(availableAgents, context.agent), icon: Bot, key: "agent",
       remove: () => setContext(current => ({ ...current, agent: "" })),
     }] : []),
     ...context.files.map((file, index) => ({
@@ -132,11 +142,12 @@ export function AssistantComposer({
                 {attachments && <button type="button" onClick={() => { closeMenu(); fileInput.current?.click(); }}><Paperclip size={16} aria-hidden="true" /> Lampirkan file</button>}
               </> : <>
                 <button type="button" onClick={() => setView("actions")}><ArrowLeft size={16} aria-hidden="true" /> {view === "skills" ? "Pilih skill" : "Pilih agent"}</button>
-                {(view === "skills" ? availableSkills : availableAgents).map(({ label }) => (
-                  <button type="button" key={label} onClick={() => {
-                    setContext(current => view === "skills" ? { ...current, skills: [...current.skills, label] } : { ...current, agent: label });
+                {(view === "skills" ? availableSkills : availableAgents).map(({ id, label }) => (
+                  <button type="button" key={id} onClick={() => {
+                    setContext(current => view === "skills" ? { ...current, skills: [...current.skills, id] }
+                      : { ...current, agent: id, skills: current.skills.filter(skill => agentAllows(id, skill)) });
                     closeMenu();
-                  }} disabled={view === "skills" ? context.skills.includes(label) : context.agent === label}>{label}</button>
+                  }} disabled={view === "skills" ? context.skills.includes(id) || context.skills.length >= 16 : context.agent === id}>{label}</button>
                 ))}
               </>}
             </div>

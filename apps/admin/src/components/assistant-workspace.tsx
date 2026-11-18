@@ -4,8 +4,8 @@ import { useEffect, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { ArrowRight, BarChart3, Box, MessageSquare, ShoppingBag, Sparkles } from "lucide-react";
 import { AssistantChanges } from "./assistant-changes";
-import { AssistantComposer, type ComposerContext } from "./assistant-composer";
-import { AssistantProposal, type AssistantProposalData, type AssistantVariant } from "./assistant-proposal";
+import { AssistantComposer, type AssistantOptions, type ComposerContext } from "./assistant-composer";
+import { AssistantBatch, AssistantProposal, type AssistantBatchData, type AssistantProposalData, type AssistantVariant } from "./assistant-proposal";
 import { adminRequest, rupiah } from "./workspace-api";
 import styles from "./assistant-workspace.module.css";
 
@@ -47,6 +47,9 @@ type Message = {
   section?: keyof typeof destinations;
   choices?: AssistantVariant[];
   proposal?: AssistantProposalData;
+  batch?: AssistantBatchData;
+  sources?: { title: string; url: string; checkedAt: string }[];
+  trace?: { tool: string; label: string; status: string }[];
 };
 
 const sentTime = new Intl.DateTimeFormat("id-ID", { hour: "2-digit", minute: "2-digit" });
@@ -55,8 +58,8 @@ const destinations = {
   reports: "Buka laporan", system: "Buka status sistem", conversations: "Buka room chat CS",
   vouchers: "Buka voucher", overview: "Buka ringkasan", tasks: "Buka joki tugas", apps: "Buka aplikasi premium",
 };
-type AssistantStatus = { configured: boolean; attachments: boolean; tools: string[] };
-type AssistantReply = Pick<Message, "text" | "section" | "choices" | "proposal">;
+export type AssistantStatus = { configured: boolean; attachments: boolean; tools: string[]; canManage?: boolean; canManageLanding?: boolean; skills?: AssistantOptions["skills"]; agents?: AssistantOptions["agents"] };
+type AssistantReply = Pick<Message, "text" | "section" | "choices" | "proposal" | "batch" | "sources" | "trace">;
 
 export function AssistantWorkspace({ onNavigate }: { onNavigate: (section: string) => void }) {
   const [selected, setSelected] = useState<number | null>(null);
@@ -94,8 +97,8 @@ export function AssistantWorkspace({ onNavigate }: { onNavigate: (section: strin
     const prompt = text.trim();
     if (!prompt || timer.current !== undefined || request.current || !connection.data) return;
     const labels = [
-      ...context.skills.map(skill => `Skill: ${skill}`),
-      ...(context.agent ? [`Agent: ${context.agent}`] : []),
+      ...context.skills.map(skill => `Skill: ${connection.data?.skills?.find(item => item.id === skill)?.label ?? skill}`),
+      ...(context.agent ? [`Agent: ${connection.data.agents?.find(item => item.id === context.agent)?.label ?? context.agent}`] : []),
       ...context.files.map(file => file.name),
     ];
 
@@ -178,6 +181,20 @@ export function AssistantWorkspace({ onNavigate }: { onNavigate: (section: strin
                     ))}</ul>
                   )}
                   {message.proposal && <AssistantProposal proposal={message.proposal} />}
+                  {message.batch && <AssistantBatch batch={message.batch} />}
+                  {!!message.sources?.length && <div className={styles.references}>
+                    <strong>Sumber publik · Tavily</strong>
+                    <ol>{message.sources.map((source, index) => (
+                      <li key={`${source.url}/${index}`}>
+                        <a href={source.url} target="_blank" rel="noopener noreferrer">{source.title}</a>
+                      </li>
+                    ))}</ol>
+                    <small>Dicek <time dateTime={message.sources[0]!.checkedAt}>{new Date(message.sources[0]!.checkedAt).toLocaleString("id-ID")}</time></small>
+                  </div>}
+                  {!!message.trace?.length && <details className={styles.references}>
+                    <summary>Langkah yang dijalankan ({message.trace.length})</summary>
+                    <ol>{message.trace.map(step => <li key={step.tool}>{step.label} · {step.status === "review" ? "Menunggu konfirmasi" : step.status === "done" ? "Selesai" : "Gagal"}</li>)}</ol>
+                  </details>}
                   {message.section && Object.hasOwn(destinations, message.section) && (
                     <button type="button" className="outline-button" onClick={() => onNavigate(message.section!)}>
                       {destinations[message.section]} <ArrowRight size={14} aria-hidden="true" />
@@ -202,7 +219,8 @@ export function AssistantWorkspace({ onNavigate }: { onNavigate: (section: strin
           </div>}
           {error && <p className={`${styles.chatError} ${styles.connectionError}`} role="alert">{error}</p>}
           <AssistantComposer text={text} onTextChange={setText} onSend={send} responding={responding} messageInput={messageInput}
-            demo={demo} attachments={demo || !!connection.data?.attachments} tools={connection.data?.tools ?? []} disabled={!connection.data} />
+            demo={demo} attachments={demo || !!connection.data?.attachments} tools={connection.data?.tools ?? []} disabled={!connection.data}
+            options={connection.data?.skills && connection.data.agents ? { skills: connection.data.skills, agents: connection.data.agents } : undefined} />
         </section>
         <aside className={styles.panel} aria-labelledby="assistant-examples">
           <header className={styles.panelHeader}><h2 id="assistant-examples">Coba contoh</h2></header>

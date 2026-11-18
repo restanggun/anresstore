@@ -131,6 +131,11 @@
 .proposalActions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; }
 .proposalActions button { margin-inline-start: auto; }
 .messageBubble > button { justify-self: start; }
+.references { min-width: 0; font-size: 13px; line-height: 1.6; overflow-wrap: anywhere; }
+.references ol { margin: 4px 0; padding-inline-start: 20px; }
+.references a { color: var(--focus); text-decoration: underline; }
+.references summary { cursor: pointer; font-weight: 750; }
+.references small { color: var(--muted); }
 .variantAi { display: grid; gap: 10px; min-width: 0; padding: 12px; border: 1px solid var(--border); border-radius: 12px; background: var(--primary-soft); }
 .variantAi > button { justify-self: start; }
 .addButton {

@@ -1,0 +1,19 @@
+.panel { border: 1px solid var(--border); border-radius: 18px; background: white; margin-top: 18px; }
+.toolbar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; padding: 14px 18px; border-bottom: 1px solid var(--border); }
+.tabs { display: flex; flex-wrap: wrap; gap: 5px; }
+.tabs button { padding: 8px 11px; min-height: 42px; border-radius: 10px; border: 0; background: transparent; color: var(--foreground); font-weight: 750; }
+.tabs button[aria-pressed="true"] { background: var(--pink-soft); color: var(--pink-ink); }
+.tabs button:hover { background: var(--primary-soft); }
+.body { display: grid; align-items: start; grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr)); gap: 24px; padding: 18px; }
+.fields { display: grid; gap: 10px; max-width: 680px; min-width: 0; }
+.fields h2 { font-size: 17px; font-weight: 800; margin: 0; }
+.fields p { font-size: 13px; color: var(--muted); margin: 0; }
+.fields label { display: grid; gap: 4px; font-size: 13px; font-weight: 700; }
+.fields button { justify-self: start; }
+.fields select { width: 100%; padding: 9px; min-height: 42px; border-radius: 10px; background: white; border: 1px solid var(--field-border); }
+.fieldset { display: grid; gap: 6px; margin: 0; border: 1px solid var(--border); border-radius: 11px; padding: 8px 10px; min-inline-size: 0; }
+.fieldset legend { font-weight: 800; padding: 0 5px; font-size: 13px; }
+.fieldset .check { display: flex; align-items: center; min-height: 32px; gap: 8px; overflow-wrap: anywhere; }
+.fields details { background: var(--primary-soft); border-radius: 10px; padding: 8px 12px; font-size: 13px; }
+.fields summary { cursor: pointer; }
+.fields ol { padding-inline-start: 20px; }

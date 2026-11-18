@@ -9,6 +9,7 @@ import { paymentRequest } from "@/lib/payment-api";
 import { authRequest } from "@/lib/auth-api";
 import { CartPopup } from "./cart-popup";
 import { Brand } from "./brand";
+import { GrandOpeningBar } from "./grand-opening-bar";
 const navigation = [["Beranda", "/"], ["Katalog", "/katalog"], ["Invoice", "/invoice"], ["Tentang", "/about"], ["Bantuan", "/bantuan"]] as const;
 const api = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000/v1").replace(/\/$/, "");
 const adminUrl = process.env.NEXT_PUBLIC_ADMIN_URL || (process.env.NODE_ENV === "development" ? "http://localhost:3001" : "");
@@ -67,7 +68,7 @@ export function SiteShell({ children }: { children: React.ReactNode }) {
     return () => { document.removeEventListener("pointerdown", dismiss); desktop.removeEventListener("change", resize); };
   }, [menuOpen]);
   return <>
-    <div className="header-space"><header ref={headerRef} className={`site-header${scrolled ? " is-scrolled" : ""}`} onKeyDown={event => { if (event.key === "Escape") { close(); document.getElementById("menu-toggle")?.focus(); } }}><div className="container nav-shell">
+    <div className="header-space"><GrandOpeningBar/><header ref={headerRef} className={`site-header${scrolled ? " is-scrolled" : ""}`} onKeyDown={event => { if (event.key === "Escape") { close(); document.getElementById("menu-toggle")?.focus(); } }}><div className="container nav-shell">
       <Link href={account ? "/dashboard" : "/"} className="brand" aria-label={account ? "Anres Store dashboard" : "Anres Store beranda"} onClick={close}><Brand /></Link>
       <nav className="desktop-nav" aria-label="Navigasi utama">{currentNavigation.map(([label,href]) => <Link key={href} href={href} aria-current={pathname === href ? "page" : undefined}>{pathname === href && <motion.span className="nav-indicator" layoutId="active-navigation" transition={{type:"spring", stiffness:400,damping:35}} />}<span>{label}</span></Link>)}</nav>
       <div className="nav-actions"><CartPopup/><div className="nav-account">{account ? <>{admin && <a href={adminUrl} className="login-link">Dashboard admin</a>}<Link href="/profil" className="login-link account-name" title={account}>{account}</Link><button className="signup-link" onClick={logout}>Keluar</button></> : <><Link href="/login" className="login-link" aria-current={pathname === "/login" ? "page" : undefined}>Login</Link><Link href="/daftar" className="signup-link" aria-current={pathname === "/daftar" ? "page" : undefined}>Daftar</Link></>}</div>
