@@ -14,6 +14,7 @@
 @media(prefers-reduced-motion:reduce) { .payment-method-group > summary > svg { transition:none; } }
 .payment-method-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; }
 .payment-method-grid > .payment-method { position:relative; display:flex; flex-direction:column; align-items:flex-start; gap:10px; min-width:0; margin:0; padding:16px; border:1px solid var(--border); border-radius:16px; background:var(--surface); cursor:pointer; transition:background .15s,border-color .15s; }
+.payment-method-grid > .payment-method:only-child { grid-column:1 / -1; }
 .payment-method:hover { border-color:var(--field-focus); }
 .payment-method[data-selected="true"] { background:var(--pink-soft); border-color:var(--pink-ink); }
 .payment-method:has(input:focus-visible) { outline:2px solid var(--focus); outline-offset:3px; }

@@ -1,5 +1,4 @@
 "use client";
-import "./premium-flow.css";
 import { useEffect, useState } from "react";
 import Link from "./domain-link";
 import { apiUrl } from "@/lib/auth-api";

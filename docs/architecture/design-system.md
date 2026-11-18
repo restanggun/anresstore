@@ -86,4 +86,4 @@ Pilihan aktif menggunakan bidang pink solid `--pink`, teks `--pink-ink`, dan iko
 
 ## Alur aplikasi premium
 
-`premium-flow.css` menyelaraskan detail paket, checkout, invoice, dan riwayat premium. Formulir mengikuti satu kolom; ketentuan akses, durasi, dan garansi berupa baris ringkas tanpa grid kartu. Ringkasan pembayaran boleh berdampingan pada layar lebar dan ditumpuk pada ponsel. Gunakan bidang solid dari token biru dan pink, radius 14 px untuk kontrol dan 18?26 px untuk panel, serta hindari bayangan dan kartu bertumpuk. Panel penanganan admin memakai prinsip yang sama dalam `commerce-dashboard.css`.
+Aplikasi premium memakai alur katalog, form detail, ringkasan, dan pemilih metode pembayaran yang sama dengan layanan storefront lain. QRIS manual adalah metode yang tersedia untuk aplikasi premium. Invoice memakai tampilan tiket bersama dengan bagian khusus untuk QRIS, unggah bukti, dan bantuan akses.

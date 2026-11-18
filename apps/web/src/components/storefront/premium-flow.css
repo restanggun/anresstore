@@ -1,20 +1,4 @@
 /* Premium flow follows the shared solid blue/pink storefront theme. */
-.premium-checkout.premium-checkout{display:flex;flex-direction:column;gap:22px;padding:24px;border:0;border-radius:24px;background:var(--primary-soft);box-shadow:none}
-.premium-checkout .premium-checkout-heading>span{font-size:12px;font-weight:700;color:var(--focus);letter-spacing:normal;text-transform:none}
-.premium-checkout .premium-checkout-heading h3{font-size:24px;font-weight:800;letter-spacing:-.5px}
-.premium-checkout .premium-checkout-contact{display:flex;flex-direction:column;gap:18px}
-.premium-checkout .premium-checkout-facts{display:flex;flex-direction:column;gap:0;margin:0}
-.premium-checkout .premium-checkout-facts>div{display:flex;align-items:baseline;justify-content:space-between;gap:20px;padding:10px 0;border:0;border-radius:0;background:transparent}
-.premium-checkout .premium-checkout-facts span{font-size:13px;color:var(--muted)}
-.premium-checkout .premium-checkout-facts strong{font-size:14px}
-.premium-checkout .premium-checkout-guarantee{padding:16px 18px;border:0;border-radius:18px;background:var(--pink-soft);color:var(--pink-ink);font-size:13px}
-.premium-checkout .premium-checkout-total{padding-top:18px;border-color:var(--field-border);gap:16px;flex-wrap:wrap}
-.premium-checkout .premium-checkout-field input{border-radius:14px;box-shadow:none;min-height:48px}
-.premium-checkout .premium-checkout-field label{font-size:13px}
-.premium-checkout button{border-radius:14px}
-.premium-invoice .payment-ticket{box-shadow:none}
-.premium-invoice .ticket-stub{border:0;background:var(--primary-soft)}
-.premium-invoice .ticket-stub:before,.premium-invoice .ticket-stub:after{display:none}
 .premium-invoice .premium-order-body{display:flex;flex-direction:column;padding:0;gap:24px}
 .premium-invoice .premium-order-guarantee,.premium-invoice .premium-order-support{padding:0;border:0;border-radius:0}
 .premium-invoice .premium-order-guarantee{padding:18px;border-radius:18px;background:var(--pink-soft)}
@@ -28,25 +12,7 @@
 .premium-invoice .premium-order-support p,.premium-invoice .premium-order-guarantee p,.premium-invoice .premium-order-expiry{font-size:13px;line-height:1.8}
 .premium-invoice .premium-order-support button,.premium-invoice .premium-order-support a{margin-top:12px}
 .premium-invoice .premium-order-message{margin:0;background:var(--pink-soft);color:var(--pink-ink);font-size:13px;border-radius:18px}
-.premium-invoice .ticket-detail-grid{display:flex;flex-wrap:wrap;gap:20px 36px}
-.premium-invoice .ticket-status{border-radius:20px;box-shadow:none}
-.premium-history .account-links{display:flex;flex-direction:column;gap:12px}
-.premium-history .account-link{padding:18px 20px;border:0;border-radius:18px;background:var(--primary-soft);box-shadow:none}
-.premium-history .account-link:hover{background:var(--pink-soft)}
-@media(max-width:600px){.premium-checkout.premium-checkout{padding:20px;gap:20px}.premium-invoice .ticket-main{padding:22px}.premium-invoice .ticket-stub{padding:24px 22px}.premium-invoice .premium-order-qr{width:min(100%,280px)}}
 
-.premium-catalog-flow .order-layout{grid-template-columns:minmax(0,1fr) 300px;gap:24px}
-.premium-catalog-flow .order-card{border:0;border-radius:26px;box-shadow:none;background:var(--surface)}
-.premium-catalog-flow .order-summary{border:0;border-radius:26px;box-shadow:none;background:var(--primary-soft)}
-.premium-catalog-flow .order-progress{display:flex;flex-wrap:wrap;gap:12px;background:transparent;box-shadow:none}
-.premium-catalog-flow .order-progress>span{flex:1;min-width:140px;border:0;border-radius:16px;background:var(--primary-soft);color:var(--foreground)}
-.premium-catalog-flow .order-progress>span.active{background:var(--pink);color:var(--pink-ink)}
-.premium-catalog-flow .order-fields{display:flex;flex-direction:column;gap:18px}
-.premium-catalog-flow .order-card>dl>div{border:0;padding-block:10px}
-.premium-catalog-flow .premium-checkout-contact{display:flex;flex-direction:column}
-@media(max-width:800px){.premium-catalog-flow .order-layout{grid-template-columns:minmax(0,1fr)}}
-.premium-checkout .premium-checkout-field label{margin:0}.premium-checkout .premium-checkout-field input{margin:0}.premium-checkout .premium-checkout-field .field-note{margin:0;line-height:1.7}.premium-checkout .premium-checkout-field{gap:9px}
 
-.premium-invoice .ticket-order h4,.premium-invoice .ticket-number p,.premium-invoice .premium-order-support strong,.premium-history .account-link strong{overflow-wrap:anywhere;min-width:0}
 .premium-invoice textarea:focus-visible,.premium-invoice input:focus-visible{outline:2px solid var(--focus);outline-offset:2px}
-@media(prefers-reduced-motion:reduce){.premium-catalog-flow *,.premium-checkout *,.premium-invoice *{animation-duration:.01ms!important;transition-duration:.01ms!important;scroll-behavior:auto!important}}
+@media(prefers-reduced-motion:reduce){.premium-invoice *{animation-duration:.01ms!important;transition-duration:.01ms!important;scroll-behavior:auto!important}}
