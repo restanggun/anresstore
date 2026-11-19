@@ -942,7 +942,8 @@ export class AdminController {
     if (!entry?.expires_at) throw new HttpException("Draf impor katalog belum dapat disimpan.", 503);
     return { text: `Semua ${rows.length} baris cocok berdasarkan SKU. Draf berisi ${changes.length} perubahan; data baru berubah setelah kamu menekan Terapkan.`,
       section: "catalog", batch: { id, expiresAt: entry.expires_at, rows: changes.map(({ input, row, before, patch }) => ({
-        ...this.assistantCatalogChoice(row), changes: Object.keys(patch).map(key => ({ key,
+        ...this.assistantCatalogChoice(row), ...(patch.price !== undefined && { after: patch.price }),
+        changes: Object.keys(patch).map(key => ({ key,
           before: before[key as keyof typeof before], after: patch[key as keyof typeof patch] })),
       })) } };
   }
