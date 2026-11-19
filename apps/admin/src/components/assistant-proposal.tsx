@@ -17,7 +17,7 @@ export type AssistantProposalData = {
 export type AssistantBatchData = { id: string; expiresAt: string; rows: (AssistantVariant & {
   after?: number; changes?: { key: keyof typeof labels; before: VariantValue; after: VariantValue }[];
 })[] };
-export type AssistantActionData = { id: string; expiresAt: string; title: string; summary: string };
+export type AssistantActionData = { id: string; expiresAt: string; title: string; summary: string; changes?: { label: string; before: string; after: string }[] };
 
 function valueText(value: VariantValue) {
   if (typeof value === "number") return rupiah(value);
@@ -88,6 +88,7 @@ export function AssistantActionCard({ action }: { action: AssistantActionData })
   const apply = useAssistantApproval(`assistant/actions/${action.id}/apply`);
   return <section className={styles.proposal} aria-label="Draf pengelolaan katalog">
     <div><strong>{action.title}</strong><small>{action.summary}</small></div>
+    {!!action.changes?.length && <AssistantChanges rows={action.changes} />}
     {apply.isSuccess ? <p role="status">Perubahan disimpan{apply.data.published ? " dan diterbitkan." : ". Publikasi katalog admin belum aktif."}</p>
       : <div className={styles.proposalActions}>
         <small>Berlaku sampai <time dateTime={action.expiresAt}>{new Date(action.expiresAt).toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" })}</time></small>

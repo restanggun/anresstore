@@ -53,8 +53,13 @@ Asisten dapat merencanakan maksimal empat langkah berurutan dalam satu pesan. La
 
 | Tindakan | Sumber Anres | Izin |
 |---|---|---|
-| Cari produk, lihat promo | Katalog terkelola, sumber provider, dan jadwal promo | `products.read` serta cakupan kategori/produk. Daftar promo butuh akses semua subproduk dalam kategori. |
-| Edit harga, nama, deskripsi, visibilitas | Varian yang sudah disimpan | `products.read` dan `products.write` plus cakupan. Mengaktifkan ulang varian VIPayment dilakukan di editor agar pemetaan provider diverifikasi. |
+| Cari produk, lihat promo | Seluruh layanan sumber provider, katalog terkelola, dan jadwal promo | `products.read` serta cakupan kategori/produk. Daftar promo butuh akses semua subproduk dalam kategori. |
+| Edit harga, nama, deskripsi, visibilitas, modal, bagian/tab, produk induk, pemetaan supplier, jenis pemrosesan, jumlah paket | Varian tersimpan atau layanan provider yang dipilih | `products.read` dan `products.write` plus cakupan. SKU provider tidak dapat diganti pada varian tersimpan. Aktivasi provider memeriksa kembali supplier dan jumlah paket. |
+| Tambah produk/varian manual atau layanan VIPayment | Input lengkap admin atau SKU supplier tersedia | `products.read` dan `products.write` plus cakupan. Produk manual perlu SKU/provider eksplisit; AI tidak mengarang identitas supplier. |
+| Sembunyikan, tampilkan/pulihkan, hapus dari katalog, pindahkan varian | Varian kategori dan tujuan produk yang tersedia | `products.read` dan `products.write` plus cakupan. Penghapusan satu varian menandai item tidak aktif dan mengeluarkannya dari checkout baru. |
+| Atur promo untuk varian provider atau terkelola | Harga reguler tersimpan, jadwal, dan harga diskon | `products.read` dan `products.write` plus cakupan; promo varian Joki Tugas tidak digunakan karena kategorinya memakai tarif khusus. |
+| Atur tarif Joki Tugas | Unit tarif, biaya dasar, tarif per unit/revisi, percepatan, tenggat, dan batas revisi | `products.read` dan `products.write` serta akses kategori `tasks` dan SKU produk manual. |
+| Atur ketentuan Aplikasi Premium | Jenis akses, durasi akses, hari garansi, dan ketentuan klaim | `products.read` dan `products.write` serta akses kategori `apps` dan SKU produk manual. |
 | Cari invoice dan lihat antrean | API daftar transaksi gabungan, termasuk pesanan reguler, joki, dan premium | Izin `orders.read` atau `payments.read` sesuai daftar, dengan cakupan semua layanan. |
 | Ringkas pesanan joki atau premium | Daftar pesanan joki dan aplikasi premium | `orders.read` dan cakupan kategori/produk terkait. |
 | Ringkas angka laporan dan status sistem | Analitik dan pemeriksaan antrean server | `orders.read` dan `payments.read` plus semua layanan. |
@@ -68,10 +73,10 @@ Asisten dapat merencanakan maksimal empat langkah berurutan dalam satu pesan. La
 | SOP, draf konten, dan ringkasan kasus CS | SOP tersimpan, fakta katalog, dan status invoice terverifikasi | Akses skill dan izin sumber yang relevan. |
 | Pencarian publik dan riset supplier | Tavily Search | Sesi MFA, aktivasi Tavily, dan izin skill. |
 
-Perintah seperti ubah harga varian menghasilkan draf 15 menit yang terikat ke akun peminta dan versi produk. Panel menampilkan nilai awal dan perubahan. Saat **Terapkan perubahan** ditekan, server memeriksa izin kembali. Database menyimpan perubahan, menandai draf, dan membuat audit dalam transaksi yang sama. Pengulangan permintaan konfirmasi menggunakan hasil tersimpan dan tidak menulis ulang. Perubahan produk setelah pembuatan draf menghasilkan konflik. Keputusan kasir, verifikasi pembayaran, refund, pengelolaan akses, QRIS, pengiriman, dan pengiriman pesan ke pelanggan dikerjakan dari fitur dashboard terkait.
+Perintah perubahan menghasilkan draf 15 menit yang terikat ke akun peminta. Kartu draf menampilkan field sebelum/sesudah; perubahan sampai 50 varian menampilkan SKU satu per satu. Saat **Terapkan perubahan** ditekan, server memeriksa ulang izin dan MFA. Perubahan produk terkelola diperiksa terhadap versi terakhir. Jika penyimpanan batch produk terhenti di tengah, konfirmasi ulang melewatkan varian yang sudah cocok dengan draf dan melanjutkan sisanya. Keputusan kasir, verifikasi pembayaran, refund, pengelolaan akses, QRIS, pengiriman, dan pengiriman pesan ke pelanggan dikerjakan dari fitur dashboard terkait.
 
 Dari **Katalog & harga → Edit varian → Bantu edit**, **Minta draf AI** mengikat permintaan ke varian yang sedang dibuka. Alur ini hanya tersedia untuk varian yang sudah disimpan.
 
-Untuk CSV, pilih **Draf harga massal**, lampirkan satu CSV dengan maksimal 20 baris, lalu ketik **Siapkan draf harga dari CSV**. Server memproses CSV secara lokal dan membatalkan seluruh batch jika salah satu varian berubah sebelum konfirmasi. Untuk simulasi, coba **Hitung margin produk Mobile Legends di kategori game yang di bawah 10%, lalu siapkan draf harga untuk target margin 15%**.
+Untuk CSV, pilih **Draf harga massal**, lampirkan satu CSV dengan maksimal 50 baris, lalu ketik **Siapkan draf harga dari CSV**. Server memproses CSV secara lokal dan membatalkan batch jika data SKU tidak valid. Untuk simulasi, coba **Hitung margin produk Mobile Legends di kategori game yang di bawah 10%, lalu siapkan draf harga untuk target margin 15%**.
 
 Model memilih dari daftar tindakan. Server memvalidasi setiap parameter, menyaring data menurut cakupan admin, dan menghitung jawaban operasional dari data Anres. Model tidak menerima isi tiket pelanggan, kontak, saldo provider, atau data gateway dari API internal. Model hanya bisa membuat draf perubahan produk dalam pesan tanpa lampiran. CSV harga mempunyai alur deterministik tersendiri. Draf dan riwayat penerapannya tersimpan di database internal.

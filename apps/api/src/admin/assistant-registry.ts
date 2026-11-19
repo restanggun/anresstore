@@ -6,6 +6,8 @@ export const definitions = {
   catalog_search: ["Cari produk", "Cari nama varian atau SKU di katalog."],
   catalog_edit: ["Edit produk", "Siapkan draf harga, nama, deskripsi, atau visibilitas."],
   catalog_add: ["Tambah produk", "Siapkan draf penambahan varian aktif dari layanan provider yang tersedia."],
+  catalog_manage: ["Kelola katalog lengkap", "Siapkan draf varian manual, pemetaan, modal, paket provider, penghapusan, pemulihan, dan pemindahan produk."],
+  product_rules: ["Aturan produk", "Siapkan draf tarif Joki Tugas atau ketentuan produk Aplikasi Premium."],
   promotion_manage: ["Atur promo", "Siapkan, perbarui, atau nonaktifkan promo untuk satu varian terpilih."],
   promotions: ["Cek promo", "Tinjau jadwal promo yang aktif."],
   pricing: ["Analisis margin", "Hitung margin, markup, dan harga target dari modal yang tercatat."],
@@ -35,7 +37,7 @@ export const definitions = {
 export type AssistantTool = keyof typeof definitions;
 export const isAssistantTool = (value: unknown): value is AssistantTool =>
   typeof value === "string" && Object.hasOwn(definitions, value);
-export const editingTools: readonly AssistantTool[] = ["catalog_edit", "catalog_add", "promotion_manage", "voucher_manage", "pricing_batch"];
+export const editingTools: readonly AssistantTool[] = ["catalog_edit", "catalog_add", "catalog_manage", "product_rules", "promotion_manage", "voucher_manage", "pricing_batch"];
 type Policy = { enabled: boolean; roleIds: string[] };
 export type SkillPolicy = Policy & { guidance?: string; example?: string };
 export type AgentProfile = Policy & { id: string; name: string; instructions: string; tools: AssistantTool[] };
@@ -45,7 +47,7 @@ type Access = { superAdmin: boolean; roleId: string | null };
 const enabled = { enabled: true, roleIds: [] };
 
 const builtInAgents: AgentProfile[] = [
-  { ...enabled, id: "catalog", name: "Katalog & harga", instructions: "Cari kategori dan produk induk dulu. Untuk Diamond Mobile Legends, batasi ke varian yang diminta (misalnya rentang 100–400) dan tampilkan daftar serta jumlah sebelum membuat draf. Jangan memilih seluruh katalog tanpa izin eksplisit. Periksa modal, harga jual, promo aktif, visibilitas, dan pemetaan supplier. Semua perubahan perlu kartu tinjauan admin.", tools: ["catalog_search", "catalog_edit", "catalog_add", "promotion_manage", "promotions", "pricing", "duplicates", "promo_preview", "pricing_batch", "vouchers", "voucher_manage"] },
+  { ...enabled, id: "catalog", name: "Katalog & harga", instructions: "Cari kategori dan produk induk dulu. Untuk Diamond Mobile Legends, batasi ke varian yang diminta (misalnya rentang 100–400) dan tampilkan daftar serta jumlah sebelum membuat draf. Jangan memilih seluruh katalog tanpa izin eksplisit. Periksa modal, harga jual, promo aktif, visibilitas, pemetaan supplier, fulfillment, jumlah paket, tarif tugas, dan aturan produk premium. Semua perubahan perlu kartu tinjauan admin.", tools: ["catalog_search", "catalog_edit", "catalog_manage", "catalog_add", "product_rules", "promotion_manage", "promotions", "pricing", "duplicates", "promo_preview", "pricing_batch", "vouchers", "voucher_manage"] },
   { ...enabled, id: "orders", name: "Operasional pesanan", instructions: "Pisahkan status pembayaran dan pemenuhan. Prioritaskan antrean yang perlu ditinjau.", tools: ["transactions", "invoice_timeline", "task_orders", "premium_orders", "operations", "sop_search"] },
   { ...enabled, id: "finance", name: "Keuangan & rekonsiliasi", instructions: "Nyatakan cakupan tanggal dan biaya yang belum diketahui. Tinjau selisih yang terverifikasi.", tools: ["analytics", "finance_category", "reconcile", "invoice_timeline", "transactions", "balances"] },
   { ...enabled, id: "support", name: "Bantuan pelanggan", instructions: "Gunakan status invoice terverifikasi jika tersedia. Susun draf dan hindari janji yang belum pasti.", tools: ["support", "support_draft", "support_handoff", "invoice_timeline", "sop_search"] },
@@ -66,7 +68,7 @@ export const assistantLegacyAgents: Record<string, string> = {
   "Analisis transaksi": "finance", "Bantuan pelanggan": "support",
 };
 export const assistantLegacySkills: Record<string, AssistantTool> = {
-  "Edit harga": "catalog_edit", "Edit produk": "catalog_edit",
+  "Edit harga": "catalog_edit", "Edit produk": "catalog_edit", "Kelola katalog": "catalog_manage", "Aturan produk": "product_rules",
   "Tambah produk": "catalog_add", "Atur promo": "promotion_manage", "Kelola voucher": "voucher_manage",
 };
 

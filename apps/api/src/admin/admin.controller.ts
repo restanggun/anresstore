@@ -1,4 +1,5 @@
 import { featuredGameSlugs } from "../catalog/featured-games";
+import { isReviewRating } from "../catalog/review-rating";
 import { resolveSession, sessionAccessToken, writeSession } from "../auth/session";
 import { Body, Controller, Delete, Get, HttpException, Param, Patch, Post, Query, Req, Res } from "@nestjs/common";
 import type { Request, Response } from "express";
@@ -31,6 +32,10 @@ import {
 } from "./assistant-sessions";
 
 const assistantRupiah = new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 });
+const showCatalogValue = (key: string, value: unknown) => key === "price" || key === "cost_price"
+  ? value == null ? "Belum diisi" : assistantRupiah.format(Number(value))
+  : key === "active" ? value ? "Tampil" : "Disembunyikan"
+  : value == null || value === "" ? "Kosong" : String(value);
 type AssistantEvidence = { invoice?: Record<string, unknown>; choices?: unknown[] };
 type AssistantOutput = { text: string; section?: string; choices?: unknown[]; proposal?: unknown; batch?: unknown; action?: unknown; sources?: { title: string; url: string; checkedAt: string }[] };
 
@@ -386,7 +391,7 @@ export class AdminController {
     if (can("products.read") && access.categories.length) {
       tools.push("catalog_search");
       if (!access.productSlugs.length) tools.push("promotions");
-      if (can("products.write")) tools.push("catalog_edit", "catalog_add", "promotion_manage");
+      if (can("products.write")) tools.push("catalog_edit", "catalog_add", "catalog_manage", "product_rules", "promotion_manage");
       if (assistantRegistryEnabled()) {
         tools.push("pricing", "duplicates", "promo_preview", "content_draft");
         if (can("products.write")) tools.push("pricing_batch");
@@ -689,6 +694,10 @@ export class AdminController {
           });
       case "catalog_add":
         return this.assistantCatalogAdd(access, plan);
+      case "catalog_manage":
+        return this.assistantCatalogManage(access, plan, input.text);
+      case "product_rules":
+        return this.assistantProductRulesDraft(access, plan);
       case "promotion_manage":
         return this.assistantPromotionDraft(access, plan);
       case "promotions": {
@@ -961,7 +970,9 @@ export class AdminController {
     if (Date.parse(draft.expires_at) <= Date.now()) throw new HttpException("Draf kedaluwarsa. Siapkan draf baru.", 409);
     const tools = (await this.assistantCapabilities(access)).tools;
     const requiredTool = draft.action_type === "product_create" ? "catalog_add"
-      : draft.action_type === "product_batch" ? "catalog_edit"
+      : draft.action_type === "product_batch" ? (draft.payload.fullConfig === true || tools.includes("catalog_manage") ? "catalog_manage" : "catalog_edit")
+      : ["product_save", "product_remove"].includes(draft.action_type) ? "catalog_manage"
+      : ["task_rule_save", "premium_rule_save"].includes(draft.action_type) ? "product_rules"
       : draft.action_type === "promotion_save" ? "promotion_manage"
       : draft.action_type === "voucher_save" ? "voucher_manage" : "";
     if (!assistantConfig().configured || !requiredTool || !tools.includes(requiredTool as AssistantTool)) {
@@ -969,18 +980,60 @@ export class AdminController {
     }
     const payload = assistantObject(draft.payload);
     let published = process.env.ADMIN_CATALOG_ENABLED === "true";
-    if (draft.action_type === "product_create" || draft.action_type === "product_batch") {
-      const products = draft.action_type === "product_create" ? [payload] : payload.items;
+    if (["product_create", "product_save", "product_batch"].includes(draft.action_type)) {
+      const products = draft.action_type === "product_batch" ? payload.items : [payload.product ?? payload];
       if (!Array.isArray(products) || !products.length || products.length > 50) throw new HttpException("Draf produk tidak valid.", 409);
       this.permit(access, "products.read"); this.permit(access, "products.write");
       for (const value of products) {
         const productDraft = assistantObject(value);
         const category = productDraft.category, productSlug = productDraft.product_slug;
         if (typeof category !== "string" || typeof productSlug !== "string") throw new HttpException("Draf produk tidak valid.", 409);
+        const expectedVersion = productDraft.assistant_expected_version;
+        delete productDraft.assistant_expected_version;
+        if (typeof expectedVersion === "string") {
+          const [current] = await adminDb<ManagedProduct>("managed_products", `?id=eq.${encodeURIComponent(String(productDraft.id))}&select=id,updated_at,category,product_slug,provider,provider_code,product,section,name,price,cost_price,description,active,fulfillment_mode,supplier_code,service_quantity&limit=1`);
+          if (!current) throw new HttpException("Varian tidak ditemukan. Periksa katalog dan siapkan draf baru.", 409);
+          this.category(access, current.category); this.product(access, current.product_slug);
+          const fields = ["provider", "provider_code", "category", "product", "product_slug", "section", "name", "price", "cost_price", "description", "active", "fulfillment_mode", "supplier_code", "service_quantity"] as const;
+          const alreadyApplied = fields.every(key => (current[key] ?? null) === ((productDraft as Record<string, unknown>)[key] ?? null));
+          if (current.updated_at !== expectedVersion && !alreadyApplied) throw new HttpException("Varian berubah sejak draf dibuat. Periksa katalog dan siapkan draf baru.", 409);
+          if (alreadyApplied) continue;
+        }
         this.category(access, category); this.product(access, productSlug);
         const result = await this.saveProduct(productDraft, req, res);
         published = result.published;
       }
+    } else if (draft.action_type === "product_remove") {
+      this.permit(access, "products.read"); this.permit(access, "products.write");
+      const productDraft = assistantObject(payload.product);
+      const category = productDraft.category, productSlug = productDraft.product_slug;
+      if (typeof category !== "string" || typeof productSlug !== "string") throw new HttpException("Draf hapus varian tidak valid.", 409);
+      this.category(access, category); this.product(access, productSlug);
+      if (typeof payload.expectedVersion === "string") {
+        const [current] = await adminDb<ManagedProduct>("managed_products", `?id=eq.${encodeURIComponent(String(productDraft.id))}&select=id,updated_at,active,deleted_at&limit=1`);
+        if (!current) throw new HttpException("Varian tidak ditemukan. Periksa katalog dan siapkan draf baru.", 409);
+        if (current.updated_at !== payload.expectedVersion && !(current.deleted_at && !current.active)) throw new HttpException("Varian berubah sejak draf dibuat. Periksa katalog dan siapkan draf baru.", 409);
+        if (current.deleted_at && !current.active) published = process.env.ADMIN_CATALOG_ENABLED === "true";
+        else { const result = await this.removeProduct(productDraft, req, res); published = result.published; }
+      } else {
+        const result = await this.removeProduct(productDraft, req, res);
+        published = result.published;
+      }
+    } else if (draft.action_type === "task_rule_save") {
+      const productId = payload.product_id;
+      if (typeof productId !== "string") throw new HttpException("Draf tarif tugas tidak valid.", 409);
+      const save = await this.assertAssistantRuleDraft(access, productId, "tasks", payload.product_expected_version, payload.rule_expected_version, "task_price_rules", payload.rule);
+      if (save) await this.saveTaskPricing(productId, payload.rule, req, res);
+      published = process.env.ADMIN_CATALOG_ENABLED === "true";
+    } else if (draft.action_type === "premium_rule_save") {
+      const productId = payload.product_id;
+      if (typeof productId !== "string") throw new HttpException("Draf aturan premium tidak valid.", 409);
+      const rule = assistantObject(payload.rule);
+      const save = await this.assertAssistantRuleDraft(access, productId, "apps", payload.product_expected_version, payload.rule_expected_version, "premium_product_rules", rule);
+      if (save) await this.savePremiumRules(productId, {
+        access_type: rule.access_type, duration_days: rule.duration_days, guarantee_days: rule.guarantee_days, guarantee_terms: rule.guarantee_terms,
+      }, req, res);
+      published = process.env.ADMIN_CATALOG_ENABLED === "true";
     } else if (draft.action_type === "promotion_save") {
       const category = payload.category, itemCode = payload.item_code;
       if (typeof category !== "string" || typeof itemCode !== "string") throw new HttpException("Draf promo tidak valid.", 409);
@@ -1043,14 +1096,35 @@ export class AdminController {
   }
 
   private async createAssistantActionDraft(access: Awaited<ReturnType<AdminController["authorize"]>>,
-    actionType: "product_create" | "product_batch" | "promotion_save" | "voucher_save", payload: Record<string, unknown>, title: string, summary: string) {
+    actionType: "product_create" | "product_save" | "product_remove" | "product_batch" | "task_rule_save" | "premium_rule_save" | "promotion_save" | "voucher_save", payload: Record<string, unknown>, title: string, summary: string,
+    changes?: { label: string; before: string; after: string }[]) {
     const id = randomUUID();
     const [row] = await adminDb<{ expires_at: string }>("admin_assistant_action_drafts", "", "POST", {
       id, actor_id: access.id, action_type: actionType, payload,
     });
     if (!row?.expires_at) throw new HttpException("Draf perubahan belum dapat disimpan.", 503);
-    return { text: "Draf sudah disiapkan. Periksa rincian lalu pilih Terapkan untuk menyimpan.", section: actionType === "voucher_save" ? "vouchers" : "catalog",
-      action: { id, expiresAt: row.expires_at, title, summary } };
+    return { text: "Draf sudah disiapkan. Periksa rincian lalu pilih Terapkan untuk menyimpan.", section: actionType === "voucher_save" ? "vouchers" : actionType === "task_rule_save" ? "tasks" : actionType === "premium_rule_save" ? "apps" : "catalog",
+      action: { id, expiresAt: row.expires_at, title, summary, ...(changes?.length ? { changes } : {}) } };
+  }
+
+  private async assertAssistantRuleDraft(access: Awaited<ReturnType<AdminController["authorize"]>>, productId: string, category: "tasks" | "apps",
+    expectedProductVersion: unknown, expectedRuleVersion: unknown, table: "task_price_rules" | "premium_product_rules", desiredRule: unknown): Promise<boolean> {
+    if (!uuid(productId) || typeof expectedProductVersion !== "string") throw new HttpException("Draf aturan produk tidak valid.", 409);
+    const [product] = await adminDb<ManagedProduct>("managed_products", `?id=eq.${productId}&category=eq.${category}&select=id,provider,updated_at,product_slug&limit=1`);
+    if (!product || product.provider !== "manual" || product.updated_at !== expectedProductVersion) throw new HttpException("Produk berubah sejak draf dibuat. Periksa produk dan siapkan draf baru.", 409);
+    this.category(access, category); this.product(access, product.product_slug);
+    const [current] = await adminDb<Record<string, unknown>>(table, `?product_id=eq.${productId}&select=*&limit=1`);
+    const expectedFields = category === "tasks"
+      ? ["pricing_unit", "base_fee", "price_per_page", "price_per_revision", "rush_fee_per_day", "standard_days", "max_pages", "max_revisions"]
+      : ["access_type", "duration_days", "guarantee_days", "guarantee_terms"];
+    const target = assistantObject(desiredRule);
+    const alreadyApplied = !!current && expectedFields.every(key => (current[key] ?? null) === (target[key] ?? null));
+    const sameVersion = expectedRuleVersion === null ? !current : typeof expectedRuleVersion === "string" && current?.updated_at === expectedRuleVersion;
+    if (!sameVersion) {
+      if (alreadyApplied) return false;
+      throw new HttpException("Aturan produk berubah sejak draf dibuat. Baca ulang aturan dan siapkan draf baru.", 409);
+    }
+    return true;
   }
 
   private assistantProviderPayload(row: ManagedProduct, patch: ReturnType<typeof assistantPatch>, item: CatalogItem): ManagedProduct {
@@ -1083,7 +1157,7 @@ export class AdminController {
     if (!item) return { text: "SKU itu tidak ditemukan pada katalog provider yang tersedia. Gunakan Cari produk atau impor varian dari dashboard terlebih dahulu.", section: "catalog" };
     this.product(access, item.productSlug);
     const [existing] = await adminDb<ManagedProduct>("managed_products", `?provider=eq.vipayment&category=eq.${category}&provider_code=eq.${encodeURIComponent(item.code)}&select=id,active,deleted_at&limit=1`);
-    if (existing) return { text: existing.active && !existing.deleted_at ? `Varian ${item.name} sudah ada dan aktif. Gunakan Edit produk untuk mengubahnya.` : `Varian ${item.name} sudah tercatat tetapi disembunyikan. Gunakan Edit produk untuk menampilkannya kembali.`, section: "catalog" };
+    if (existing) return { text: existing.active && !existing.deleted_at ? `Varian ${item.name} sudah ada dan aktif. Gunakan Kelola katalog untuk mengubahnya.` : `Varian ${item.name} sudah tercatat tetapi disembunyikan. Gunakan Kelola katalog dengan tindakan show atau restore.`, section: "catalog" };
     const fulfillmentMode = item.requiresManualReview ? "manual" : "vipayment";
     const quantity = category === "social" ? item.minimum ?? item.serviceQuantity ?? 1 : item.serviceQuantity ?? 1;
     const payload: ManagedProduct = {
@@ -1096,17 +1170,242 @@ export class AdminController {
       `Tambah ${item.name}`, `${item.product} · ${item.code} · harga ${assistantRupiah.format(Number(price))}`);
   }
 
+  private async assistantCatalogManage(access: Awaited<ReturnType<AdminController["authorize"]>>, plan: AssistantStep, prompt: string): Promise<AssistantOutput> {
+    const category = plan.category;
+    const action = String(plan.action ?? "edit").toLowerCase();
+    const settings = plan.settings === undefined ? {} : assistantObject(plan.settings);
+    const allowed = new Set(["provider", "provider_code", "product", "product_slug", "section", "name", "price", "cost_price", "description", "active", "fulfillment_mode", "supplier_code", "service_quantity"]);
+    if (typeof category !== "string" || !assistantCategories.includes(category as typeof assistantCategories[number]) ||
+        !["add", "edit", "hide", "show", "restore", "move", "delete"].includes(action) ||
+        Object.keys(settings).some(key => !allowed.has(key))) {
+      throw new HttpException("Permintaan pengelolaan katalog tidak valid. Sebutkan kategori, tindakan, dan field yang ingin diubah.", 422);
+    }
+    if (action !== "add" && ("provider" in settings || "provider_code" in settings)) {
+      throw new HttpException("Identitas provider dan SKU tidak dapat diganti. Tambahkan varian baru untuk SKU lain.", 422);
+    }
+    this.permit(access, "products.read"); this.permit(access, "products.write"); this.category(access, category);
+
+    if (action === "add") {
+      const provider = typeof settings.provider === "string" ? settings.provider : "manual";
+      const providerCode = settings.provider_code;
+      const productName = settings.product, productSlug = settings.product_slug, name = settings.name, price = settings.price;
+      if (typeof providerCode !== "string" || !/^[A-Za-z0-9._-]{1,120}$/.test(providerCode) ||
+          typeof productName !== "string" || !productName.trim() || productName.length > 100 ||
+          typeof productSlug !== "string" || !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(productSlug) ||
+          typeof name !== "string" || !name.trim() || name.length > 200 || !Number.isSafeInteger(price) || Number(price) < 1 || Number(price) > 100000000) {
+        throw new HttpException("Varian baru perlu provider/SKU, produk induk/slug, nama varian, dan harga jual yang valid.", 422);
+      }
+      this.product(access, productSlug);
+      const duplicate = (await adminDb<ManagedProduct>("managed_products", `?category=eq.${category}&provider=eq.${encodeURIComponent(provider)}&provider_code=eq.${encodeURIComponent(providerCode)}&select=id,active,deleted_at&limit=1`))[0];
+      if (duplicate) return { text: "Provider dan SKU itu sudah tercatat. Gunakan tindakan edit, show, atau restore pada SKU tersebut.", section: "catalog" };
+      if (!/^[a-z0-9_-]+$/.test(provider)) throw new HttpException("Nama provider hanya boleh huruf kecil, angka, garis, atau underscore.", 422);
+      const source = provider === "vipayment" ? (await this.catalogReader.list(category, true)).items.find(item => item.code === (typeof settings.supplier_code === "string" ? settings.supplier_code : providerCode)) : undefined;
+      if (provider === "vipayment" && !source) throw new HttpException("SKU supplier tidak ditemukan. Cari SKU yang tersedia dari katalog provider.", 422);
+      if (provider === "vipayment" && ["tasks", "apps"].includes(category)) throw new HttpException("VIPayment tidak digunakan untuk produk Joki Tugas atau Aplikasi Premium.", 422);
+      const payload: ManagedProduct = {
+        id: randomUUID(), provider, provider_code: providerCode, category: category as ManagedProduct["category"],
+        product: productName.trim(), product_slug: productSlug, section: typeof settings.section === "string" ? settings.section.trim() : source?.section ?? null,
+        name: name.trim(), price: Number(price), cost_price: settings.cost_price === undefined ? source?.providerCost ?? null : settings.cost_price as number | null,
+        description: typeof settings.description === "string" ? settings.description.trim() : source?.description ?? "",
+        active: settings.active === true, fulfillment_mode: provider === "vipayment" ? settings.fulfillment_mode === "manual" ? "manual" : "vipayment" : "manual",
+        supplier_code: typeof settings.supplier_code === "string" ? settings.supplier_code : source?.code ?? providerCode,
+        service_quantity: typeof settings.service_quantity === "number" ? settings.service_quantity : category === "social" && source ? Math.min(source.maximum ?? 1000, Math.max(source.minimum ?? 1, 1000)) : source?.serviceQuantity ?? 1,
+      };
+      if ((settings.active !== undefined && typeof settings.active !== "boolean") ||
+          (settings.section !== undefined && settings.section !== null && (typeof settings.section !== "string" || settings.section.length > 100 || /[<>\u0000-\u001f]/.test(settings.section))) ||
+          (settings.description !== undefined && (typeof settings.description !== "string" || settings.description.length > 2000 || /[<>\u0000-\u0008\u000b\u000c\u000e-\u001f]/.test(settings.description))) ||
+          (payload.cost_price !== null && (!Number.isSafeInteger(payload.cost_price) || Number(payload.cost_price) < 0 || Number(payload.cost_price) > 100000000)) ||
+          !/^[A-Za-z0-9._-]{1,120}$/.test(String(payload.supplier_code)) ||
+          !Number.isSafeInteger(payload.service_quantity) || Number(payload.service_quantity) < 1 || Number(payload.service_quantity) > 10000000 ||
+          !["manual", "vipayment"].includes(String(payload.fulfillment_mode))) throw new HttpException("Field varian baru, modal, supplier, atau jumlah paket tidak valid.", 422);
+      if (provider === "vipayment" && source) {
+        if (source.requiresManualReview && payload.fulfillment_mode === "vipayment") throw new HttpException("SKU ini perlu pemrosesan manual oleh tim admin.", 422);
+        if (category === "social" && (payload.service_quantity! < (source.minimum ?? 1) || payload.service_quantity! > (source.maximum ?? 10000000))) throw new HttpException("Jumlah layanan berada di luar rentang provider.", 422);
+      }
+      const productChanges = ["product", "product_slug", "section", "provider", "provider_code", "name", "price", "cost_price", "description", "fulfillment_mode", "supplier_code", "service_quantity", "active"]
+        .map(key => ({ label: `${payload.provider_code} · ${key}`, before: "Belum ada", after: showCatalogValue(key, (payload as unknown as Record<string, unknown>)[key]) }));
+      return this.createAssistantActionDraft(access, "product_save", { product: payload }, `Tambah varian ${payload.name}`,
+        `${payload.product} / ${payload.product_slug} · ${payload.provider}:${payload.provider_code} · tab ${payload.section ?? "default"} · jual ${assistantRupiah.format(payload.price)} · modal ${payload.cost_price == null ? "belum diisi" : assistantRupiah.format(Number(payload.cost_price))} · ${payload.fulfillment_mode} · supplier ${payload.supplier_code} · jumlah ${payload.service_quantity} · ${payload.active ? "tampil" : "disembunyikan"}`, productChanges);
+    }
+
+    const query = typeof plan.query === "string" ? plan.query.trim() : "";
+    const parent = typeof plan.product === "string" ? plan.product.trim().toLowerCase() : "";
+    const batch = plan.batch === true || /\b(semua|seluruh|tiap|setiap|massal|batch|rentang|range|antara)\b|\b\d{1,6}\s*(?:-|–|sampai|hingga)\s*\d{1,6}\b/i.test(prompt);
+    if (!query && !parent) throw new HttpException("Sebutkan SKU/nama varian atau produk induk untuk dicari.", 422);
+    const data = await this.readProductManagement(access, category);
+    let sourceItems: CatalogItem[] = [];
+    try { sourceItems = (await this.catalogReader.list(category, true)).items; } catch { /* saved manual products can still be edited */ }
+    const defaultPublished = (item: CatalogItem) => !item.requiresManualReview && (category === "game" ? featuredGameSlugs.includes(item.productSlug) : category !== "social");
+    const saved = data.managed.filter(row => !row.deleted_at || ["show", "restore", "delete"].includes(action));
+    const savedKeys = new Set(saved.map(row => `${row.provider}:${row.provider_code}`));
+    const candidates: ManagedProduct[] = [
+      ...saved,
+      ...sourceItems.filter(item => !savedKeys.has(`vipayment:${item.code}`)).map(item => ({
+        id: "", provider: "vipayment", provider_code: item.code, category: item.category, product: item.product,
+        product_slug: item.productSlug, section: item.section ?? null, name: item.name, price: Number(item.price),
+        cost_price: item.providerCost ?? null, description: item.description ?? "", active: defaultPublished(item),
+        fulfillment_mode: item.requiresManualReview ? "manual" : "vipayment", supplier_code: item.code,
+        service_quantity: item.category === "social" ? Math.min(item.maximum ?? 1000, Math.max(item.minimum ?? 1, 1000)) : item.serviceQuantity ?? 1,
+      } as ManagedProduct)),
+    ];
+    const exact = candidates.filter(row => row.provider_code.toLowerCase() === query.toLowerCase());
+    const range = prompt.match(/\b(\d{1,6})\s*(?:-|–|sampai|hingga)\s*(\d{1,6})\b/i);
+    const min = plan.minAmount === undefined ? Number(range?.[1]) : Number(plan.minAmount);
+    const max = plan.maxAmount === undefined ? Number(range?.[2]) : Number(plan.maxAmount);
+    const words = query.toLowerCase().split(/[^\p{L}\p{N}]+/u).filter(word => word && (!parent || !parent.split(/[^\p{L}\p{N}]+/u).includes(word)));
+    const matches = (exact.length ? exact : candidates).filter(row => {
+      if (parent && !`${row.product} ${row.product_slug}`.toLowerCase().includes(parent)) return false;
+      const variant = `${row.name} ${row.provider_code}`.toLowerCase();
+      const variantWords = variant.split(/[^\p{L}\p{N}]+/u).filter(Boolean);
+      if (words.length && !words.every(word => /\d/.test(word) ? variantWords.includes(word) : variantWords.some(candidate => candidate.includes(word)))) return false;
+      const quantities = (row.name.match(/\d+/g) ?? []).map(Number);
+      if (Number.isFinite(min) && (!quantities.length || quantities.every(value => value < min))) return false;
+      if (Number.isFinite(max) && (!quantities.length || quantities.every(value => value > max))) return false;
+      if (["show", "restore"].includes(action) && row.active && !row.deleted_at) return false;
+      if (action === "hide" && !row.active) return false;
+      if (action === "delete" && row.deleted_at) return false;
+      return true;
+    });
+    if (!matches.length) return { text: "Varian yang cocok tidak ditemukan dalam kategori atau cakupan akun ini.", section: "catalog" };
+    if (action === "delete" && (batch || matches.length !== 1)) {
+      return { text: "Penghapusan AI hanya menyiapkan satu SKU persis per draf. Sebutkan SKU yang tepat; gunakan hide untuk menonaktifkan banyak varian.", choices: matches.slice(0, 50).map(row => this.assistantCatalogChoice(row)), section: "catalog" };
+    }
+    if (matches.length > 50) return { text: `Ditemukan ${matches.length} varian. Draf pengelolaan dibatasi 50; persempit produk atau rentang.`, choices: matches.slice(0, 50).map(row => this.assistantCatalogChoice(row)), section: "catalog" };
+    if (matches.length > 1 && !batch) return { text: `Ditemukan ${matches.length} varian. Sebutkan SKU tertentu atau minta tindakan untuk semua hasil ini secara eksplisit.`, choices: matches.slice(0, 50).map(row => this.assistantCatalogChoice(row)), section: "catalog" };
+    if (action === "move") {
+      if (typeof settings.product !== "string" || typeof settings.product_slug !== "string" || !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(settings.product_slug)) throw new HttpException("Untuk memindahkan varian, berikan nama dan slug produk induk tujuan.", 422);
+      this.product(access, settings.product_slug);
+      if (!candidates.some(row => !row.deleted_at && row.product_slug === settings.product_slug)) return { text: "Produk tujuan belum ada dalam katalog kategori ini. Buat produk/varian induk terlebih dahulu.", section: "catalog" };
+    }
+    const patch: Record<string, unknown> = action === "delete" ? {} : { ...settings };
+    if (action === "hide") patch.active = false;
+    if (["show", "restore"].includes(action)) patch.active = true;
+    const products = matches.map(row => {
+      const source = sourceItems.find(item => item.code === (row.supplier_code || row.provider_code));
+      const presentationValues = Object.fromEntries(Object.entries(patch).filter(([key]) => ["name", "price", "description", "active"].includes(key)));
+      const presentationPatch = Object.keys(presentationValues).length ? assistantPatch(presentationValues) : {};
+      const base = !row.id && source ? this.assistantProviderPayload(row, presentationPatch, source) : { ...row };
+      const product = { ...base, ...patch, id: row.id || randomUUID() } as ManagedProduct & { assistant_expected_version?: string };
+      if (row.updated_at) product.assistant_expected_version = row.updated_at;
+      if (typeof product.name !== "string" || !product.name.trim() || product.name.length > 200 || /[<>\u0000-\u001f]/.test(product.name) ||
+          typeof product.description !== "string" || product.description.length > 2000 || /[<>\u0000-\u0008\u000b\u000c\u000e-\u001f]/.test(product.description) ||
+          typeof product.active !== "boolean" ||
+          (product.section != null && (typeof product.section !== "string" || product.section.length > 100 || /[<>\u0000-\u001f]/.test(product.section))) ||
+          !/^[A-Za-z0-9._-]{1,120}$/.test(String(product.supplier_code ?? product.provider_code))) throw new HttpException(`Field varian ${row.name} tidak valid.`, 422);
+      if (product.provider === "vipayment" && product.active) {
+        const supplier = sourceItems.find(item => item.code === (product.supplier_code || product.provider_code));
+        if (!supplier) throw new HttpException(`SKU supplier untuk ${row.name} tidak tersedia.`, 422);
+        if (supplier.requiresManualReview && product.fulfillment_mode !== "manual") throw new HttpException(`Varian ${row.name} wajib diproses manual oleh admin.`, 422);
+        if (category === "social" && (product.service_quantity! < (supplier.minimum ?? 1) || product.service_quantity! > (supplier.maximum ?? 10000000))) throw new HttpException(`Jumlah layanan ${row.name} di luar rentang supplier.`, 422);
+      }
+      return product;
+    });
+    if (action === "delete") {
+      const row = matches[0]!;
+      return this.createAssistantActionDraft(access, "product_remove", { product: products[0], expectedVersion: row.updated_at ?? null }, `Hapus ${row.name} dari katalog`, `${row.product} · ${row.provider_code} · akan disembunyikan dari katalog dan checkout baru`, [
+        { label: `${row.provider_code} · Visibilitas`, before: row.active ? "Tampil" : "Disembunyikan", after: "Dihapus dari katalog" },
+      ]);
+    }
+    for (const row of products) {
+      if (typeof row.product_slug !== "string" || !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(row.product_slug) ||
+          typeof row.product !== "string" || !row.product.trim() || row.product.length > 100 ||
+          (row.section != null && (typeof row.section !== "string" || row.section.length > 100)) ||
+          (row.cost_price != null && (!Number.isSafeInteger(row.cost_price) || Number(row.cost_price) < 0 || Number(row.cost_price) > 100000000)) ||
+          (row.active != null && typeof row.active !== "boolean") ||
+          (row.service_quantity != null && (!Number.isSafeInteger(row.service_quantity) || Number(row.service_quantity) < 1 || Number(row.service_quantity) > 10000000)) ||
+          (row.fulfillment_mode != null && !["manual", "vipayment"].includes(row.fulfillment_mode))) throw new HttpException("Field pemetaan, modal, atau jumlah layanan tidak valid.", 422);
+      this.product(access, row.product_slug);
+    }
+    const fieldLabels: Record<string, string> = { product: "Produk induk", product_slug: "Slug", section: "Tab", name: "Nama", price: "Harga jual", cost_price: "Modal", description: "Deskripsi", active: "Tampil", fulfillment_mode: "Pemrosesan", supplier_code: "SKU supplier", service_quantity: "Jumlah paket" };
+    const showValue = (key: string, value: unknown) => key === "price" || key === "cost_price"
+      ? value == null ? "belum diisi" : assistantRupiah.format(Number(value))
+      : key === "active" ? value ? "aktif" : "disembunyikan"
+      : value == null || value === "" ? "kosong" : String(value);
+    const actionChanges = products.flatMap((next, index) => {
+      const before = matches[index]!;
+      const fields = ["product", "product_slug", "section", "name", "price", "cost_price", "description", "active", "fulfillment_mode", "supplier_code", "service_quantity"];
+      return fields.filter(key => (before as unknown as Record<string, unknown>)[key] !== (next as unknown as Record<string, unknown>)[key])
+        .map(key => ({ label: `${next.provider_code} · ${fieldLabels[key] ?? key}`, before: showValue(key, (before as unknown as Record<string, unknown>)[key]), after: showValue(key, (next as unknown as Record<string, unknown>)[key]) }));
+    });
+    if (!actionChanges.length) return { text: "Varian yang dipilih sudah memiliki semua nilai yang diminta.", section: "catalog" };
+    const reviewSummary = `${products.length} varian · perubahan sebelum/sesudah tercantum di bawah.`;
+    if (products.length === 1) return this.createAssistantActionDraft(access, "product_save", { product: products[0] }, `${action === "move" ? "Pindahkan" : "Perbarui"} ${products[0]!.name}`, reviewSummary, actionChanges);
+    return this.createAssistantActionDraft(access, "product_batch", { items: products, fullConfig: true }, `${action === "move" ? "Pindahkan" : "Perbarui"} ${products.length} varian`, reviewSummary, actionChanges);
+  }
+
+  private async assistantProductRulesDraft(access: Awaited<ReturnType<AdminController["authorize"]>>, plan: AssistantStep): Promise<AssistantOutput> {
+    const category = plan.category, query = typeof plan.query === "string" ? plan.query.trim() : "";
+    if (category !== "tasks" && category !== "apps") throw new HttpException("Aturan produk hanya tersedia untuk kategori tasks atau apps.", 422);
+    if (!query) throw new HttpException("Sebutkan SKU atau nama varian tersimpan yang tepat.", 422);
+    this.permit(access, "products.read"); this.permit(access, "products.write"); this.category(access, category);
+    const data = await this.readProductManagement(access, category);
+    const matches = data.managed.filter(row => !row.deleted_at && row.provider === "manual" &&
+      (row.provider_code.toLowerCase() === query.toLowerCase() || row.name.trim().toLowerCase() === query.toLowerCase()));
+    if (matches.length !== 1) return { text: matches.length ? "Nama varian cocok dengan beberapa item. Gunakan SKU persis." : "Varian manual tersimpan tidak ditemukan.",
+      choices: matches.slice(0, 20).map(row => this.assistantCatalogChoice(row)), section: category };
+    const product = matches[0]!;
+    this.product(access, product.product_slug);
+    const settings = plan.settings === undefined ? {} : assistantObject(plan.settings);
+    if (category === "tasks") {
+      const fields = new Set(["pricing_unit", "base_fee", "price_per_page", "price_per_revision", "rush_fee_per_day", "standard_days", "max_pages", "max_revisions"]);
+      if (Object.keys(settings).some(key => !fields.has(key))) throw new HttpException("Draf tarif memuat field yang tidak didukung.", 422);
+      const current = (await adminDb<Record<string, unknown>>("task_price_rules", `?product_id=eq.${product.id}&select=pricing_unit,base_fee,price_per_page,price_per_revision,rush_fee_per_day,standard_days,max_pages,max_revisions,updated_at&limit=1`))[0];
+      const { updated_at: currentVersion, ...currentRule } = current ?? {};
+      const rule = { pricing_unit: "page", base_fee: null, price_per_page: 0, price_per_revision: 0, rush_fee_per_day: 0, standard_days: 7, max_pages: 100, max_revisions: 0, ...currentRule, ...settings };
+      if (!Object.keys(settings).length || !["page", "slide", "minute", "item", "custom"].includes(String(rule.pricing_unit)) ||
+          (rule.base_fee !== null && (!Number.isSafeInteger(rule.base_fee) || Number(rule.base_fee) < 0 || Number(rule.base_fee) > 100000000)) ||
+          !Number.isSafeInteger(rule.price_per_page) || Number(rule.price_per_page) < 0 || Number(rule.price_per_page) > 1000000 ||
+          !Number.isSafeInteger(rule.price_per_revision) || Number(rule.price_per_revision) < 0 || Number(rule.price_per_revision) > 1000000 ||
+          !Number.isSafeInteger(rule.rush_fee_per_day) || Number(rule.rush_fee_per_day) < 0 || Number(rule.rush_fee_per_day) > 1000000 ||
+          !Number.isSafeInteger(rule.standard_days) || Number(rule.standard_days) < 1 || Number(rule.standard_days) > 90 ||
+          !Number.isSafeInteger(rule.max_pages) || Number(rule.max_pages) < 1 || Number(rule.max_pages) > 500 ||
+          !Number.isSafeInteger(rule.max_revisions) || Number(rule.max_revisions) < 0 || Number(rule.max_revisions) > 20) throw new HttpException("Field aturan tarif joki tidak valid atau belum lengkap.", 422);
+      const taskLabels: Record<string, string> = { pricing_unit: "Unit tarif", base_fee: "Biaya dasar", price_per_page: "Tarif per unit", price_per_revision: "Tarif revisi", rush_fee_per_day: "Biaya percepatan per hari", standard_days: "Tenggat standar", max_pages: "Batas unit", max_revisions: "Batas revisi" };
+      const taskSummary = Object.keys(settings).map(key => `${taskLabels[key] ?? key}: ${currentRule[key] ?? "belum diatur"} → ${rule[key as keyof typeof rule]}`).join(" · ");
+      const taskChanges = Object.keys(settings).map(key => ({ label: taskLabels[key] ?? key, before: String(currentRule[key] ?? "Belum diatur"), after: String(rule[key as keyof typeof rule]) }));
+      const action = await this.createAssistantActionDraft(access, "task_rule_save", { product_id: product.id, product_expected_version: product.updated_at, rule, rule_expected_version: currentVersion ?? null },
+        `Atur tarif joki ${product.name}`, taskSummary, taskChanges);
+      return { ...action, section: "tasks" };
+    }
+    const fields = new Set(["access_type", "duration_days", "guarantee_days", "guarantee_terms"]);
+    if (Object.keys(settings).some(key => !fields.has(key))) throw new HttpException("Draf ketentuan premium memuat field yang tidak didukung.", 422);
+    const current = (await adminDb<Record<string, unknown>>("premium_product_rules", `?product_id=eq.${product.id}&select=access_type,duration_days,guarantee_days,guarantee_terms,updated_at&limit=1`))[0];
+    const { updated_at: currentVersion, ...currentRule } = current ?? {};
+    const rule = { access_type: "private", duration_days: 30, guarantee_days: 7,
+      guarantee_terms: "Garansi berlaku untuk gangguan akses yang bukan akibat perubahan data akun oleh pelanggan.", ...currentRule, ...settings };
+    if (!Object.keys(settings).length || !["private", "sharing", "other"].includes(String(rule.access_type)) ||
+        !Number.isSafeInteger(rule.duration_days) || Number(rule.duration_days) < 1 || Number(rule.duration_days) > 730 ||
+        !Number.isSafeInteger(rule.guarantee_days) || Number(rule.guarantee_days) < 0 || Number(rule.guarantee_days) > 365 ||
+        typeof rule.guarantee_terms !== "string" || rule.guarantee_terms.trim().length < 10 || rule.guarantee_terms.length > 2000) throw new HttpException("Field aturan Aplikasi Premium tidak valid atau belum lengkap.", 422);
+    const premiumLabels: Record<string, string> = { access_type: "Jenis akses", duration_days: "Durasi akses", guarantee_days: "Durasi garansi", guarantee_terms: "Ketentuan klaim" };
+    const premiumSummary = Object.keys(settings).map(key => `${premiumLabels[key] ?? key}: ${currentRule[key] ?? "belum diatur"} → ${rule[key as keyof typeof rule]}`).join(" · ");
+    const premiumChanges = Object.keys(settings).map(key => ({ label: premiumLabels[key] ?? key, before: String(currentRule[key] ?? "Belum diatur"), after: String(rule[key as keyof typeof rule]) }));
+    const action = await this.createAssistantActionDraft(access, "premium_rule_save", { product_id: product.id, product_expected_version: product.updated_at, rule, rule_expected_version: currentVersion ?? null },
+      `Atur ketentuan ${product.name}`, premiumSummary, premiumChanges);
+    return { ...action, section: "apps" };
+  }
+
   private async assistantPromotionDraft(access: Awaited<ReturnType<AdminController["authorize"]>>, plan: AssistantStep): Promise<AssistantOutput> {
     const category = plan.category, query = plan.query, action = plan.action ?? "set";
-    if (typeof category !== "string" || !assistantCategories.includes(category as typeof assistantCategories[number]) ||
+    if (typeof category !== "string" || !assistantCategories.includes(category as typeof assistantCategories[number]) || category === "tasks" ||
         typeof query !== "string" || !query.trim() || query.length > 150 || !["set", "disable"].includes(String(action))) {
       throw new HttpException("Sebutkan kategori, satu SKU/nama varian, dan jadwal promo atau permintaan untuk menonaktifkannya.", 422);
     }
     this.permit(access, "products.read"); this.permit(access, "products.write"); this.category(access, category);
-    const source = await this.catalogReader.list(category);
     const normalized = query.trim().toLowerCase();
-    const exact = source.items.filter(row => row.code.toLowerCase() === normalized);
-    const matches = exact.length ? exact : source.items.filter(row => `${row.name} ${row.product}`.toLowerCase() === normalized);
+    let source: CatalogItem[] = [];
+    try { source = (await this.catalogReader.list(category)).items; } catch { /* manual managed variants remain manageable */ }
+    const managed = (await this.readProductManagement(access, category)).managed.filter(row => row.active && !row.deleted_at);
+    const candidates = managed.map(row => ({
+      code: row.provider === "vipayment" && category !== "social" ? row.provider_code : `managed.${row.id}`,
+      providerCode: row.provider_code, name: row.name, product: row.product, productSlug: row.product_slug,
+      price: Number(row.price), row,
+    }));
+    for (const item of source) if (!managed.some(row => row.provider === "vipayment" && row.provider_code === item.code)) {
+      candidates.push({ code: item.code, providerCode: item.code, name: item.name, product: item.product, productSlug: item.productSlug, price: Number(item.price), row: null as unknown as ManagedProduct });
+    }
+    const exact = candidates.filter(row => row.code.toLowerCase() === normalized || row.providerCode.toLowerCase() === normalized);
+    const matches = exact.length ? exact : candidates.filter(row => `${row.name} ${row.product}`.toLowerCase() === normalized);
     if (matches.length !== 1) return { text: matches.length ? "Nama itu cocok dengan beberapa varian. Kirim SKU provider yang tepat." : "Varian promo tidak ditemukan di katalog provider.",
       choices: matches.slice(0, 20).map(item => ({ name: item.name, product: item.product, sku: item.code, category, price: item.price, active: true })), section: "catalog" };
     const item = matches[0]!;
@@ -1137,7 +1436,12 @@ export class AdminController {
     if (!Number.isSafeInteger(salePrice) || salePrice < 1 || salePrice >= item.price) throw new HttpException("Harga promo harus rupiah bulat di bawah harga dasar.", 422);
     const payload = { category, item_code: item.code, sale_price: salePrice, starts_at: startsAt, ends_at: endsAt, active };
     return this.createAssistantActionDraft(access, "promotion_save", payload, `${active ? "Atur" : "Nonaktifkan"} promo ${item.name}`,
-      `${item.product} · ${item.code} · ${assistantRupiah.format(salePrice)}${active ? ` · ${startsAt} s.d. ${endsAt}` : " · jadwal promo dinonaktifkan"}`);
+      `${item.product} · ${item.code} · perubahan promo ditinjau di bawah`, [
+        { label: "Harga promo", before: existing ? assistantRupiah.format(Number(existing.sale_price)) : "Belum ada", after: assistantRupiah.format(salePrice) },
+        { label: "Mulai", before: existing ? String(existing.starts_at) : "Belum ada", after: startsAt },
+        { label: "Selesai", before: existing ? String(existing.ends_at) : "Belum ada", after: endsAt },
+        { label: "Status", before: existing?.active ? "Aktif" : "Nonaktif / belum ada", after: active ? "Aktif" : "Nonaktif" },
+      ]);
   }
 
   private async assistantVoucherDraft(access: Awaited<ReturnType<AdminController["authorize"]>>, plan: AssistantStep, prompt: string): Promise<AssistantOutput> {
@@ -1202,9 +1506,9 @@ export class AdminController {
       const managed = new Map(result.managed.map(row => [`${row.provider}:${row.provider_code}`, row]));
       return [
         ...result.managed.filter(row => !row.deleted_at),
-        ...result.items.filter(item => item.defaultPublished && !managed.has(`vipayment:${item.code}`)).map(item => ({
+        ...result.items.filter(item => !managed.has(`vipayment:${item.code}`)).map(item => ({
           id: "", name: item.name, product: item.product, product_slug: item.productSlug, provider: "vipayment",
-          provider_code: item.code, category: item.category, price: item.price, description: item.description, active: true,
+          provider_code: item.code, category: item.category, price: item.price, description: item.description, active: !!item.defaultPublished,
         } as ManagedProduct)),
       ];
     });
@@ -1326,6 +1630,42 @@ export class AdminController {
     if (result?.result === "conflict") throw new HttpException("Data varian berubah. Siapkan draf baru sebelum menyimpan.", 409);
     if (result?.result !== "applied") throw new HttpException("Draf belum dapat diterapkan.", 503);
     return { ok: true, published: process.env.ADMIN_CATALOG_ENABLED === "true" };
+  }
+
+  private workNotificationSections(access: Awaited<ReturnType<AdminController["authorize"]>>) {
+    const sections: string[] = [];
+    if (access.permissions.includes("*") || access.permissions.includes("orders.read")) {
+      if (access.categories.length === 5 && !access.productSlugs.length) sections.push("orders");
+      if (access.categories.includes("tasks")) sections.push("tasks");
+      if (access.categories.includes("apps")) sections.push("apps");
+    }
+    if (access.superAdmin) sections.push("reviews");
+    return sections;
+  }
+
+  @Get("work-notifications")
+  async workNotifications(@Req() req: Request, @Res({ passthrough: true }) res: Response) {
+    const access = await this.authorize(req, res);
+    const sections = this.workNotificationSections(access);
+    const summary = sections.length ? await adminDb("rpc/admin_work_notifications", "", "POST", {
+      p_admin: access.id, p_sections: sections, p_product_slugs: access.productSlugs,
+    }) : [];
+    return { sections: summary };
+  }
+
+  @Post("work-notifications/:section/read")
+  async readWorkNotifications(@Param("section") section: string, @Body() body: { through?: unknown },
+    @Req() req: Request, @Res({ passthrough: true }) res: Response) {
+    const access = await this.authorize(req, res, true);
+    if (!this.workNotificationSections(access).includes(section)) throw new HttpException("Izin admin tidak mencukupi.", 403);
+    const through = body?.through;
+    if (typeof through !== "string" || through.length > 36 || !Number.isFinite(Date.parse(through))) {
+      throw new HttpException("Waktu notifikasi tidak valid.", 400);
+    }
+    await adminDb("rpc/mark_admin_work_notifications_read", "", "POST", {
+      p_admin: access.id, p_section: section, p_through: through,
+    });
+    return { ok: true };
   }
 
   @Get("conversations/notifications")
@@ -1827,9 +2167,9 @@ export class AdminController {
       patch.status = input.status;
     }
     if (input.rating !== undefined) {
-      if (!Number.isInteger(input.rating) || Number(input.rating) < 1 || Number(input.rating) > 5)
-        throw new HttpException("Rating harus 1–5 bintang.", 400);
-      patch.rating = Number(input.rating);
+      if (!isReviewRating(input.rating))
+        throw new HttpException("Rating harus 0,5 sampai 5 bintang dengan kelipatan 0,5.", 400);
+      patch.rating = input.rating;
     }
     if (input.comment !== undefined) {
       if (typeof input.comment !== "string" || input.comment.trim().length < 5 || input.comment.trim().length > 1000 ||
@@ -1953,10 +2293,24 @@ export class AdminController {
     const body = input as { category?: unknown; item_code?: unknown; sale_price?: unknown; starts_at?: unknown; ends_at?: unknown; active?: unknown };
     if (!body || typeof body.category !== "string" || !["game", "prepaid", "apps", "social", "tasks"].includes(body.category) || typeof body.item_code !== "string" || !/^[A-Za-z0-9._-]{1,120}$/.test(body.item_code) || !Number.isSafeInteger(body.sale_price) || Number(body.sale_price) < 1 || Number(body.sale_price) > 100000000 || typeof body.starts_at !== "string" || typeof body.ends_at !== "string" || !Number.isFinite(Date.parse(body.starts_at)) || !Number.isFinite(Date.parse(body.ends_at)) || Date.parse(body.ends_at) <= Date.parse(body.starts_at) || typeof body.active !== "boolean") throw new HttpException("Periksa varian, harga, dan jadwal promo.", 400);
     this.category(access, body.category);
-    const item = (await this.catalogReader.list(body.category)).items.find(row => row.code === body.item_code);
-    const regularPrice = item?.promotion?.originalPrice ?? item?.price;
-    if (!item || !regularPrice || Number(body.sale_price) >= regularPrice) throw new HttpException("Varian tidak tersedia atau harga promo tidak lebih rendah dari harga dasar.", 400);
-    this.product(access, item.productSlug);
+    if (body.category === "tasks") throw new HttpException("Kategori joki tugas menggunakan aturan tarif, bukan promo katalog.", 400);
+    let source: CatalogItem | undefined;
+    try { source = (await this.catalogReader.list(body.category)).items.find(row => row.code === body.item_code); } catch { /* manual managed variants do not require a live provider list */ }
+    let managed: ManagedProduct | undefined;
+    if (body.item_code.startsWith("managed.")) {
+      const id = body.item_code.slice("managed.".length);
+      if (uuid(id)) managed = (await adminDb<ManagedProduct>("managed_products", `?id=eq.${id}&category=eq.${body.category}&select=*&limit=1`))[0];
+    } else {
+      managed = (await adminDb<ManagedProduct>("managed_products", `?category=eq.${body.category}&provider_code=eq.${encodeURIComponent(body.item_code)}&select=*&limit=1`))[0];
+    }
+    const managedIsVisible = !!managed && managed.active && !managed.deleted_at;
+    if (managed && !managedIsVisible) throw new HttpException("Promo tidak dapat diatur pada varian yang disembunyikan atau dihapus.", 409);
+    const regularPrice = managedIsVisible ? Number(managed.price) : source?.promotion?.originalPrice ?? source?.price;
+    const productSlug = managedIsVisible ? managed!.product_slug : source?.productSlug;
+    if ((!managedIsVisible && !source) || !regularPrice || !productSlug || Number(body.sale_price) >= regularPrice) {
+      throw new HttpException("Varian tidak tersedia atau harga promo tidak lebih rendah dari harga jual reguler.", 400);
+    }
+    this.product(access, productSlug);
     await this.audit(access.id, "promotion.save", `${body.category}:${body.item_code}`);
     const { category, item_code, sale_price, starts_at, ends_at, active } = body;
     const [row] = await adminDb("catalog_promotions", "?on_conflict=category,item_code", "POST", { category, item_code, sale_price, starts_at, ends_at, active, updated_at: new Date().toISOString() });
