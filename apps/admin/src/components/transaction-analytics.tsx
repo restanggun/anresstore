@@ -20,7 +20,7 @@ const paymentGroups = [
   { key: "unknownCount", label: "Belum pasti", color: "var(--chart-slate)" },
 ] as const;
 const statusColors = [...paymentGroups.map(group => group.color), "var(--chart-periwinkle)"];
-const chartTooltip = { borderRadius: 14, borderColor: "var(--border)", backgroundColor: "var(--surface)" };
+const chartTooltip = { borderRadius: 8, borderColor: "var(--border)", backgroundColor: "var(--surface)" };
 const trendMetrics = {
   paidCount: { label: "Total penjualan", total: "paidCount", format: number.format },
   paid: { label: "Omzet", total: "paidAmount", format: rupiah },
@@ -171,7 +171,7 @@ export function TransactionAnalytics({ overview = false, onNavigate }: { overvie
             <div className="donut-wrap" aria-hidden="true">
               <ResponsiveContainer width="100%" height={204}>
                 <PieChart accessibilityLayer={false}>
-                  <Pie data={pieRows} dataKey="value" nameKey="name" innerRadius={65} outerRadius={87} paddingAngle={4} cornerRadius={6} stroke="none" isAnimationActive={false}>
+                  <Pie data={pieRows} dataKey="value" nameKey="name" innerRadius={65} outerRadius={87} paddingAngle={4} cornerRadius={2} stroke="none" isAnimationActive={false}>
                     {pieRows.map(row => <Cell key={row.name} fill={row.color} />)}
                   </Pie>
                   <Tooltip contentStyle={chartTooltip} formatter={value => number.format(Number(value))} />
@@ -197,7 +197,7 @@ export function TransactionAnalytics({ overview = false, onNavigate }: { overvie
                 <YAxis allowDecimals={false} width={35} axisLine={false} tickLine={false} />
                 <Tooltip contentStyle={chartTooltip} labelFormatter={value => dayLabel(String(value))} />
                 <Legend iconType="circle" />
-                {paymentGroups.map(({ key, label, color }) => <Bar key={key} dataKey={key} name={label} fill={color} radius={5} stackId="payments" maxBarSize={30} isAnimationActive={false} />)}
+                {paymentGroups.map(({ key, label, color }) => <Bar key={key} dataKey={key} name={label} fill={color} radius={2} stackId="payments" maxBarSize={30} isAnimationActive={false} />)}
               </BarChart>
             </ResponsiveContainer> : <div className="chart-placeholder">{emptyMessage}</div>}
           </div>
