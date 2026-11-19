@@ -56,6 +56,7 @@ type Message = {
 };
 
 const sentTime = new Intl.DateTimeFormat("id-ID", { hour: "2-digit", minute: "2-digit" });
+const activeSessionStorageKey = "anres-admin-assistant-active-session";
 const destinations = {
   catalog: "Buka katalog", fulfillment: "Buka antrean", orders: "Buka pesanan", payments: "Buka pembayaran",
   reports: "Buka laporan", system: "Buka status sistem", conversations: "Buka room chat CS",
@@ -72,9 +73,11 @@ export function AssistantWorkspace({ onNavigate }: { onNavigate: (section: strin
   const [selectedModel, setSelectedModel] = useState("");
   const [draftKey, setDraftKey] = useState(0);
   const [responding, setResponding] = useState(false);
+  const [restoringSession, setRestoringSession] = useState(false);
   const [error, setError] = useState("");
   const timer = useRef<number | undefined>(undefined);
   const request = useRef<AbortController | null>(null);
+  const restoreStarted = useRef(false);
   const retry = useRef<{ sessionId: string; text: string; model?: string; turnId: string } | null>(null);
   const conversation = useRef<HTMLDivElement>(null);
   const messageInput = useRef<HTMLTextAreaElement>(null);
@@ -87,6 +90,29 @@ export function AssistantWorkspace({ onNavigate }: { onNavigate: (section: strin
   const canChat = demo || connection.data?.configured === true;
   const models = connection.data?.models;
   const model = models?.includes(selectedModel) ? selectedModel : connection.data?.defaultModel;
+
+  useEffect(() => {
+    if (!canChat || demo || !connection.data || restoreStarted.current) return;
+    const storedSessionId = window.localStorage.getItem(activeSessionStorageKey);
+    if (!storedSessionId) return;
+    restoreStarted.current = true;
+    let cancelled = false;
+    setRestoringSession(true);
+    void adminRequest(`assistant/sessions/${encodeURIComponent(storedSessionId)}`)
+      .then((session: SavedSession) => {
+        if (!cancelled) switchSession(session);
+      })
+      .catch((failure: unknown) => {
+        if (!cancelled) setError(failure instanceof Error ? `Sesi chat tersimpan belum dapat dimuat: ${failure.message}` : "Sesi chat tersimpan belum dapat dimuat.");
+      })
+      .finally(() => {
+        if (!cancelled) setRestoringSession(false);
+      });
+    return () => {
+      cancelled = true;
+      restoreStarted.current = false;
+    };
+  }, [canChat, demo, connection.data]);
 
   useEffect(() => () => {
     window.clearTimeout(timer.current);
@@ -105,6 +131,8 @@ export function AssistantWorkspace({ onNavigate }: { onNavigate: (section: strin
   function switchSession(session?: SavedSession) {
     retry.current = null;
     setSessionId(session?.id ?? null);
+    if (session?.id) window.localStorage.setItem(activeSessionStorageKey, session.id);
+    else window.localStorage.removeItem(activeSessionStorageKey);
     setText("");
     setError("");
     setDraftKey(key => key + 1);
@@ -142,6 +170,7 @@ export function AssistantWorkspace({ onNavigate }: { onNavigate: (section: strin
           if (files.reduce((total, file) => total + file.text.length, 0) > 8000) throw new Error("Total isi lampiran maksimal 8.000 karakter.");
           const activeSession = sessionId ?? (await adminRequest("assistant/sessions", "POST", {}, controller.signal) as { id: string }).id;
           setSessionId(activeSession);
+          window.localStorage.setItem(activeSessionStorageKey, activeSession);
           retry.current = { sessionId: activeSession, text: prompt, model, turnId };
           setMessages(current => [...current, outgoing]);
           const response: AssistantReply = await adminRequest("assistant/chat", "POST", {
@@ -182,7 +211,7 @@ export function AssistantWorkspace({ onNavigate }: { onNavigate: (section: strin
         <span className={styles.icon}><Sparkles size={19} aria-hidden="true" /></span>
         <h1 id="assistant-heading">Asisten Anres</h1>
         <span className={styles.status} role="status">{connection.isPending ? "Memeriksa akses…" : connection.isError ? "Tidak tersedia" : demo ? "Mode demo" : canChat ? "Aktif" : "Belum dikonfigurasi"}</span>
-        {!demo && connection.data && <AssistantSessions currentId={sessionId} disabled={responding}
+        {!demo && connection.data && <AssistantSessions currentId={sessionId} disabled={responding || restoringSession}
           onNew={() => switchSession()} onOpen={switchSession} onDelete={id => { if (id === sessionId) switchSession(); }} />}
       </header>
       <div ref={conversation} className={styles.conversation} tabIndex={0} role="region" aria-label="Percakapan">
@@ -253,12 +282,13 @@ export function AssistantWorkspace({ onNavigate }: { onNavigate: (section: strin
           )}
         </div>
       </div>
+      {restoringSession && <p className={styles.connectionError} role="status">Memulihkan sesi chat…</p>}
       {connection.error && <div className={styles.connectionError} role="alert">
         <p>{connection.error.message}</p><button type="button" className="outline-button" onClick={() => void connection.refetch()}>Coba lagi</button>
       </div>}
       {error && <p className={styles.connectionError} role="alert">{error}</p>}
       <AssistantComposer key={draftKey} text={text} onTextChange={setText} onSend={send} responding={responding} messageInput={messageInput}
-        demo={demo} attachments={demo || !!connection.data?.attachments} tools={connection.data?.tools ?? []} disabled={!canChat}
+        demo={demo} attachments={demo || !!connection.data?.attachments} tools={connection.data?.tools ?? []} disabled={!canChat || restoringSession}
         models={models} model={model} onModelChange={setSelectedModel}
         options={connection.data?.skills && connection.data.agents ? { skills: connection.data.skills, agents: connection.data.agents } : undefined} />
     </section>
