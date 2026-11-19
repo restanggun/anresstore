@@ -59,7 +59,8 @@ export function ReviewWorkspace() {
   const [error,setError]=useState("");
   const [notice,setNotice]=useState("");
   const list=useQuery({queryKey:["product-reviews",page,status,category],
-    queryFn:()=>adminRequest(`reviews?page=${page}&status=${status}${category?`&category=${category}`:""}`) as Promise<{rows:Review[];hasMore:boolean}>});
+    queryFn:()=>adminRequest(`reviews?page=${page}&status=${status}${category?`&category=${category}`:""}`) as Promise<{rows:Review[];hasMore:boolean}>,
+    refetchInterval:15000});
 
   async function refresh(message: string) {
     await client.invalidateQueries({queryKey:["product-reviews"]});

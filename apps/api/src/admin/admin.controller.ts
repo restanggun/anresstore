@@ -1663,7 +1663,7 @@ export class AdminController {
     const access = await this.authorize(req, res, true);
     if (!this.workNotificationSections(access).includes(section)) throw new HttpException("Izin admin tidak mencukupi.", 403);
     const through = body?.through;
-    if (typeof through !== "string" || through.length > 36 || !Number.isFinite(Date.parse(through))) {
+    if (typeof through !== "string" || !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,6})?(?:Z|[+-]\d{2}:\d{2})$/.test(through) || !Number.isFinite(Date.parse(through))) {
       throw new HttpException("Waktu notifikasi tidak valid.", 400);
     }
     await adminDb("rpc/mark_admin_work_notifications_read", "", "POST", {

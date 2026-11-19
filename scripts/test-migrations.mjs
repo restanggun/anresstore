@@ -33,6 +33,8 @@ try {
   await db.exec(await readFile('supabase/tests/product-cost-profit.sql','utf8'));
   await db.exec(await readFile('supabase/tests/admin-transaction-reporting.sql','utf8'));
   console.log('Admin reporting counts pending, paid, failed and refunded transactions across checkout, premium and QRIS history');
+  await db.exec(await readFile('supabase/tests/admin-work-notifications.sql','utf8'));
+  console.log('Admin notifications count each order once, preserve work after reading, and enforce account and product scope');
   await db.exec(await readFile('supabase/tests/task-pricing.sql','utf8'));
   await db.exec(await readFile('supabase/tests/checkout-vouchers.sql','utf8'));
   console.log('Voucher targeting, quota reservation, release, account isolation, gift fulfillment and premium pricing passed');

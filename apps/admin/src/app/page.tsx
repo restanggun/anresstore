@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import { useQuery } from "@tanstack/react-query";
 import { motion, useReducedMotion } from "motion/react";
@@ -7,7 +7,7 @@ import { LayoutGrid, ShoppingBag, Box, CreditCard, CircleHelp, Users, ChartNoAxe
 import { useApiHealth } from "../components/health-chart";
 import { AdminGate } from "../components/admin-gate";
 import { Brand } from "../components/brand";
-import { SupportTicketBadge, SupportNotifications } from "../components/support-notifications";
+import { NotificationCount, SupportTicketBadge, SupportNotifications, useWorkNotifications } from "../components/support-notifications";
 import { adminRequest } from "../components/workspace-api";
 import type { AssistantStatus } from "../components/assistant-workspace";
 
@@ -57,10 +57,25 @@ function AdminDashboard(){
  const [active,setActive]=useState("overview"),[menuOpen,setMenuOpen]=useState(false);
  const {data:assistantAccess}=useQuery({queryKey:["admin-assistant"],queryFn:({signal})=>adminRequest("assistant","GET",undefined,signal) as Promise<AssistantStatus>,retry:false,staleTime:30000});
  const availableSections=sections.filter(item=>(item.id!=="assistant-registry"||assistantAccess?.canManage)&&(item.id!=="landing"&&item.id!=="campaign"||assistantAccess?.canManageLanding));
- useEffect(()=>{const handler=(event:Event)=>{const section=(event as CustomEvent<{section?:string}>).detail?.section;if(section==="apps"||section==="tasks")setActive(section)};window.addEventListener("anres-open-manual-order",handler);return()=>window.removeEventListener("anres-open-manual-order",handler)},[]);
  const {health,samples,refresh,fetching}=useApiHealth(); const reducedMotion=useReducedMotion();
  const [transactionStatus,setTransactionStatus]=useState<string>();
- const select=(id:string,status?:string)=>{setActive(id);setTransactionStatus(status);setMenuOpen(false)}; const current=sections.find(x=>x.id===active)!;
+ const workNotifications = useWorkNotifications();
+ const readNotifications = workNotifications.read;
+ const select=useCallback((id:string,status?:string)=>{
+   readNotifications(id);
+   setActive(id);
+   setTransactionStatus(status);
+   setMenuOpen(false);
+ }, [readNotifications]);
+ useEffect(() => {
+   const handler = (event: Event) => {
+     const section = (event as CustomEvent<{ section?: string }>).detail?.section;
+     if (section === "apps" || section === "tasks") select(section);
+   };
+   window.addEventListener("anres-open-manual-order", handler);
+   return () => window.removeEventListener("anres-open-manual-order", handler);
+ }, [select]);
+ const current=sections.find(x=>x.id===active)!;
  const drawer = useRef<HTMLDialogElement>(null);
  useEffect(() => {
    const panel = drawer.current;
@@ -76,7 +91,26 @@ function AdminDashboard(){
 
  const alerts=health==="offline"?1:0;
  const logout=async()=>{try{await fetch(`${(process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000/v1").replace(/\/$/, "")}/auth/logout`,{method:"POST",credentials:"include",headers:{"Content-Type":"application/json"},body:"{}"});}finally{window.location.reload();}};
- const sidebarContents = <><div className="sidebar-top"><a className="brand" href="/" aria-label="Anres Store admin"><Brand/></a><button className="icon-button sidebar-close" onClick={()=>setMenuOpen(false)} aria-label="Tutup menu"><Icon name="close"/></button></div><div className="workspace"><span className="workspace-icon"><Icon name="grid" size={19}/></span><span><strong>Ruang kerja</strong><small>Anres Store admin</small></span><span className="workspace-dot"/></div><nav className="side-nav" aria-label="Menu utama">{["Utama","Operasional","Pelanggan","Analisis","Pengaturan"].map(group=><div className="nav-group" key={group}><p>{group}</p>{availableSections.filter(item=>item.group===group).map(item=><button key={item.id} onClick={()=>select(item.id)} className={`nav-item ${active===item.id?"active":""}`} aria-current={active===item.id?"page":undefined}><Icon name={item.icon}/><span className="nav-item-label">{item.label}</span>{item.id==="conversations"&&<SupportTicketBadge/>}{item.id==="system"&&alerts>0?<span className="notification-count" aria-label={`${alerts} masalah terdeteksi`}>{alerts}</span>:active===item.id?<span className="nav-indicator"/>:null}</button>)}</div>)}</nav><div className="sidebar-bottom"><div className="sidebar-footer"><span className="avatar" aria-hidden="true">A</span><span className="sidebar-profile-copy"><strong>Admin Anres</strong><small>Akses administrator</small></span></div></div></>;
+ const sidebarContents = <>
+   <div className="sidebar-top"><a className="brand" href="/" aria-label="Anres Store admin"><Brand/></a><button className="icon-button sidebar-close" onClick={()=>setMenuOpen(false)} aria-label="Tutup menu"><Icon name="close"/></button></div>
+   <div className="workspace"><span className="workspace-icon"><Icon name="grid" size={19}/></span><span><strong>Ruang kerja</strong><small>Anres Store admin</small></span><span className="workspace-dot"/></div>
+   <nav className="side-nav" aria-label="Menu utama">
+     {["Utama","Operasional","Pelanggan","Analisis","Pengaturan"].map(group => <div className="nav-group" key={group}>
+       <p>{group}</p>
+       {availableSections.filter(item => item.group === group).map(item => {
+         const count = workNotifications.query.data?.sections.find(summary => summary.section === item.id)?.count ?? 0;
+         return <button key={item.id} onClick={() => select(item.id)} className={`nav-item ${active === item.id ? "active" : ""}`} aria-current={active === item.id ? "page" : undefined}>
+           <Icon name={item.icon}/><span className="nav-item-label">{item.label}</span>
+           {item.id === "conversations" && <SupportTicketBadge/>}
+           {count > 0 ? <NotificationCount count={count} label={`${count} belum dibaca atau perlu ditangani`}/>
+             : item.id === "system" && alerts > 0 ? <span className="notification-count" aria-label={`${alerts} masalah terdeteksi`}>{alerts}</span>
+             : active === item.id && <span className="nav-indicator"/>}
+         </button>;
+       })}
+     </div>)}
+   </nav>
+   <div className="sidebar-bottom"><div className="sidebar-footer"><span className="avatar" aria-hidden="true">A</span><span className="sidebar-profile-copy"><strong>Admin Anres</strong><small>Akses administrator</small></span></div></div>
+ </>;
  return <div className="admin-shell">
  <aside className="sidebar sidebar-desktop" aria-label="Navigasi admin">{sidebarContents}</aside>
  <dialog ref={drawer} id="admin-navigation" className="sidebar sidebar-drawer" aria-label="Navigasi admin"
@@ -84,7 +118,7 @@ function AdminDashboard(){
    onClick={event=>{if(event.target===event.currentTarget){const box=event.currentTarget.getBoundingClientRect();if(event.clientX<box.left||event.clientX>box.right||event.clientY<box.top||event.clientY>box.bottom)setMenuOpen(false);}}}>
    {menuOpen&&sidebarContents}
  </dialog>
- <div className="main-wrap"><header className="topbar"><div className="topbar-left"><button className="icon-button mobile-menu" onClick={()=>setMenuOpen(true)} aria-label="Buka menu" aria-controls="admin-navigation" aria-expanded={menuOpen}><Icon name="menu"/></button><span className="breadcrumb"><span className="breadcrumb-root">Ruang kerja</span> <span className="breadcrumb-divider">/</span> <strong>{current.label}</strong></span></div><div className="topbar-right"><span className="setup-pill"><span/> Akses administrator</span><button className="text-button" onClick={() => void logout()}>Keluar</button><SupportNotifications onNavigate={select} systemAlerts={alerts}/><span className="top-avatar">A</span></div></header>
+ <div className="main-wrap"><header className="topbar"><div className="topbar-left"><button className="icon-button mobile-menu" onClick={()=>setMenuOpen(true)} aria-label="Buka menu" aria-controls="admin-navigation" aria-expanded={menuOpen}><Icon name="menu"/></button><span className="breadcrumb"><span className="breadcrumb-root">Ruang kerja</span> <span className="breadcrumb-divider">/</span> <strong>{current.label}</strong></span></div><div className="topbar-right"><span className="setup-pill"><span/> Akses administrator</span><button className="text-button" onClick={() => void logout()}>Keluar</button><SupportNotifications onNavigate={select} systemAlerts={alerts} work={workNotifications}/><span className="top-avatar">A</span></div></header>
  <motion.main id="main" className={`main-content${active === "assistant" ? " main-content-assistant" : ""}`} key={active} initial={reducedMotion ? false : {opacity:0}} animate={{opacity:1}} transition={{duration:reducedMotion ? 0 : 0.15}}>
  {active === "overview" && <TransactionAnalytics overview onNavigate={select}/>}
  {active === "assistant" && <AssistantWorkspace onNavigate={select}/>}
