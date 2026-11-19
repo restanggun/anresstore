@@ -622,7 +622,12 @@ export class AdminController {
     const csv = selection.includes("pricing_batch") && input.attachments.length > 0;
     if (csv && (scopedProduct || !tools.includes("pricing_batch") || profile && !profile.tools.includes("pricing_batch"))) throw new HttpException("Draf CSV di luar cakupan agent.", 403);
     if (input.attachments.length && !csv && !tools.includes("file_review")) throw new HttpException("Analisis lampiran tidak diizinkan.", 403);
+    const mobileLegendsListing = !scopedProduct && /mobile\s*legends|mobile\s*legend|\bmlbb\b/i.test(input.text) &&
+      /\bdiamond\b/i.test(input.text) && /\b(tampilkan|lihatkan|daftar|list|urutkan|lihat)\b/i.test(input.text);
+    const requestedRange = input.text.match(/\b(\d{1,6})\s*(?:diamond\s*)?(?:-|sampai|hingga)\s*(?:diamond\s*)?(\d{1,6})\b/i);
     const plan: AssistantStep[] = csv ? [{ tool: "pricing_batch", csv: true }]
+      : mobileLegendsListing && available.includes("catalog_search") ? [{ tool: "catalog_search", query: "diamond", product: "Mobile Legends", category: "game",
+        ...(requestedRange && { minAmount: requestedRange[1], maxAmount: requestedRange[2] }) }]
       : await assistantPlan({ ...input, skills: selection.filter((skill): skill is AssistantTool => !!skill) }, available, profile, registry.skills, modelOptions);
     const trace: { tool: AssistantTool; label: string; status: string; section?: string }[] = [];
     const evidence: AssistantEvidence = {};
@@ -682,9 +687,14 @@ export class AdminController {
         return { text: redactAssistantText(text.trim()) };
       }
       case "catalog_search": {
-        const range = input.text.match(/\b(\d{1,6})\s*(?:-|–|sampai|hingga)\s*(\d{1,6})\b/i);
-        const result = await this.assistantCatalog(access, arg("query") ?? "", arg("category"), null, {
-          product: arg("product"), minAmount: arg("minAmount") ?? range?.[1], maxAmount: arg("maxAmount") ?? range?.[2],
+        const mobileLegends = /mobile\s*legends|mobile\s*legend|\bmlbb\b/i.test(input.text);
+        const diamond = /\bdiamond\b/i.test(input.text);
+        const range = input.text.match(/\b(\d{1,6})\s*(?:diamond\s*)?(?:-|sampai|hingga)\s*(?:diamond\s*)?(\d{1,6})\b/i);
+        const result = await this.assistantCatalog(access,
+          arg("query") ?? (mobileLegends && diamond ? "diamond" : ""),
+          arg("category") ?? (mobileLegends && diamond ? "game" : undefined), null, {
+          product: arg("product") ?? (mobileLegends && diamond ? "Mobile Legends" : undefined),
+          minAmount: arg("minAmount") ?? range?.[1], maxAmount: arg("maxAmount") ?? range?.[2],
         });
         if ("choices" in result) evidence.choices = result.choices;
         return result;
@@ -1531,6 +1541,9 @@ export class AdminController {
         if (!quantities.length || quantities.every(value => value < (minAmount ?? 0) || value > (maxAmount ?? Number.MAX_SAFE_INTEGER))) return false;
       }
       return true;
+    }).sort((left, right) => {
+      const amount = (row: ManagedProduct) => (row.name.match(/\d+/g) ?? []).map(Number).sort((a, b) => a - b)[0] ?? Number.MAX_SAFE_INTEGER;
+      return amount(left) - amount(right) || left.name.localeCompare(right.name, "id", { numeric: true, sensitivity: "base" });
     });
     const choices = matches.slice(0, 50).map(row => this.assistantCatalogChoice(row));
     const sourceIncomplete = data.some(result => !result.providerAvailable);
