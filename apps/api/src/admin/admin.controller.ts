@@ -24,6 +24,10 @@ import {
 } from "./assistant-registry";
 import { tavilyEnabled, tavilySearch } from "./assistant-research";
 import { parseAssistantPriceCsv, percentage, targetPrice } from "./assistant-pricing";
+import {
+  createAssistantSession, deleteAssistantSession, getAssistantMemory, getAssistantSession,
+  listAssistantSessions, renameAssistantSession, saveAssistantMemory, saveAssistantTurn,
+} from "./assistant-sessions";
 
 const assistantRupiah = new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 });
 type AssistantEvidence = { invoice?: Record<string, unknown>; choices?: unknown[] };
@@ -524,14 +528,67 @@ export class AdminController {
     return { steps: plans.map(({ tool }) => ({ tool, label: definitions[tool][0] })) };
   }
 
+  @Get("assistant/sessions")
+  async assistantSessions(@Query("offset") offset: string | undefined, @Req() req: Request, @Res({ passthrough: true }) res: Response) {
+    const access = await this.authorize(req, res, false, true, true);
+    const start = Number(offset ?? 0);
+    if (!Number.isSafeInteger(start) || start < 0 || start > 30000) throw new HttpException("Halaman riwayat tidak valid.", 422);
+    return listAssistantSessions(access, start);
+  }
+
+  @Post("assistant/sessions")
+  async newAssistantSession(@Req() req: Request, @Res({ passthrough: true }) res: Response) {
+    return createAssistantSession(await this.authorize(req, res, true, true, true));
+  }
+
+  @Get("assistant/sessions/:id")
+  async assistantSession(@Param("id") id: string, @Req() req: Request, @Res({ passthrough: true }) res: Response) {
+    return getAssistantSession(await this.authorize(req, res, false, true, true), id);
+  }
+
+  @Patch("assistant/sessions/:id")
+  async updateAssistantSession(@Param("id") id: string, @Body() body: unknown, @Req() req: Request, @Res({ passthrough: true }) res: Response) {
+    return renameAssistantSession(await this.authorize(req, res, true, true, true), id, assistantObject(body).title);
+  }
+
+  @Delete("assistant/sessions/:id")
+  async removeAssistantSession(@Param("id") id: string, @Req() req: Request, @Res({ passthrough: true }) res: Response) {
+    return deleteAssistantSession(await this.authorize(req, res, true, true, true), id);
+  }
+
+  @Get("assistant/memory")
+  async assistantMemory(@Req() req: Request, @Res({ passthrough: true }) res: Response) {
+    const access = await this.authorize(req, res, false, true, true);
+    return getAssistantMemory(access.id);
+  }
+
+  @Patch("assistant/memory")
+  async updateAssistantMemory(@Body() body: unknown, @Req() req: Request, @Res({ passthrough: true }) res: Response) {
+    const access = await this.authorize(req, res, true, true, true);
+    return saveAssistantMemory(access.id, assistantObject(body).note);
+  }
+
   @Post("assistant/chat")
   async assistantChat(@Body() body: unknown, @Req() req: Request, @Res({ passthrough: true }) res: Response) {
     const access = await this.authorize(req, res, true, true, true);
     const config = assistantConfig();
     if (!config.configured) throw new HttpException("Asisten Anres belum diaktifkan.", 503);
     const input = assistantInput(body, config.attachments);
-    const variantId = assistantObject(body).variantId;
+    const { variantId, sessionId, turnId } = assistantObject(body);
     if (variantId !== undefined && !uuid(variantId)) throw new HttpException("Varian editor tidak valid.", 422);
+    if (sessionId !== undefined && (!uuid(sessionId) || !uuid(turnId) || variantId !== undefined)) {
+      throw new HttpException("Sesi atau pesan chat tidak valid.", 422);
+    }
+    const session = typeof sessionId === "string" ? await getAssistantSession(access, sessionId) : undefined;
+    const previous = session?.turns.find(turn => turn.id === turnId);
+    if (previous) return previous.reply;
+    if (session?.revision === 100) throw new HttpException("Sesi sudah berisi 100 giliran. Mulai chat baru untuk melanjutkan.", 409);
+    const sentAt = new Date().toISOString();
+    const memory = session ? (await getAssistantMemory(access.id)).note : "";
+    if (session) input.history = session.turns.slice(-3).flatMap(turn => [
+      `Admin: ${turn.user.text}`.slice(0, 1500),
+      `Asisten: ${turn.reply.text}`.slice(0, 1500),
+    ]);
     await assistantQuota(access.id);
     const scopedProduct = variantId === undefined ? null : await this.assistantEditorProduct(access, variantId as string);
     const { registry, tools, agents } = await this.assistantCapabilities(access);
@@ -552,13 +609,13 @@ export class AdminController {
     if (csv && (scopedProduct || !tools.includes("pricing_batch") || profile && !profile.tools.includes("pricing_batch"))) throw new HttpException("Draf CSV di luar cakupan agent.", 403);
     if (input.attachments.length && !csv && !tools.includes("file_review")) throw new HttpException("Analisis lampiran tidak diizinkan.", 403);
     const plan: AssistantStep[] = csv ? [{ tool: "pricing_batch", csv: true }]
-      : await assistantPlan({ ...input, skills: selection.filter((skill): skill is AssistantTool => !!skill) }, available, profile, registry.skills);
+      : await assistantPlan({ ...input, skills: selection.filter((skill): skill is AssistantTool => !!skill) }, available, profile, registry.skills, memory);
     const trace: { tool: AssistantTool; label: string; status: string; section?: string }[] = [];
     const evidence: AssistantEvidence = {};
     const outputs: Awaited<ReturnType<AdminController["assistantStep"]>>[] = [];
     for (const step of plan) {
       try {
-        const result = await this.assistantStep(step, input, access, req, res, scopedProduct, registry.sops, evidence);
+        const result = await this.assistantStep(step, input, access, req, res, scopedProduct, registry.sops, evidence, memory);
         outputs.push(result);
         trace.push({ tool: step.tool, label: definitions[step.tool][0], status: result.proposal || result.batch ? "review" : "done", section: result.section });
       } catch (error) {
@@ -573,12 +630,21 @@ export class AdminController {
     }
     await this.logAssistantRun(access.id, trace);
     const last = outputs.at(-1)!;
-    return { ...last, text: outputs.map(result => result.text).join("\n\n"),
+    const reply = { ...last, text: outputs.map(result => result.text).join("\n\n"),
       section: [...outputs].reverse().find(result => result.section)?.section,
       choices: [...outputs].reverse().find(result => result.choices?.length)?.choices,
       sources: outputs.flatMap(result => result.sources ?? []),
       trace,
     };
+    if (session && typeof turnId === "string") {
+      const answeredAt = new Date().toISOString();
+      await saveAssistantTurn(access, session, {
+        id: turnId, user: { text: input.text, sentAt },
+        reply: { text: redactAssistantText(reply.text), sentAt: answeredAt, section: reply.section, sources: reply.sources },
+      });
+      return { ...reply, sentAt: answeredAt };
+    }
+    return reply;
   }
 
   private async logAssistantRun(actor: string, steps: { tool: AssistantTool; label: string; status: string; section?: string }[]) {
@@ -588,14 +654,16 @@ export class AdminController {
   private async assistantStep(
     plan: AssistantStep, input: ReturnType<typeof assistantInput>, access: Awaited<ReturnType<AdminController["authorize"]>>,
     req: Request, res: Response, scopedProduct: ManagedProduct | null, sops: ReturnType<typeof resolvedRegistry>["sops"],
-    evidence: AssistantEvidence,
+    evidence: AssistantEvidence, memory: string,
   ): Promise<AssistantOutput> {
     const arg = (key: string) => (plan as Record<string, unknown>)[key];
 
     switch (plan.tool) {
       case "reply": {
         const text = arg("text");
-        if (typeof text !== "string" || !text.trim() || text.length > 1500) throw new HttpException("Jawaban AI tidak valid.", 502);
+        if (typeof text !== "string" || !text.trim() || text.length > 1500) {
+          return { text: await assistantAnswer(input.text, "reply", { history: input.history }, memory) };
+        }
         return { text: redactAssistantText(text.trim()) };
       }
       case "catalog_search": {
@@ -672,10 +740,10 @@ export class AdminController {
       }
       case "support_draft":
       case "support_handoff":
-        return { text: await assistantAnswer(input.text, plan.tool, { context: "Situasi anonim yang dijelaskan admin", attachments: input.attachments, verified: evidence.invoice }), section: "conversations" };
+        return { text: await assistantAnswer(input.text, plan.tool, { context: "Situasi anonim yang dijelaskan admin", attachments: input.attachments, verified: evidence.invoice }, memory), section: "conversations" };
       case "content_draft":
         if (!evidence.choices?.length) return { text: "Tentukan varian yang ingin dijadikan sumber draf konten.", section: "catalog" };
-        return { text: await assistantAnswer(input.text, plan.tool, { variants: evidence.choices }), section: "catalog" };
+        return { text: await assistantAnswer(input.text, plan.tool, { variants: evidence.choices }, memory), section: "catalog" };
       case "pricing":
       case "duplicates":
       case "promo_preview":
@@ -695,12 +763,12 @@ export class AdminController {
       case "web_search": {
         const { query, checkedAt, results } = await tavilySearch(plan.query, input.text);
         if (!results.length) return { text: "Tavily belum menemukan sumber publik yang cocok." };
-        const text = await assistantAnswer(query, plan.tool, results);
+        const text = await assistantAnswer(query, plan.tool, results, memory);
         return { text, sources: results.map(({ title, url }) => ({ title, url, checkedAt })) };
       }
       case "file_review":
         if (!input.attachments.length) return { text: "Lampirkan file teks untuk dianalisis." };
-        return { text: await assistantAnswer(input.text, plan.tool, { attachments: input.attachments }) };
+        return { text: await assistantAnswer(input.text, plan.tool, { attachments: input.attachments }, memory) };
       case "vouchers": {
         const { rows, hasMore } = await this.vouchers("0", req, res);
         return { text: `${rows.length} voucher pada halaman pertama${hasMore ? ", masih ada halaman berikutnya" : ""}. Buka Voucher untuk melihat kode dan pengaturannya.`, section: "vouchers" };

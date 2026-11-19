@@ -53,4 +53,6 @@ try {
   console.log('Admin assistant proposal ownership, expiry, conflict, idempotency and audit passed');
   await db.exec(await readFile('supabase/tests/admin-assistant-registry.sql','utf8'));
   console.log('Assistant registry versioning, permissions, and atomic batch approval passed');
+  await db.exec(await readFile('supabase/tests/admin-assistant-sessions.sql','utf8'));
+  console.log('Admin assistant session scope, message ordering, and separate memory passed');
 } finally { await db.close(); }

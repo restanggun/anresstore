@@ -4,21 +4,21 @@ Asisten menggunakan sesi admin yang sudah ada. Setiap endpoint asisten memerluka
 
 ## Aktivasi
 
-1. Terapkan migrasi `20261120100000_admin_assistant.sql` dan `20261120120000_admin_assistant_registry.sql`. Deploy rilis API dan dashboard yang memuat Pengelola Skill & Agent.
+1. Terapkan migrasi asisten dengan versi `20261120100000`, `20261120120000`, `20261120140000`, dan `20261120165000`. Deploy API dan dashboard dari rilis yang sama.
 2. Isi `ADMIN_AI_OPENROUTER_API_KEY` dan `ADMIN_AI_OPENROUTER_MODEL` hanya di lingkungan API. Model harus berupa ID eksplisit yang mendukung keluaran JSON pada endpoint OpenRouter dengan Zero Data Retention dan pengumpulan data ditolak. Periksa tarif dan set batas pengeluaran di key/workspace. Key AI Bantuan publik terpisah.
-3. Buka `nano /opt/anresstore/apps/api/.env.production` di VPS Anres. Buat OpenRouter key di [OpenRouter API Keys](https://openrouter.ai/keys). Pilih **Get API key** di [dashboard Tavily](https://app.tavily.com/) dan salin key ke `TAVILY_API_KEY`. Pencarian memakai [Tavily Search API](https://docs.tavily.com/documentation/api-reference/endpoint/search). Model contoh OpenRouter dapat dikenai biaya.
+3. Buka `nano /opt/anresstore/apps/api/.env.production` di VPS Anres. Buat OpenRouter key di [OpenRouter API Keys](https://openrouter.ai/keys). Pilih **Get API key** di [dashboard Tavily](https://app.tavily.com/) dan salin key ke `TAVILY_API_KEY`. Pencarian memakai [Tavily Search API](https://docs.tavily.com/documentation/api-reference/endpoint/search). Model contoh OpenRouter memakai kuota gratis.
 
 ```dotenv
 ADMIN_AI_ENABLED=true
 ADMIN_AI_OPENROUTER_API_KEY=isi_dengan_key_openrouter_admin
-ADMIN_AI_OPENROUTER_MODEL=openai/gpt-oss-120b
+ADMIN_AI_OPENROUTER_MODEL=inclusionai/ling-3.2-flash:free
 ADMIN_AI_REGISTRY_ENABLED=true
 ADMIN_AI_TAVILY_ENABLED=true
 TAVILY_API_KEY=isi_dengan_key_tavily
 ADMIN_AI_ATTACHMENTS_ENABLED=false
 ```
 
-4. Buat ulang container API dari direktori proyek agar Compose membaca ulang nilai `env_file`, lalu masuk dengan MFA ke **Utama → Asisten Anres**. Super admin dapat membuka **Pengaturan → Skill & Agent**. Tanpa konfigurasi OpenRouter, UI menawarkan demo lokal.
+4. Buat ulang container API dari direktori proyek agar Compose membaca ulang nilai `env_file`, lalu masuk dengan MFA ke **Utama → Asisten Anres**. Super admin dapat membuka **Pengaturan → Skill & Agent**. Mode demo tersedia di lingkungan pengembangan.
 
 ```sh
 cd /opt/anresstore
@@ -32,11 +32,17 @@ docker compose -p anres-production \
 
 Chat dibatasi enam permintaan per menit per admin dan 24 per jendela harian bersama. Satu chat memakai paling banyak dua request model. Endpoint gagal tertutup saat provider tidak mendukung routing privat, hasil JSON tidak valid, atau database pembatas kuota tidak tersedia. Tidak ada fallback ke model lain.
 
-Tavily menerima maksimal 20 pencarian basic per hari untuk seluruh dashboard. Asisten memakai satu frasa publik yang muncul di pesan terbaru, tanpa riwayat atau lampiran. Contoh **Cari di web dokumentasi VIPayment**. Riset publik dan draf perubahan katalog dijalankan di pesan terpisah.
+Tavily menerima maksimal 20 pencarian basic per hari untuk seluruh dashboard. Asisten memakai satu frasa publik dari pesan terbaru. Contoh **Cari di web dokumentasi VIPayment**. Riset publik dan draf perubahan katalog dijalankan di pesan terpisah.
+
+## Riwayat dan memori
+
+Mulai percakapan lewat **Chat baru**. Asisten menyimpan sesi saat pesan pertama dikirim. Dari **Riwayat**, buka sesi lama, ubah judulnya, atau hapus sesi beserta pesannya. Satu sesi dapat memuat 100 pasang pesan. Riwayat hanya dapat diakses akun pemilik melalui MFA dan cakupan izin yang sama.
+
+Pesan, waktu, dan tautan sumber disimpan di database Anres. Asisten memakai tiga pasang pesan terbaru sebagai konteks model. Isi lampiran tidak disimpan ke riwayat chat. Gunakan **Riwayat → Memori** untuk menyimpan preferensi bahasa, istilah, atau gaya balasan hingga 1.000 karakter. Preferensi berlaku lintas sesi untuk akun tersebut. Kosongkan catatan dan simpan untuk menghapusnya.
 
 ## Skill dan agent
 
-Versi pengaturan tersimpan di database. Super admin dapat memilih skill backend yang aktif, membatasi role, menulis contoh perintah, menyusun instruksi agent, dan menyunting SOP. Izin dasar dari role admin, kategori, dan cakupan produk masih berlaku. Tes rencana menggunakan pengaturan tersimpan dan hanya menampilkan pilihan langkah model. Riwayat menyimpan label dan status langkah tanpa isi prompt atau file.
+Versi pengaturan tersimpan di database. Super admin dapat memilih skill backend yang aktif, membatasi role, menulis contoh perintah, menyusun instruksi agent, dan menyunting SOP. Izin dasar dari role admin, kategori, dan cakupan produk masih berlaku. Tes rencana menggunakan pengaturan tersimpan dan hanya menampilkan pilihan langkah model. Log pengelola menyimpan label dan status langkah.
 
 Asisten dapat merencanakan maksimal empat langkah berurutan dalam satu pesan. Langkah berikutnya dapat memakai hasil katalog atau status invoice yang sudah diambil. Respons menampilkan riwayat langkah dan tautan hasil pencarian. Rancangan perubahan tetap berada di langkah terakhir dan memerlukan klik konfirmasi.
 
@@ -65,4 +71,4 @@ Dari **Katalog & harga → Edit varian → Bantu edit**, **Minta draf AI** mengi
 
 Untuk CSV, pilih **Draf harga massal**, lampirkan satu CSV dengan maksimal 20 baris, lalu ketik **Siapkan draf harga dari CSV**. Server memproses CSV secara lokal dan membatalkan seluruh batch jika salah satu varian berubah sebelum konfirmasi. Untuk simulasi, coba **Hitung margin produk Mobile Legends di kategori game yang di bawah 10%, lalu siapkan draf harga untuk target margin 15%**.
 
-Model memilih dari daftar tindakan. Server memvalidasi setiap parameter, menyaring data menurut cakupan admin, dan menghitung jawaban operasional dari data Anres. Model tidak menerima isi tiket pelanggan, kontak, saldo provider, atau data gateway dari API internal. Model hanya bisa membuat draf perubahan produk dalam pesan tanpa lampiran. CSV harga mempunyai alur deterministik tersendiri. Chat disimpan selama halaman terbuka. Draf dan riwayat penerapannya tersimpan di database internal.
+Model memilih dari daftar tindakan. Server memvalidasi setiap parameter, menyaring data menurut cakupan admin, dan menghitung jawaban operasional dari data Anres. Model tidak menerima isi tiket pelanggan, kontak, saldo provider, atau data gateway dari API internal. Model hanya bisa membuat draf perubahan produk dalam pesan tanpa lampiran. CSV harga mempunyai alur deterministik tersendiri. Draf dan riwayat penerapannya tersimpan di database internal.

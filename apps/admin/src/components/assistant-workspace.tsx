@@ -1,10 +1,11 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { ArrowRight, BarChart3, Box, MessageSquare, ShoppingBag, Sparkles } from "lucide-react";
 import { AssistantChanges } from "./assistant-changes";
 import { AssistantComposer, type AssistantOptions, type ComposerContext } from "./assistant-composer";
+import { AssistantSessions, assistantSessionsKey, type SavedSession } from "./assistant-sessions";
 import { AssistantBatch, AssistantProposal, type AssistantBatchData, type AssistantProposalData, type AssistantVariant } from "./assistant-proposal";
 import { adminRequest, rupiah } from "./workspace-api";
 import styles from "./assistant-workspace.module.css";
@@ -59,15 +60,19 @@ const destinations = {
   vouchers: "Buka voucher", overview: "Buka ringkasan", tasks: "Buka joki tugas", apps: "Buka aplikasi premium",
 };
 export type AssistantStatus = { configured: boolean; attachments: boolean; tools: string[]; canManage?: boolean; canManageLanding?: boolean; skills?: AssistantOptions["skills"]; agents?: AssistantOptions["agents"] };
-type AssistantReply = Pick<Message, "text" | "section" | "choices" | "proposal" | "batch" | "sources" | "trace">;
+type AssistantReply = Pick<Message, "text" | "section" | "choices" | "proposal" | "batch" | "sources" | "trace"> & { sentAt?: string };
 
 export function AssistantWorkspace({ onNavigate }: { onNavigate: (section: string) => void }) {
+  const queryClient = useQueryClient();
   const [text, setText] = useState("");
   const [messages, setMessages] = useState<Message[]>([]);
+  const [sessionId, setSessionId] = useState<string | null>(null);
+  const [draftKey, setDraftKey] = useState(0);
   const [responding, setResponding] = useState(false);
   const [error, setError] = useState("");
   const timer = useRef<number | undefined>(undefined);
   const request = useRef<AbortController | null>(null);
+  const retry = useRef<{ sessionId: string; text: string; turnId: string } | null>(null);
   const conversation = useRef<HTMLDivElement>(null);
   const messageInput = useRef<HTMLTextAreaElement>(null);
   const connection = useQuery({
@@ -88,8 +93,24 @@ export function AssistantWorkspace({ onNavigate }: { onNavigate: (section: strin
   }, [messages, responding]);
 
   function appendReply(result: AssistantReply & Pick<Message, "demo" | "changes">) {
-    const reply: Message = { ...result, id: crypto.randomUUID(), role: "assistant", sentAt: new Date() };
+    const reply: Message = { ...result, id: crypto.randomUUID(), role: "assistant", sentAt: result.sentAt ? new Date(result.sentAt) : new Date() };
     setMessages(current => [...current, reply]);
+  }
+
+  function switchSession(session?: SavedSession) {
+    retry.current = null;
+    setSessionId(session?.id ?? null);
+    setText("");
+    setError("");
+    setDraftKey(key => key + 1);
+    setMessages(session?.turns.flatMap(turn => [
+      { id: turn.id, role: "user" as const, text: turn.user.text, sentAt: new Date(turn.user.sentAt) },
+      {
+        id: `${turn.id}-reply`, role: "assistant" as const, text: turn.reply.text, sentAt: new Date(turn.reply.sentAt),
+        sources: turn.reply.sources,
+        section: turn.reply.section && Object.hasOwn(destinations, turn.reply.section) ? turn.reply.section as keyof typeof destinations : undefined,
+      },
+    ]) ?? []);
   }
 
   function send(context: ComposerContext) {
@@ -101,23 +122,29 @@ export function AssistantWorkspace({ onNavigate }: { onNavigate: (section: strin
       ...context.files.map(file => file.name),
     ];
 
-    const outgoing: Message = { id: crypto.randomUUID(), role: "user", text: prompt, sentAt: new Date(), context: labels };
+    const retryTurn = retry.current;
+    const turnId = retryTurn && sessionId === retryTurn.sessionId && retryTurn.text === prompt ? retryTurn.turnId : crypto.randomUUID();
+    const outgoing: Message = { id: turnId, role: "user", text: prompt, sentAt: new Date(), context: labels };
     setError("");
     setText("");
     setResponding(true);
     if (!demo) {
       const controller = new AbortController();
-      const history = messages.filter(message => message.role === "user" && !message.demo).slice(-6).map(message => message.text.slice(0, 1500));
       request.current = controller;
       void (async () => {
         try {
           const files = await Promise.all(context.files.map(async file => ({ name: file.name, text: await file.text() })));
           if (files.reduce((total, file) => total + file.text.length, 0) > 8000) throw new Error("Total isi lampiran maksimal 8.000 karakter.");
+          const activeSession = sessionId ?? (await adminRequest("assistant/sessions", "POST", {}, controller.signal) as { id: string }).id;
+          setSessionId(activeSession);
+          retry.current = { sessionId: activeSession, text: prompt, turnId };
           setMessages(current => [...current, outgoing]);
           const response: AssistantReply = await adminRequest("assistant/chat", "POST", {
-            text: prompt, history, files, skills: context.skills, agent: context.agent,
+            text: prompt, sessionId: activeSession, turnId, files, skills: context.skills, agent: context.agent,
           }, controller.signal);
+          retry.current = null;
           appendReply(response);
+          void queryClient.invalidateQueries({ queryKey: assistantSessionsKey });
         } catch (failure) {
           if (controller.signal.aborted) return;
           setMessages(current => current.filter(message => message.id !== outgoing.id));
@@ -150,6 +177,8 @@ export function AssistantWorkspace({ onNavigate }: { onNavigate: (section: strin
         <span className={styles.icon}><Sparkles size={19} aria-hidden="true" /></span>
         <h1 id="assistant-heading">Asisten Anres</h1>
         <span className={styles.status} role="status">{connection.isPending ? "Memeriksa akses…" : connection.isError ? "Tidak tersedia" : demo ? "Mode demo" : canChat ? "Aktif" : "Belum dikonfigurasi"}</span>
+        {!demo && connection.data && <AssistantSessions currentId={sessionId} disabled={responding}
+          onNew={() => switchSession()} onOpen={switchSession} onDelete={id => { if (id === sessionId) switchSession(); }} />}
       </header>
       <div ref={conversation} className={styles.conversation} tabIndex={0} role="region" aria-label="Percakapan">
         {!messages.length && !responding && (
@@ -221,7 +250,7 @@ export function AssistantWorkspace({ onNavigate }: { onNavigate: (section: strin
         <p>{connection.error.message}</p><button type="button" className="outline-button" onClick={() => void connection.refetch()}>Coba lagi</button>
       </div>}
       {error && <p className={styles.connectionError} role="alert">{error}</p>}
-      <AssistantComposer text={text} onTextChange={setText} onSend={send} responding={responding} messageInput={messageInput}
+      <AssistantComposer key={draftKey} text={text} onTextChange={setText} onSend={send} responding={responding} messageInput={messageInput}
         demo={demo} attachments={demo || !!connection.data?.attachments} tools={connection.data?.tools ?? []} disabled={!canChat}
         options={connection.data?.skills && connection.data.agents ? { skills: connection.data.skills, agents: connection.data.agents } : undefined} />
     </section>

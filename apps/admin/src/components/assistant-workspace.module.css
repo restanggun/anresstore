@@ -35,6 +35,79 @@
   padding: 0 var(--chat-gutter) 10px;
 }
 .chatHeader h1 { margin: 0; font-size: 18px; font-weight: 800; letter-spacing: -.035em; }
+.sessionActions, .sessionTabs, .dialogActions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.historyButton, .newSessionButton, .sessionIconButton, .destructiveButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 40px;
+  padding: 6px 12px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--primary-soft);
+  color: var(--focus);
+  font-size: 13px;
+  font-weight: 750;
+}
+.newSessionButton, .sessionTabs button[aria-pressed="true"] { background: var(--primary); }
+.historyButton:hover:not(:disabled), .newSessionButton:hover:not(:disabled), .sessionIconButton:hover:not(:disabled) { background: var(--primary-hover); }
+.sessionActions button:disabled, .sessionDialog button:disabled { opacity: .55; cursor: not-allowed; }
+.sessionDialog {
+  width: min(32rem, calc(100% - 28px));
+  max-height: min(38rem, calc(100dvh - 30px));
+  overflow: auto;
+  padding: 20px;
+  border: 1px solid var(--border);
+  border-radius: 22px;
+  background: var(--surface);
+  color: var(--foreground);
+}
+.sessionDialog:modal, .sessionDialog::backdrop { overscroll-behavior: contain; }
+.sessionDialog::backdrop { overflow: hidden; background: #20364470; }
+.sessionDialogHeader { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.sessionDialogHeader h2 { margin: 0; font-size: 20px; }
+.sessionDialog p { font-size: 13px; line-height: 1.55; overflow-wrap: anywhere; }
+.sessionTabs { margin: 14px 0; }
+.sessionList { margin: 0; padding: 0; list-style: none; }
+.sessionList li { display: flex; align-items: center; gap: 6px; padding-block: 5px; border-bottom: 1px solid var(--border); }
+.sessionSelect {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  padding: 8px;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--foreground);
+  text-align: left;
+  overflow-wrap: anywhere;
+}
+.sessionSelect:hover, .sessionSelect[aria-current="true"] { background: var(--primary-soft); }
+.sessionSelect time { color: var(--muted); font-size: 11px; }
+.sessionIconButton { flex: none; width: 40px; padding: 0; }
+.dialogActions { justify-content: flex-end; margin-top: 14px; }
+.destructiveButton { background: var(--pink); color: var(--pink-ink); }
+.sessionForm { display: flex; flex-direction: column; gap: 8px; margin-top: 12px; }
+.sessionForm label { font-size: 13px; font-weight: 750; }
+.sessionForm p { margin: 0; color: var(--muted); }
+.sessionForm :is(input, textarea) {
+  width: 100%;
+  padding: 9px 11px;
+  border: 1px solid var(--field-border);
+  border-radius: 10px;
+  background: var(--surface);
+  color: var(--foreground);
+  font: inherit;
+}
 .icon {
   display: grid;
   flex: 0 0 38px;
@@ -312,7 +385,9 @@
 }
 @media (max-width: 560px) {
   .workspace { height: max(27rem, calc(100dvh - 7.5rem)); }
+  .chatHeader { flex-wrap: wrap; }
   .chatHeader h1 { font-size: 16px; }
+  .sessionActions { flex-basis: 100%; }
   .conversation { padding-block-start: 16px; }
   .assistantMessage { max-width: 100%; }
   .drawer { inset-inline: 0 auto; width: 100dvw; max-width: none; }

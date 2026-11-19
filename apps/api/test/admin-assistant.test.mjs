@@ -47,6 +47,73 @@ test("admin assistant forces verified AAL2, validates origin, and refuses disabl
   assert.ok(calls.every(call => call.url.pathname === "/auth/v1/user"));
 }));
 
+test("session chat uses owner history and explicit memory, saves redacted turns, and replays a completed request", () => isolated(async ({ calls, intercept, controller }) => {
+  const savedTurns = [{
+    id: proposal,
+    user: { text: "Sebut produk Gemini", sentAt: version },
+    reply: { text: "Produk Gemini tersedia dalam contoh.", sentAt: version },
+  }];
+  intercept(call => {
+    if (call.url.pathname.endsWith("/admin_assistant_sessions")) {
+      assert.equal(call.url.searchParams.get("actor_id"), `eq.${owner}`);
+      assert.match(call.url.searchParams.get("access_scope"), /^eq\.[0-9a-f]{64}$/);
+      assert.equal(call.url.searchParams.get("id"), `eq.${variant}`);
+      return Response.json([{ id: variant, revision: savedTurns.length, turns: savedTurns }]);
+    }
+    if (call.url.pathname.endsWith("/admin_assistant_memory")) {
+      assert.equal(call.url.searchParams.get("actor_id"), `eq.${owner}`);
+      return Response.json([{ note: "Gunakan bahasa Indonesia" }]);
+    }
+    if (call.url.hostname === "openrouter.ai") {
+      const payload = JSON.parse(call.body.messages[1].content);
+      assert.deepEqual(payload.history, ["Admin: Sebut produk Gemini", "Asisten: Produk Gemini tersedia dalam contoh."]);
+      assert.equal(payload.preferences, "Gunakan bahasa Indonesia");
+      assert.doesNotMatch(payload.text, /ops@example\.com/);
+      return modelResult({ steps: [{ tool: "reply", args: { text: "Baik, saya ingat konteksnya.", tool: "catalog_edit" } }] });
+    }
+    if (call.url.pathname.endsWith("/append_admin_assistant_turn")) {
+      assert.equal(call.body.p_actor, owner);
+      assert.equal(call.body.p_revision, 1);
+      const { user, reply } = call.body.p_turn;
+      assert.match(user.text, /\[email\]/);
+      assert.ok(Date.parse(user.sentAt) <= Date.parse(reply.sentAt));
+      savedTurns.push(call.body.p_turn);
+      return Response.json([{ revision: 2 }]);
+    }
+    throw new Error("Unexpected request");
+  });
+  const body = { text: "Lanjutkan ops@example.com", history: ["history palsu dari browser"], sessionId: variant, turnId: owner };
+  assert.match((await controller.assistantChat(body, request(), res)).text, /ingat konteksnya/);
+  assert.match((await controller.assistantChat(body, request(), res)).text, /ingat konteksnya/);
+  assert.equal(calls.filter(call => call.url.hostname === "openrouter.ai").length, 1);
+  assert.equal(calls.filter(call => call.url.pathname.endsWith("/append_admin_assistant_turn")).length, 1);
+}));
+
+test("session and memory writes keep MFA, origin and owner filters", () => isolated(async ({ calls, intercept, controller }) => {
+  intercept(call => {
+    if (call.url.pathname.endsWith("/admin_assistant_sessions") && call.method === "DELETE") {
+      assert.equal(call.url.searchParams.get("actor_id"), `eq.${owner}`);
+      assert.match(call.url.searchParams.get("access_scope"), /^eq\.[0-9a-f]{64}$/);
+      return Response.json([]);
+    }
+    if (call.url.pathname.endsWith("/admin_assistant_memory") && call.method === "POST") {
+      assert.deepEqual(call.body, { actor_id: owner, note: "Gunakan istilah promo. [rahasia]" });
+      return Response.json([]);
+    }
+    if (call.url.pathname.endsWith("/admin_assistant_memory") && call.method === "DELETE") {
+      assert.equal(call.url.searchParams.get("actor_id"), `eq.${owner}`);
+      return Response.json([]);
+    }
+    throw new Error("Unexpected request");
+  });
+  await assert.rejects(controller.assistantSession(variant, request("aal1"), res), error => error.getStatus() === 403);
+  await assert.rejects(controller.updateAssistantMemory({ note: "uji" }, request("aal2", "https://wrong.example"), res), error => error.getStatus() === 403);
+  await assert.rejects(controller.removeAssistantSession(variant, request(), res), error => error.getStatus() === 404);
+  assert.equal((await controller.updateAssistantMemory({ note: "Gunakan istilah promo. tvly-dev-example" }, request(), res)).note, "Gunakan istilah promo. [rahasia]");
+  assert.equal((await controller.updateAssistantMemory({ note: "" }, request(), res)).note, "");
+  assert.ok(!calls.some(call => call.url.hostname === "openrouter.ai"));
+}));
+
 test("catalog assistant sends guarded JSON, stores a scoped draft, and makes no product write before confirmation", () => isolated(async ({ calls, intercept, controller }) => {
   controller.catalogReader.list = async () => ({ items: [] });
   intercept(call => {
