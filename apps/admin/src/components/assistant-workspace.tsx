@@ -11,7 +11,7 @@ import styles from "./assistant-workspace.module.css";
 
 const examples = [
   {
-    title: "Katalog & harga", icon: Box, section: "catalog", link: "Buka katalog",
+    title: "Edit harga", icon: Box, section: "catalog" as const,
     prompt: "Naikkan harga 86 Diamonds Mobile Legends jadi Rp27.000.",
     answer: "Varian 86 Diamonds ditemukan. Tinjau perubahan harga dasar dan harga yang dilihat pelanggan selama promo aktif.",
     changes: [
@@ -20,17 +20,17 @@ const examples = [
     ],
   },
   {
-    title: "Pesanan & pemenuhan", icon: ShoppingBag, section: "fulfillment", link: "Buka antrean",
+    title: "Cek pesanan", icon: ShoppingBag, section: "fulfillment" as const,
     prompt: "Pesanan mana yang sudah lunas tapi belum dikirim?",
     answer: "Ada 3 pesanan lunas dalam contoh antrean ini. Dua siap dikirim dan satu masih menunggu tinjauan manual.",
   },
   {
-    title: "Laporan transaksi", icon: BarChart3, section: "reports", link: "Buka laporan",
+    title: "Ringkas transaksi", icon: BarChart3, section: "reports" as const,
     prompt: "Ringkas transaksi tujuh hari terakhir.",
     answer: "Dalam contoh periode ini, 24 pembayaran terverifikasi dengan total Rp1.250.000. Buka laporan untuk melihat data toko.",
   },
   {
-    title: "Bantuan pelanggan", icon: MessageSquare, section: "conversations", link: "Buka room chat CS",
+    title: "Draf balasan CS", icon: MessageSquare, section: "conversations" as const,
     prompt: "Buat draf balasan untuk pelanggan yang tanya kapan pesanannya dikirim.",
     answer: "Halo, terima kasih sudah menghubungi Anres Store. Tim kami akan mengecek status pesananmu. Kamu juga bisa melihat status terbaru di halaman Invoice.",
   },
@@ -62,7 +62,6 @@ export type AssistantStatus = { configured: boolean; attachments: boolean; tools
 type AssistantReply = Pick<Message, "text" | "section" | "choices" | "proposal" | "batch" | "sources" | "trace">;
 
 export function AssistantWorkspace({ onNavigate }: { onNavigate: (section: string) => void }) {
-  const [selected, setSelected] = useState<number | null>(null);
   const [text, setText] = useState("");
   const [messages, setMessages] = useState<Message[]>([]);
   const [responding, setResponding] = useState(false);
@@ -71,13 +70,13 @@ export function AssistantWorkspace({ onNavigate }: { onNavigate: (section: strin
   const request = useRef<AbortController | null>(null);
   const conversation = useRef<HTMLDivElement>(null);
   const messageInput = useRef<HTMLTextAreaElement>(null);
-  const example = examples[selected ?? 0]!;
   const connection = useQuery({
     queryKey: ["admin-assistant"],
     queryFn: ({ signal }) => adminRequest("assistant", "GET", undefined, signal) as Promise<AssistantStatus>,
     retry: false,
   });
-  const demo = connection.data?.configured === false;
+  const demo = process.env.NODE_ENV !== "production" && connection.data?.configured === false;
+  const canChat = demo || connection.data?.configured === true;
 
   useEffect(() => () => {
     window.clearTimeout(timer.current);
@@ -95,7 +94,7 @@ export function AssistantWorkspace({ onNavigate }: { onNavigate: (section: strin
 
   function send(context: ComposerContext) {
     const prompt = text.trim();
-    if (!prompt || timer.current !== undefined || request.current || !connection.data) return;
+    if (!prompt || timer.current !== undefined || request.current || !canChat || !connection.data) return;
     const labels = [
       ...context.skills.map(skill => `Skill: ${connection.data?.skills?.find(item => item.id === skill)?.label ?? skill}`),
       ...(context.agent ? [`Agent: ${connection.data.agents?.find(item => item.id === context.agent)?.label ?? context.agent}`] : []),
@@ -136,8 +135,9 @@ export function AssistantWorkspace({ onNavigate }: { onNavigate: (section: strin
     timer.current = window.setTimeout(() => {
       appendReply({
         demo: true,
-        text: match?.answer ?? "Pesan ini hanya tampil di pratinjau. Pilih salah satu contoh untuk melihat balasan demo Asisten Anres.",
+        text: match?.answer ?? "Pesan ini tampil di mode demo. Sambungkan AI untuk mendapat balasan atas pesanmu.",
         changes: match?.changes,
+        section: match?.section,
       });
       setResponding(false);
       timer.current = undefined;
@@ -145,103 +145,85 @@ export function AssistantWorkspace({ onNavigate }: { onNavigate: (section: strin
   }
 
   return (
-    <section className={styles.workspace}>
-      <div className="workspace-heading">
-        <div>
-          <h1>Asisten Anres</h1>
-          <p>Tinjau perubahan katalog, pantau pesanan, dan siapkan draf balasan.</p>
+    <section className={styles.workspace} aria-labelledby="assistant-heading">
+      <header className={styles.chatHeader}>
+        <span className={styles.icon}><Sparkles size={19} aria-hidden="true" /></span>
+        <h1 id="assistant-heading">Asisten Anres</h1>
+        <span className={styles.status} role="status">{connection.isPending ? "Memeriksa akses…" : connection.isError ? "Tidak tersedia" : demo ? "Mode demo" : canChat ? "Aktif" : "Belum dikonfigurasi"}</span>
+      </header>
+      <div ref={conversation} className={styles.conversation} tabIndex={0} role="region" aria-label="Percakapan">
+        {!messages.length && !responding && (
+          <div className={styles.emptyChat}>
+            <span className={styles.welcomeIcon}><Sparkles size={26} aria-hidden="true" /></span>
+            <h2>Apa yang bisa saya bantu?</h2>
+            {canChat && <div className={styles.examples} role="group" aria-label="Contoh perintah">
+              {examples.map(item => (
+                <button type="button" key={item.section} onClick={() => {
+                  setText(item.prompt);
+                  messageInput.current?.focus();
+                }}>
+                  <item.icon size={15} aria-hidden="true" />{item.title}
+                </button>
+              ))}
+            </div>}
+          </div>
+        )}
+        <div className={styles.transcript} role="log" aria-label="Pesan">
+          {messages.map(message => (
+            <article key={message.id} className={`${styles.message} ${message.role === "user" ? styles.userMessage : styles.assistantMessage}`}>
+              <div className={styles.messageBubble}>
+                <p>{message.text}</p>
+                {!!message.context?.length && <ul className={styles.messageContext}>{message.context.map((label, index) => <li key={index}>{label}</li>)}</ul>}
+                {message.changes && <AssistantChanges rows={message.changes} />}
+                {message.choices && !!message.choices.length && (
+                  <ul className={styles.catalogChoices}>{message.choices.map(item => (
+                    <li key={`${item.category}/${item.product}/${item.sku}/${item.name}`}>
+                      <strong>{item.name}</strong><span>{item.product} / {item.sku} / {rupiah(item.price)}{item.active ? "" : " / Nonaktif"}</span>
+                    </li>
+                  ))}</ul>
+                )}
+                {message.proposal && <AssistantProposal proposal={message.proposal} />}
+                {message.batch && <AssistantBatch batch={message.batch} />}
+                {!!message.sources?.length && <div className={styles.references}>
+                  <strong>Sumber publik · Tavily</strong>
+                  <ol>{message.sources.map((source, index) => (
+                    <li key={`${source.url}/${index}`}>
+                      <a href={source.url} target="_blank" rel="noopener noreferrer">{source.title}</a>
+                    </li>
+                  ))}</ol>
+                  <small>Dicek <time dateTime={message.sources[0]!.checkedAt}>{new Date(message.sources[0]!.checkedAt).toLocaleString("id-ID")}</time></small>
+                </div>}
+                {!!message.trace?.length && <details className={styles.references}>
+                  <summary>Langkah yang dijalankan ({message.trace.length})</summary>
+                  <ol>{message.trace.map(step => <li key={step.tool}>{step.label} · {step.status === "review" ? "Menunggu konfirmasi" : step.status === "done" ? "Selesai" : "Gagal"}</li>)}</ol>
+                </details>}
+                {message.section && Object.hasOwn(destinations, message.section) && (
+                  <button type="button" className="outline-button" onClick={() => onNavigate(message.section!)}>
+                    {destinations[message.section]} <ArrowRight size={14} aria-hidden="true" />
+                  </button>
+                )}
+              </div>
+              <div className={styles.messageMeta}>
+                <span>{message.role === "user" ? "Kamu" : message.demo ? "Asisten Anres · Demo" : "Asisten Anres"}</span>
+                <time dateTime={message.sentAt.toISOString()}>{sentTime.format(message.sentAt)}</time>
+              </div>
+            </article>
+          ))}
+          {responding && (
+            <div className={`${styles.messageBubble} ${styles.typing}`} role="status">
+              <span className="sr-only">Menyiapkan balasan</span>
+              <span aria-hidden="true" /><span aria-hidden="true" />
+            </div>
+          )}
         </div>
       </div>
-      <div className={styles.layout}>
-        <section className={styles.panel} aria-labelledby="assistant-conversation">
-          <header className={`${styles.panelHeader} ${styles.chatHeader}`}>
-            <span className={styles.icon}><Sparkles size={18} aria-hidden="true" /></span>
-            <div><h2 id="assistant-conversation">Percakapan</h2><p>{demo ? "AI belum terhubung" : "Akses mengikuti izin admin"}</p></div>
-            <span className={styles.status}>{connection.isPending ? "Memeriksa akses…" : connection.isError ? "Tidak tersedia" : demo ? "Mode demo" : "Asisten aktif"}</span>
-          </header>
-          <div ref={conversation} className={styles.conversation} role="log" aria-label="Percakapan" tabIndex={0}>
-            {!messages.length && (
-              <div className={styles.emptyChat}>
-                <span className={styles.icon}><Sparkles size={21} aria-hidden="true" /></span>
-                <strong>Apa yang ingin kamu kerjakan?</strong>
-                <p>{demo ? "Pilih contoh atau tulis pesan untuk mencoba alur percakapan." : "Tanyakan pesanan atau buat draf perubahan katalog."}</p>
-              </div>
-            )}
-            {messages.map(message => (
-              <article key={message.id} className={`${styles.message} ${message.role === "user" ? styles.userMessage : styles.assistantMessage}`}>
-                <div className={styles.messageBubble}>
-                  <p>{message.text}</p>
-                  {!!message.context?.length && <ul className={styles.messageContext}>{message.context.map((label, index) => <li key={index}>{label}</li>)}</ul>}
-                  {message.changes && <AssistantChanges rows={message.changes} />}
-                  {message.choices && !!message.choices.length && (
-                    <ul className={styles.catalogChoices}>{message.choices.map(item => (
-                      <li key={`${item.category}/${item.product}/${item.sku}/${item.name}`}>
-                        <strong>{item.name}</strong><span>{item.product} / {item.sku} / {rupiah(item.price)}{item.active ? "" : " / Nonaktif"}</span>
-                      </li>
-                    ))}</ul>
-                  )}
-                  {message.proposal && <AssistantProposal proposal={message.proposal} />}
-                  {message.batch && <AssistantBatch batch={message.batch} />}
-                  {!!message.sources?.length && <div className={styles.references}>
-                    <strong>Sumber publik · Tavily</strong>
-                    <ol>{message.sources.map((source, index) => (
-                      <li key={`${source.url}/${index}`}>
-                        <a href={source.url} target="_blank" rel="noopener noreferrer">{source.title}</a>
-                      </li>
-                    ))}</ol>
-                    <small>Dicek <time dateTime={message.sources[0]!.checkedAt}>{new Date(message.sources[0]!.checkedAt).toLocaleString("id-ID")}</time></small>
-                  </div>}
-                  {!!message.trace?.length && <details className={styles.references}>
-                    <summary>Langkah yang dijalankan ({message.trace.length})</summary>
-                    <ol>{message.trace.map(step => <li key={step.tool}>{step.label} · {step.status === "review" ? "Menunggu konfirmasi" : step.status === "done" ? "Selesai" : "Gagal"}</li>)}</ol>
-                  </details>}
-                  {message.section && Object.hasOwn(destinations, message.section) && (
-                    <button type="button" className="outline-button" onClick={() => onNavigate(message.section!)}>
-                      {destinations[message.section]} <ArrowRight size={14} aria-hidden="true" />
-                    </button>
-                  )}
-                </div>
-                <div className={styles.messageMeta}>
-                  <span>{message.role === "user" ? "Kamu" : message.demo ? "Asisten Anres · Demo" : "Asisten Anres"}</span>
-                  <time dateTime={message.sentAt.toISOString()}>{sentTime.format(message.sentAt)}</time>
-                </div>
-              </article>
-            ))}
-            {responding && (
-              <div className={`${styles.messageBubble} ${styles.typing}`} role="status">
-                <span className="sr-only">Menyiapkan balasan</span>
-                <span aria-hidden="true" /><span aria-hidden="true" />
-              </div>
-            )}
-          </div>
-          {connection.error && <div className={styles.connectionError} role="alert">
-            <p>{connection.error.message}</p><button type="button" className="outline-button" onClick={() => void connection.refetch()}>Coba lagi</button>
-          </div>}
-          {error && <p className={`${styles.chatError} ${styles.connectionError}`} role="alert">{error}</p>}
-          <AssistantComposer text={text} onTextChange={setText} onSend={send} responding={responding} messageInput={messageInput}
-            demo={demo} attachments={demo || !!connection.data?.attachments} tools={connection.data?.tools ?? []} disabled={!connection.data}
-            options={connection.data?.skills && connection.data.agents ? { skills: connection.data.skills, agents: connection.data.agents } : undefined} />
-        </section>
-        <aside className={styles.panel} aria-labelledby="assistant-examples">
-          <header className={styles.panelHeader}><h2 id="assistant-examples">Coba contoh</h2></header>
-          <div className={styles.examples} role="group" aria-label="Pilih contoh percakapan">
-            {examples.map((item, index) => (
-              <button type="button" key={item.section} aria-pressed={selected === index} onClick={() => {
-                setSelected(index);
-                setText(item.prompt);
-                messageInput.current?.focus();
-              }}>
-                <item.icon size={17} aria-hidden="true" /><span>{item.title}</span>
-              </button>
-            ))}
-          </div>
-          <div className={styles.destination}>
-            <button className="outline-button" type="button" onClick={() => onNavigate(example.section)}>
-              {example.link} <ArrowRight size={15} aria-hidden="true" />
-            </button>
-          </div>
-        </aside>
-      </div>
+      {connection.error && <div className={styles.connectionError} role="alert">
+        <p>{connection.error.message}</p><button type="button" className="outline-button" onClick={() => void connection.refetch()}>Coba lagi</button>
+      </div>}
+      {error && <p className={styles.connectionError} role="alert">{error}</p>}
+      <AssistantComposer text={text} onTextChange={setText} onSend={send} responding={responding} messageInput={messageInput}
+        demo={demo} attachments={demo || !!connection.data?.attachments} tools={connection.data?.tools ?? []} disabled={!canChat}
+        options={connection.data?.skills && connection.data.agents ? { skills: connection.data.skills, agents: connection.data.agents } : undefined} />
     </section>
   );
 }

@@ -134,6 +134,7 @@ async function completion(system: string, data: unknown, json: boolean) {
         messages: [{ role: "system", content: system }, { role: "user", content: JSON.stringify(data) }],
       }),
     });
+    if (response.status === 402) throw new HttpException("Kredit OpenRouter tidak mencukupi. Periksa saldo atau batas kredit key untuk Asisten Anres.", 402);
     if (response.status === 429) throw new HttpException("Provider AI sedang sibuk atau kuotanya habis.", 429);
     if (!response.ok) throw new Error();
     const reader = response.body?.getReader();

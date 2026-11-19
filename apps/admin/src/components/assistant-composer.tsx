@@ -1,8 +1,7 @@
 "use client";
 
 import { useEffect, useId, useRef, useState, type RefObject } from "react";
-import { ArrowLeft, Bot, Paperclip, Plus, Send, Sparkles, X } from "lucide-react";
-import { AdminTextarea } from "./form-controls";
+import { ArrowLeft, ArrowUp, Bot, Paperclip, Plus, Sparkles, X } from "lucide-react";
 import styles from "./assistant-workspace.module.css";
 
 const skills = [
@@ -102,12 +101,13 @@ export function AssistantComposer({
             ))}
           </ul>
         )}
-        <AdminTextarea
-          ref={messageInput} rows={2} aria-label="Pesan untuk Asisten Anres" value={text}
+        <label htmlFor={`${menuId}-message`} className="sr-only">Pesan untuk Asisten Anres</label>
+        <textarea
+          id={`${menuId}-message`} ref={messageInput} className={styles.messageInput} rows={1} value={text}
           maxLength={3000} disabled={disabled}
-          placeholder="Tulis pesan untuk Asisten Anres…" onChange={event => onTextChange(event.target.value)}
+          placeholder="Tulis pesan…" onChange={event => onTextChange(event.target.value)}
           onKeyDown={event => {
-            if (event.key !== "Enter" || event.shiftKey || event.nativeEvent.isComposing) return;
+            if (event.key !== "Enter" || event.shiftKey || event.nativeEvent.isComposing || event.nativeEvent.keyCode === 229) return;
             event.preventDefault();
             event.currentTarget.form?.requestSubmit();
           }}
@@ -117,6 +117,7 @@ export function AssistantComposer({
             <button
               ref={trigger} type="button" className={styles.addButton} popoverTarget={menuId}
               aria-label="Tambah skill, agent, atau file" aria-controls={menuId}
+              title="Tambah skill, agent, atau file"
               disabled={disabled || (!attachments && !availableSkills.length && !availableAgents.length)}
               onClick={event => {
                 setView("actions");
@@ -125,7 +126,7 @@ export function AssistantComposer({
                   setFallbackOpen(open => !open);
                 }
               }}
-            ><Plus size={19} aria-hidden="true" /></button>
+            ><Plus size={22} aria-hidden="true" /></button>
             <div
               ref={menu} id={menuId} popover="auto" className={styles.actionPanel}
               data-fallback-open={fallbackOpen || undefined} role="group" aria-label="Tambahkan ke pesan"
@@ -163,8 +164,8 @@ export function AssistantComposer({
               setContext(current => ({ ...current, files }));
             }} />
           </div>
-          <button className={`primary-button ${styles.sendButton}`} type="submit" disabled={!text.trim() || responding || disabled}>
-            <Send size={16} aria-hidden="true" /> Kirim
+          <button className={styles.sendButton} type="submit" aria-label="Kirim pesan" title="Kirim pesan" disabled={!text.trim() || responding || disabled}>
+            <ArrowUp size={22} strokeWidth={2.4} aria-hidden="true" />
           </button>
         </div>
       </div>
