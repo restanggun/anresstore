@@ -17,6 +17,8 @@ let groqCatalogExpiresAt = 0;
 let groqCatalogRequest: Promise<void> | undefined;
 
 export async function refreshAssistantModelCatalog() {
+  // Keep tests and local development hermetic; production discovers live catalogs.
+  if (process.env.NODE_ENV !== "production" || process.env.ADMIN_AI_ENABLED !== "true") return;
   if (Date.now() >= openRouterCatalogExpiresAt && !openRouterCatalogRequest) {
     openRouterCatalogRequest = (async () => {
       try {
