@@ -129,7 +129,8 @@ export function CustomerNotificationsProvider({ children }: { children: ReactNod
             submittedReviews.add(id);
             incoming.push({ id, kind: "review", title: "Rating sudah dikirim", body: `Terima kasih telah memberi rating untuk ${payment.product}.`, href, createdAt: payment.createdAt, read: true });
           } else {
-            incoming.push({ id, kind: "review", title: "Pesanan selesai", body: `Beri rating untuk ${payment.product}.`, href, createdAt: payment.createdAt, read: false });
+            const alreadyHandled = payment.source === "apps" || payment.source === "tasks";
+            incoming.push({ id, kind: "review", title: "Pesanan selesai", body: `Beri rating untuk ${payment.product}.`, href, createdAt: payment.createdAt, read: alreadyHandled });
           }
         }
 

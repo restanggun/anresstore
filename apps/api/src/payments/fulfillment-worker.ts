@@ -20,6 +20,9 @@ export class FulfillmentWorker implements OnModuleInit, OnModuleDestroy {
     if (this.running) return;
     this.running = true;
     try {
+      // Expire unpaid premium invoices independently from VIPayment polling.
+      try { await this.store.request<number>("rpc/cancel_expired_premium_orders", "POST", {}); }
+      catch { console.warn("premium.expiry_cleanup_unavailable"); }
       if (process.env.VIPAYMENT_STATUS_POLLING_ENABLED === "false") return;
       // A crash after claiming may have sent the order. Never reclaim it for sending.
       await this.store.request("live_transactions?payment_mode=in.(live,sandbox)&fulfillment_status=eq.dispatching&updated_at=lt." + encodeURIComponent(new Date(Date.now() - 120000).toISOString()), "PATCH", { fulfillment_status: "unknown", updated_at: new Date().toISOString() });

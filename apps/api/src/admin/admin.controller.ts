@@ -2083,7 +2083,7 @@ export class AdminController {
   async premiumQr(@Param("id") id:string,@Body() body:{image?:unknown;expiresAt?:unknown},@Req() req:Request,@Res({passthrough:true}) res:Response){
     const access=await this.authorize(req,res,true);this.permit(access,"orders.write");await this.premiumOrderAccess(access,id);
     const image=premiumImage(body?.image),expiry=typeof body?.expiresAt==="string"?Date.parse(body.expiresAt):NaN;
-    if(!Number.isFinite(expiry)||expiry<Date.now()+60000||expiry>Date.now()+86400000)throw new HttpException("Masa berlaku QRIS harus 1 menit sampai 24 jam.",400);
+    if(!Number.isFinite(expiry)||expiry<Date.now()+60000||expiry>Date.now()+3600000)throw new HttpException("Masa berlaku QRIS harus 1 menit sampai 1 jam.",400);
     await this.audit(access.id,"premium.qr_upload",id);
     const [order]=await adminDb("premium_orders",`?id=eq.${id}&payment_mode=eq.live&status=in.(awaiting_qr,awaiting_payment,proof_submitted)`,"PATCH",{qr_image:image,qr_expires_at:new Date(expiry).toISOString(),proof_image:null,proof_note:null,status:"awaiting_payment",updated_at:new Date().toISOString()});
     if(!order)throw new HttpException("Status pesanan berubah. Muat ulang.",409);return {order};
