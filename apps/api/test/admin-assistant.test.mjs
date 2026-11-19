@@ -264,11 +264,12 @@ test("multi-step assistant validates all tool permissions before reading catalog
 test("Tavily receives only the explicit public query and returns safe evidence links", () => isolated(async ({ calls, intercept, controller }) => {
   Object.assign(process.env, { ADMIN_AI_REGISTRY_ENABLED: "true", ADMIN_AI_TAVILY_ENABLED: "true", TAVILY_API_KEY: "testing-key" });
   let query = "dokumentasi VIPayment";
+  let summaryStatus = 200;
   intercept(call => {
     if (call.url.pathname.endsWith("/admin_assistant_registry")) return Response.json([{ revision: 0, config: {} }]);
     if (call.url.pathname.endsWith("/admin_assistant_runs")) return Response.json([{}]);
     if (call.url.hostname === "openrouter.ai") return call.body.response_format ? modelResult({ steps: [{ tool: "web_search", query }] })
-      : Response.json({ choices: [{ finish_reason: "stop", message: { content: "Dokumentasi tersedia [1]." } }] });
+      : Response.json({ choices: [{ finish_reason: "stop", message: { content: "Dokumentasi tersedia [1]." } }] }, { status: summaryStatus });
     if (call.url.hostname === "api.tavily.com") {
       assert.deepEqual(call.body, { query, search_depth: "basic", max_results: 5, include_raw_content: false, include_answer: false, include_images: false, auto_parameters: false, safe_search: true });
       assert.equal(call.headers.Authorization, "Bearer testing-key");
@@ -281,9 +282,13 @@ test("Tavily receives only the explicit public query and returns safe evidence l
   });
   const response = await controller.assistantChat({ text: "Cari di web dokumentasi VIPayment. Catatan internal.", agent: "research" }, request(), res);
   assert.deepEqual(response.sources.map(source => source.url), ["https://example.com/docs"]);
+  summaryStatus = 503;
+  const withoutSummary = await controller.assistantChat({ text: "Cari di web dokumentasi VIPayment.", agent: "research" }, request(), res);
+  assert.deepEqual(withoutSummary.sources.map(source => source.url), ["https://example.com/docs"]);
+  assert.match(withoutSummary.text, /Ringkasan AI sedang tidak tersedia/);
   query = "ANRS-SECRET123";
   await assert.rejects(controller.assistantChat({ text: "Cari di web ANRS-SECRET123", agent: "research" }, request(), res), e => e.getStatus() === 422);
-  assert.equal(calls.filter(call => call.url.hostname === "api.tavily.com").length, 1);
+  assert.equal(calls.filter(call => call.url.hostname === "api.tavily.com").length, 2);
 }));
 
 test("CSV price preparation stays local and stages a batch without applying it", () => isolated(async ({ calls, intercept, controller }) => {

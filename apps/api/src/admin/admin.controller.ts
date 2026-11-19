@@ -763,7 +763,14 @@ export class AdminController {
       case "web_search": {
         const { query, checkedAt, results } = await tavilySearch(plan.query, input.text);
         if (!results.length) return { text: "Tavily belum menemukan sumber publik yang cocok." };
-        const text = await assistantAnswer(query, plan.tool, results, memory);
+        const sourceExcerpts = results.slice(0, 3).map(({ title, excerpt }) => ({ title, excerpt: excerpt.slice(0, 350) }));
+        let text: string;
+        try {
+          text = await assistantAnswer(query, plan.tool, sourceExcerpts, memory);
+        } catch (error) {
+          if (!(error instanceof HttpException)) throw error;
+          text = "Tavily menemukan sumber berikut. Ringkasan AI sedang tidak tersedia.";
+        }
         return { text, sources: results.map(({ title, url }) => ({ title, url, checkedAt })) };
       }
       case "file_review":
