@@ -3,7 +3,7 @@
 import Link from "@/components/storefront/domain-link";
 import { useEffect, useRef, useState } from "react";
 import { Button, RatingStars, SearchField, SearchSubmit } from "@anres/ui";
-import { ArrowRight, ArrowUpRight, BookOpenCheck, ChevronLeft, ChevronRight, Pause, Play, Search, ShieldCheck, Star, UserRoundPlus, LogIn } from "lucide-react";
+import { ArrowRight, ArrowUpRight, BookOpenCheck, Search, ShieldCheck, Star, UserRoundPlus, LogIn } from "lucide-react";
 import useEmblaCarousel from "embla-carousel-react";
 import { motion, useReducedMotion } from "motion/react";
 import { TextGenerateEffect } from "@/components/ui/text-generate-effect";
@@ -32,14 +32,14 @@ type LandingData = {
 };
 
 function LandingReviews({ reviews }: { reviews: LandingData["stats"]["recentReviews"] }) {
-  const [viewportRef, carousel] = useEmblaCarousel({ align: "start", loop: true });
+  const scrollable = reviews.length > 2;
+  const [viewportRef, carousel] = useEmblaCarousel({ align: "start", loop: scrollable });
   const carouselRef = useRef<HTMLElement>(null);
-  const [paused, setPaused] = useState(false);
-  const multiple = reviews.length > 1;
+  const reduce = useReducedMotion();
 
   useEffect(() => {
     const region = carouselRef.current;
-    if (!carousel || !region || !multiple || paused) return;
+    if (!carousel || !region || !scrollable) return;
 
     const hover = window.matchMedia("(any-hover: hover)");
     const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
@@ -50,44 +50,33 @@ function LandingReviews({ reviews }: { reviews: LandingData["stats"]["recentRevi
     const timer = window.setInterval(() => {
       if (!visible || reducedMotion.matches || document.hidden || region.matches(":focus-within, :active") || (hover.matches && region.matches(":hover"))) return;
       if (carousel.canScrollNext()) carousel.scrollNext();
-      else carousel.scrollTo(0, true);
-    }, 6000);
+      else if (carousel.canScrollPrev()) carousel.scrollTo(0);
+    }, 2800);
 
     return () => {
       window.clearInterval(timer);
       observer.disconnect();
     };
-  }, [carousel, multiple, paused]);
+  }, [carousel, scrollable]);
 
-  function move(direction: -1 | 1) {
-    if (!carousel) return;
-    const jump = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    if (direction === 1) {
-      if (carousel.canScrollNext()) carousel.scrollNext(jump);
-      else carousel.scrollTo(0, true);
-    } else if (carousel.canScrollPrev()) {
-      carousel.scrollPrev(jump);
-    } else {
-      carousel.scrollTo(carousel.scrollSnapList().length - 1, true);
-    }
-  }
-
-  return <section ref={carouselRef} className="landing-reviews" aria-label="Ulasan terbaru" aria-roledescription={multiple ? "karusel" : undefined}>
-    {multiple && <div className="landing-review-controls">
-      <button type="button" className="landing-review-autoplay" onClick={() => setPaused(value => !value)} aria-label={paused ? "Aktifkan putar otomatis" : "Jeda putar otomatis"}>
-        {paused ? <Play size={15} aria-hidden="true"/> : <Pause size={15} aria-hidden="true"/>}
-      </button>
-      <button type="button" onClick={() => move(-1)} aria-label="Ulasan sebelumnya"><ChevronLeft size={18} aria-hidden="true"/></button>
-      <button type="button" onClick={() => move(1)} aria-label="Ulasan berikutnya"><ChevronRight size={18} aria-hidden="true"/></button>
-    </div>}
+  return <section ref={carouselRef} className="landing-reviews" aria-label="Ulasan terbaru" aria-roledescription={scrollable ? "karusel" : undefined}>
     {reviews.length ? <div className="landing-review-viewport" ref={viewportRef}>
       <div className="landing-review-track">
-        {reviews.map((review, index) => <article className="landing-review-card" key={review.id}
-          role={multiple ? "group" : undefined} aria-roledescription={multiple ? "slide" : undefined}
-          aria-label={multiple ? `${index + 1} dari ${reviews.length}` : undefined}>
-          <div className="landing-review-top"><span>{review.author}</span><RatingStars value={review.rating} size={13}/></div>
-          <p>{review.comment}</p><Link href={`/katalog/${encodeURIComponent(review.category)}/${encodeURIComponent(review.productSlug)}`}>{review.productSlug.replaceAll("-"," ")}<ArrowUpRight size={13} aria-hidden="true"/></Link>
-        </article>)}
+        {reviews.map((review, index) => <div className="landing-review-slide" key={review.id}
+          role={scrollable ? "group" : undefined} aria-roledescription={scrollable ? "slide" : undefined}
+          aria-label={scrollable ? `${index + 1} dari ${reviews.length}` : undefined}>
+          <motion.article className="landing-review-card"
+            initial={reduce ? false : { opacity: .72, y: 4 }}
+            whileInView={reduce ? undefined : { opacity: 1, y: 0 }}
+            viewport={{ amount: .55 }}
+            transition={{ duration: .25, ease: "easeOut" }}>
+            <div className="landing-review-top"><span>{review.author}</span><RatingStars value={review.rating} size={13}/></div>
+            <p>{review.comment}</p>
+            <Link href={`/katalog/${encodeURIComponent(review.category)}/${encodeURIComponent(review.productSlug)}`}>
+              {review.productSlug.replaceAll("-"," ")}<ArrowUpRight size={13} aria-hidden="true"/>
+            </Link>
+          </motion.article>
+        </div>)}
       </div>
     </div> : <article className="landing-review-empty"><Star size={18} aria-hidden="true"/><strong>Ulasan pelanggan segera hadir.</strong><span>Setiap ulasan ditinjau sebelum ditampilkan di sini.</span></article>}
   </section>;
