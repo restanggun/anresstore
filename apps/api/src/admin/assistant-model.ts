@@ -193,10 +193,6 @@ export async function assistantQuota(actorId: string) {
     p_key: `admin-assistant:${actorId}`, p_limit: 6, p_seconds: 60,
   });
   if (allowed !== true) throw new HttpException("Batas chat tercapai. Coba lagi dalam satu menit.", 429);
-  const daily = await store.rpc<boolean>("consume_payment_rate", {
-    p_key: "admin-assistant:daily", p_limit: 24, p_seconds: 86400,
-  });
-  if (daily !== true) throw new HttpException("Kuota harian Asisten Anres tercapai.", 429);
 }
 
 async function completion(system: string, data: unknown, json: boolean, options: AssistantModelOptions = {}) {

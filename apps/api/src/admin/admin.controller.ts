@@ -622,12 +622,23 @@ export class AdminController {
     const csv = selection.includes("pricing_batch") && input.attachments.length > 0;
     if (csv && (scopedProduct || !tools.includes("pricing_batch") || profile && !profile.tools.includes("pricing_batch"))) throw new HttpException("Draf CSV di luar cakupan agent.", 403);
     if (input.attachments.length && !csv && !tools.includes("file_review")) throw new HttpException("Analisis lampiran tidak diizinkan.", 403);
-    const mobileLegendsListing = !scopedProduct && /mobile\s*legends|mobile\s*legend|\bmlbb\b/i.test(input.text) &&
-      /\bdiamond\b/i.test(input.text) && /\b(tampilkan|lihatkan|daftar|list|urutkan|lihat)\b/i.test(input.text);
+    const catalogListingIntent = !scopedProduct && /\b(tampilkan|lihatkan|daftar|list|urutkan|lihat|cari|carikan|temukan)\b/i.test(input.text) &&
+      /\b(produk|product|varian|item|katalog|diamond|pulsa|voucher|token|paket|aplikasi|premium|game|skin|membership|top\s?up)\b/i.test(input.text);
+    const mobileLegendsListing = catalogListingIntent && /mobile\s*legends|mobile\s*legend|\bmlbb\b/i.test(input.text) && /\bdiamond\b/i.test(input.text);
     const requestedRange = input.text.match(/\b(\d{1,6})\s*(?:diamond\s*)?(?:-|sampai|hingga)\s*(?:diamond\s*)?(\d{1,6})\b/i);
+    const category = /\b(pulsa|paket data|token listrik|prabayar|prepaid)\b/i.test(input.text) ? "prepaid"
+      : /\b(aplikasi|app|premium|streaming)\b/i.test(input.text) ? "apps"
+      : /\b(sosmed|social media|followers|likes)\b/i.test(input.text) ? "social"
+      : /\b(joki|tugas|task)\b/i.test(input.text) ? "tasks"
+      : /\b(game|games|diamond|top\s?up|skin|membership)\b/i.test(input.text) ? "game" : undefined;
+    const searchText = input.text.replace(/\b\d{1,6}\s*(?:diamond\s*)?(?:-|sampai|hingga)\s*(?:diamond\s*)?\d{1,6}\b/ig, " ");
+    const searchTerms = searchText.toLocaleLowerCase("id-ID").match(/[\p{L}\p{N}]+/gu) ?? [];
+    const ignoredSearchTerms = new Set(["tolong", "mohon", "tampilkan", "lihatkan", "daftar", "list", "urutkan", "lihat", "cari", "carikan", "temukan", "produk", "product", "varian", "item", "katalog", "kategori", "category", "yang", "ada", "untuk", "saya", "dong", "ya", "di", "dalam", "pada", "dari", "sampai", "hingga", "antara", "sebutkan", "urut", "berdasarkan", "harga", "termurah", "termahal", "game", "games", "prepaid", "prabayar", "apps", "aplikasi", "social", "sosmed", "tasks", "joki", "top", "up"]);
+    const searchQuery = [...new Set(searchTerms.filter(word => !ignoredSearchTerms.has(word) && !/^\d+$/.test(word)))].join(" ");
     const plan: AssistantStep[] = csv ? [{ tool: "pricing_batch", csv: true }]
-      : mobileLegendsListing && available.includes("catalog_search") ? [{ tool: "catalog_search", query: "diamond", product: "Mobile Legends", category: "game",
-        ...(requestedRange && { minAmount: requestedRange[1], maxAmount: requestedRange[2] }) }]
+      : catalogListingIntent && available.includes("catalog_search") ? [{ tool: "catalog_search",
+        query: mobileLegendsListing ? "diamond" : searchQuery, ...(mobileLegendsListing && { product: "Mobile Legends" }),
+        ...(category && { category }), ...(requestedRange && { minAmount: requestedRange[1], maxAmount: requestedRange[2] }) }]
       : await assistantPlan({ ...input, skills: selection.filter((skill): skill is AssistantTool => !!skill) }, available, profile, registry.skills, modelOptions);
     const trace: { tool: AssistantTool; label: string; status: string; section?: string }[] = [];
     const evidence: AssistantEvidence = {};
