@@ -249,6 +249,10 @@
 .messageInput::placeholder { color: var(--muted); }
 .composerRow { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .modelSelect {
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
   min-width: 0;
   max-width: min(15rem, calc(100% - 104px));
   min-height: 44px;
@@ -258,21 +262,23 @@
   border-radius: 999px;
   background: var(--primary-soft);
   color: var(--foreground);
+  text-align: left;
   font: inherit;
   font-size: 12px;
   font-weight: 750;
+  cursor: pointer;
 }
+.modelSelect > span:first-child { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.modelSelect > span:last-child { display: flex; flex: none; color: var(--focus); }
 .modelSelect:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
-@supports (appearance: base-select) {
-  .modelSelect, .modelSelect::picker(select) { appearance: base-select; }
-  .modelSelect::picker(select) {
-    border: 1px solid var(--border);
-    border-radius: 14px;
-    background: var(--surface);
-  }
-  .modelSelect option { padding: 9px 10px; }
-  .modelSelect option:checked, .modelSelect option:hover { background: var(--primary-soft); }
-}
+.modelSelect[data-state="open"] { background: var(--pink-soft); }
+.modelSelect:disabled { opacity: .55; cursor: default; }
+.modelContent { z-index: 1000; width: max-content; min-width: var(--radix-select-trigger-width); max-width: calc(100vw - 24px); max-height: min(340px, var(--radix-select-content-available-height)); overflow: hidden; padding: 5px; border: 1px solid var(--border); border-radius: 14px; background: var(--surface); color: var(--foreground); box-shadow: 0 12px 45px #24658a1f; }
+.modelViewport { max-height: min(300px, calc(var(--radix-select-content-available-height) - 24px)); padding: 3px; overflow-y: auto; overscroll-behavior: contain; }
+.modelOption { display: flex; align-items: center; justify-content: space-between; gap: 16px; min-height: 39px; padding: 9px 10px; border-radius: 9px; outline: none; font-size: 12px; line-height: 1.5; white-space: nowrap; cursor: pointer; }
+.modelOption[data-highlighted] { background: var(--primary-soft); }
+.modelOption[data-state="checked"] { background: var(--pink-soft); color: var(--pink-ink); }
+.modelScroll { display: flex; width: 100%; justify-content: center; padding: 4px; border: 0; background: var(--surface); color: var(--focus); cursor: default; }
 .composerNote { margin: 8px 0 0; color: var(--muted); font-size: 11px; line-height: 1.5; text-align: center; }
 .chatError { margin: 7px 0 0; color: #9f263f; font-size: 13px; line-height: 1.5; }
 .connectionError { padding: 0 var(--chat-gutter) 9px; margin: 0; color: #9f263f; font-size: 13px; }

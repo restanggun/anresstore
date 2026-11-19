@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useId, useRef, useState, type RefObject } from "react";
-import { ArrowLeft, ArrowUp, Bot, Paperclip, Plus, Sparkles, X } from "lucide-react";
+import * as Select from "@radix-ui/react-select";
+import { ArrowLeft, ArrowUp, Bot, Check, ChevronDown, ChevronUp, Paperclip, Plus, Sparkles, X } from "lucide-react";
 import styles from "./assistant-workspace.module.css";
 
 const skills = [
@@ -171,10 +172,21 @@ export function AssistantComposer({
               setContext(current => ({ ...current, files }));
             }} />
           </div>
-          {!!models?.length && <select className={styles.modelSelect} name="model" aria-label="Model AI"
-            value={model} disabled={disabled || responding} onChange={event => onModelChange(event.target.value)}>
-            {models.map(id => <option key={id} value={id}>{id.replace(/:free$/, "")} · {id.endsWith(":free") ? "Gratis" : "Tarif standar"}</option>)}
-          </select>}
+          {!!models?.length && <Select.Root value={model} disabled={disabled || responding} onValueChange={onModelChange}>
+            <Select.Trigger className={styles.modelSelect} aria-label="Model AI"><Select.Value/><Select.Icon><ChevronDown size={16} aria-hidden="true" /></Select.Icon></Select.Trigger>
+            <Select.Portal>
+              <Select.Content className={styles.modelContent} position="popper" align="center" sideOffset={8} collisionPadding={12}>
+                <Select.ScrollUpButton className={styles.modelScroll}><ChevronUp size={15} aria-hidden="true" /></Select.ScrollUpButton>
+                <Select.Viewport className={styles.modelViewport}>
+                  {models.map(id => <Select.Item key={id} value={id} className={styles.modelOption}>
+                    <Select.ItemText>{id.replace(/:free$/, "")} · {id.endsWith(":free") ? "Gratis" : "Tarif standar"}</Select.ItemText>
+                    <Select.ItemIndicator><Check size={15} aria-hidden="true" /></Select.ItemIndicator>
+                  </Select.Item>)}
+                </Select.Viewport>
+                <Select.ScrollDownButton className={styles.modelScroll}><ChevronDown size={15} aria-hidden="true" /></Select.ScrollDownButton>
+              </Select.Content>
+            </Select.Portal>
+          </Select.Root>}
           <button className={styles.sendButton} type="submit" aria-label="Kirim pesan" title="Kirim pesan" disabled={!text.trim() || responding || disabled}>
             <ArrowUp size={22} strokeWidth={2.4} aria-hidden="true" />
           </button>
