@@ -14,12 +14,20 @@ const formatDay = new Intl.DateTimeFormat("id-ID", { day: "numeric", month: "sho
 const dayLabel = (value: string) => formatDay.format(new Date(value + "T12:00:00+07:00"));
 const paymentGroups = [
   { key: "paidCount", label: "Lunas", color: "var(--chart-blue)" },
-  { key: "pendingCount", label: "Menunggu", color: "var(--chart-pink)" },
-  { key: "failedCount", label: "Gagal/Batal", detail: "Gagal, kedaluwarsa, atau batal", color: "var(--chart-rose)" },
+  { key: "pendingCount", label: "Menunggu", color: "var(--chart-blue-muted)" },
+  { key: "failedCount", label: "Gagal/Batal", detail: "Gagal, kedaluwarsa, atau batal", color: "var(--chart-pink)" },
   { key: "refundedCount", label: "Refund", detail: "Dana dikembalikan", color: "var(--chart-lavender)" },
   { key: "unknownCount", label: "Belum pasti", color: "var(--chart-slate)" },
 ] as const;
-const statusColors = [...paymentGroups.map(group => group.color), "var(--chart-periwinkle)"];
+const fulfillmentColors: Record<string, string> = {
+  completed: "var(--chart-blue)", delivered: "var(--chart-blue)", accepted: "var(--chart-blue)",
+  failed: "var(--chart-pink)", cancelled: "var(--chart-pink)", rejected: "var(--chart-pink)",
+  revision_requested: "var(--chart-pink)", new: "var(--chart-pink)",
+  ready: "var(--chart-blue-muted)", dispatching: "var(--chart-blue-muted)", processing: "var(--chart-blue-muted)",
+  in_progress: "var(--chart-blue-muted)", queued: "var(--chart-blue-muted)", working: "var(--chart-blue-muted)",
+  revision_working: "var(--chart-blue-muted)",
+  manual_review: "var(--chart-lavender)", not_ready: "var(--chart-slate)", unknown: "var(--chart-slate)",
+};
 const chartTooltip = { borderRadius: 8, borderColor: "var(--border)", backgroundColor: "var(--surface)" };
 const trendMetrics = {
   paidCount: { label: "Total penjualan", total: "paidCount", format: number.format },
@@ -84,7 +92,7 @@ export function TransactionAnalytics({ overview = false, onNavigate }: { overvie
   ];
   const distributionRows = !summary ? [] : distribution === "payment"
     ? paymentGroups.map(({ key, label, color }) => ({ name: label, value: summary[key], color }))
-    : data.statuses.map(({ name, value }, index) => ({ name: stateLabel(name), value, color: statusColors[index % statusColors.length] }));
+    : data.statuses.map(({ name, value }) => ({ name: stateLabel(name), value, color: fulfillmentColors[name] ?? "var(--chart-slate)" }));
   const pieRows = distributionRows.filter(row => row.value > 0);
   const activityCount = distributionRows.reduce((total, row) => total + row.value, 0);
   const bestProductCount = data?.products[0]?.value ?? 1;
@@ -154,7 +162,7 @@ export function TransactionAnalytics({ overview = false, onNavigate }: { overvie
                 <XAxis dataKey="date" tickFormatter={dayLabel} axisLine={false} tickLine={false} minTickGap={35} tick={{ fill: "var(--muted)", fontSize: 12 }} dy={8} />
                 <YAxis width={52} tickFormatter={compact.format} allowDecimals={false} axisLine={false} tickLine={false} tick={{ fill: "var(--muted)", fontSize: 12 }} domain={metric === "profit" ? ["auto", "auto"] : [0, (max: number) => Math.max(max, 1)]} />
                 <Tooltip contentStyle={chartTooltip} labelFormatter={value => dayLabel(String(value))} formatter={value => [trend.format(Number(value)), trend.label]} />
-                <Line type="monotoneX" dataKey={metric} stroke={metric === "profit" ? "var(--chart-rose)" : "var(--chart-blue)"} strokeWidth={3} strokeLinecap="round" strokeLinejoin="round" dot={days === 7 ? { r: 3, fill: "var(--surface)", strokeWidth: 2 } : false} activeDot={{ r: 5 }} isAnimationActive={false} />
+                <Line type="monotoneX" dataKey={metric} stroke="var(--chart-blue)" strokeWidth={3} strokeLinecap="round" strokeLinejoin="round" dot={days === 7 ? { r: 3, fill: "var(--surface)", strokeWidth: 2 } : false} activeDot={{ r: 5 }} isAnimationActive={false} />
               </LineChart>
             </ResponsiveContainer> : <div className="chart-placeholder">{data ? "Belum ada penjualan lunas pada periode ini." : emptyMessage}</div>}
           </div>

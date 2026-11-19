@@ -20,7 +20,7 @@
 .shop-heading-game-art img { display:block;width:100%;height:100%;object-fit:cover; }
 .shop-heading-game-art::after { position:absolute;inset:0;background:rgb(12 19 29 / 58%);content:""; }
 .shop-heading-game .shop-back { margin-left:auto; }
-.shop-heading-actions { position:relative;z-index:2;display:flex;flex:0 0 auto;align-items:center;justify-content:flex-start;gap:10px;min-width:0; }
+.shop-heading-actions { position:relative;z-index:2;display:flex;flex:0 0 auto;align-items:center;justify-content:flex-start;gap:10px;min-width:0;align-self:center; }
 .shop-heading-actions .shareWrap { justify-content:flex-start;margin:0; }
 .shop-heading-actions .shareStatus { max-width:180px; }
 .shop-heading-actions .shop-back { margin:0; }

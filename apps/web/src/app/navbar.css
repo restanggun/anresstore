@@ -12,7 +12,7 @@
 }
 .header-space:has(.grand-opening-bar) { height: calc(var(--nav-height) + var(--nav-gap) * 2 + 40px); }
 .header-space:has(.grand-opening-bar) .site-header { top: 40px; }
-.grand-opening-bar { position: relative; z-index: 2; display: flex; align-items: center; gap: 12px; height: 40px; padding: 0 max(24px, calc((100% - 900px) / 2)); overflow: hidden; background: var(--pink); color: var(--pink-ink); font-size: 12px; font-weight: 650; }
+.grand-opening-bar { position: relative; z-index: 2; display: flex; align-items: center; gap: 12px; height: 40px; padding: 0 max(24px, calc((100% - 900px) / 2)); overflow: hidden; background: var(--pink); color: var(--pink-ink); font-size: 12px; font-weight: 650; pointer-events: auto; }
 .grand-opening-viewport { min-width: 0; flex: 1; overflow: hidden; }
 .grand-opening-static { display: block; overflow-wrap: anywhere; text-align: center; }
 .grand-opening-track { display: flex; width: max-content; animation: grand-opening-marquee 24s linear infinite; }
