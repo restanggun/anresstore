@@ -5,6 +5,8 @@ export const definitions = {
   reply: ["Panduan", "Menjawab panduan dan meminta klarifikasi."],
   catalog_search: ["Cari produk", "Cari nama varian atau SKU di katalog."],
   catalog_edit: ["Edit produk", "Siapkan draf harga, nama, deskripsi, atau visibilitas."],
+  catalog_add: ["Tambah produk", "Siapkan draf penambahan varian aktif dari layanan provider yang tersedia."],
+  promotion_manage: ["Atur promo", "Siapkan, perbarui, atau nonaktifkan promo untuk satu varian terpilih."],
   promotions: ["Cek promo", "Tinjau jadwal promo yang aktif."],
   pricing: ["Analisis margin", "Hitung margin, markup, dan harga target dari modal yang tercatat."],
   duplicates: ["Cek varian duplikat", "Cari nama varian yang sama di satu produk."],
@@ -27,12 +29,13 @@ export const definitions = {
   web_search: ["Cari web dengan Tavily", "Cari dokumentasi dan informasi publik, dengan sumber."],
   file_review: ["Analisis lampiran", "Baca lampiran teks yang diizinkan."],
   vouchers: ["Cek voucher", "Periksa jumlah voucher yang tercatat."],
+  voucher_manage: ["Kelola voucher", "Siapkan draf pembuatan, perubahan, atau penonaktifan voucher."],
 } as const;
 
 export type AssistantTool = keyof typeof definitions;
 export const isAssistantTool = (value: unknown): value is AssistantTool =>
   typeof value === "string" && Object.hasOwn(definitions, value);
-export const editingTools: readonly AssistantTool[] = ["catalog_edit", "pricing_batch"];
+export const editingTools: readonly AssistantTool[] = ["catalog_edit", "catalog_add", "promotion_manage", "voucher_manage", "pricing_batch"];
 type Policy = { enabled: boolean; roleIds: string[] };
 export type SkillPolicy = Policy & { guidance?: string; example?: string };
 export type AgentProfile = Policy & { id: string; name: string; instructions: string; tools: AssistantTool[] };
@@ -42,12 +45,12 @@ type Access = { superAdmin: boolean; roleId: string | null };
 const enabled = { enabled: true, roleIds: [] };
 
 const builtInAgents: AgentProfile[] = [
-  { ...enabled, id: "catalog", name: "Katalog & harga", instructions: "Periksa modal, harga jual, dan varian terdampak. Jelaskan perbedaan margin dan markup.", tools: ["catalog_search", "catalog_edit", "promotions", "pricing", "duplicates", "promo_preview", "pricing_batch", "vouchers"] },
+  { ...enabled, id: "catalog", name: "Katalog & harga", instructions: "Cari kategori dan produk induk dulu. Untuk Diamond Mobile Legends, batasi ke varian yang diminta (misalnya rentang 100–400) dan tampilkan daftar serta jumlah sebelum membuat draf. Jangan memilih seluruh katalog tanpa izin eksplisit. Periksa modal, harga jual, promo aktif, visibilitas, dan pemetaan supplier. Semua perubahan perlu kartu tinjauan admin.", tools: ["catalog_search", "catalog_edit", "catalog_add", "promotion_manage", "promotions", "pricing", "duplicates", "promo_preview", "pricing_batch", "vouchers", "voucher_manage"] },
   { ...enabled, id: "orders", name: "Operasional pesanan", instructions: "Pisahkan status pembayaran dan pemenuhan. Prioritaskan antrean yang perlu ditinjau.", tools: ["transactions", "invoice_timeline", "task_orders", "premium_orders", "operations", "sop_search"] },
   { ...enabled, id: "finance", name: "Keuangan & rekonsiliasi", instructions: "Nyatakan cakupan tanggal dan biaya yang belum diketahui. Tinjau selisih yang terverifikasi.", tools: ["analytics", "finance_category", "reconcile", "invoice_timeline", "transactions", "balances"] },
   { ...enabled, id: "support", name: "Bantuan pelanggan", instructions: "Gunakan status invoice terverifikasi jika tersedia. Susun draf dan hindari janji yang belum pasti.", tools: ["support", "support_draft", "support_handoff", "invoice_timeline", "sop_search"] },
   { ...enabled, id: "research", name: "Riset produk & supplier", instructions: "Gunakan sumber publik dan tampilkan tautan yang diperoleh. Pisahkan harga publik dari modal internal.", tools: ["web_search", "catalog_search", "sop_search"] },
-  { ...enabled, id: "content", name: "Konten & promo", instructions: "Gunakan fakta katalog dan harga yang tersedia. Tampilkan materi sebagai draf.", tools: ["content_draft", "catalog_search", "promo_preview", "promotions", "web_search"] },
+  { ...enabled, id: "content", name: "Konten & promo", instructions: "Gunakan fakta katalog dan harga yang tersedia. Jadwal dan perubahan promo harus menjadi draf untuk ditinjau admin.", tools: ["content_draft", "catalog_search", "promo_preview", "promotions", "promotion_manage", "web_search"] },
   { ...enabled, id: "monitor", name: "Monitoring operasional", instructions: "Ringkas kondisi antrean dan arahkan masalah ke SOP yang sesuai.", tools: ["operations", "transactions", "task_orders", "premium_orders", "sop_search"] },
 ];
 
@@ -64,6 +67,7 @@ export const assistantLegacyAgents: Record<string, string> = {
 };
 export const assistantLegacySkills: Record<string, AssistantTool> = {
   "Edit harga": "catalog_edit", "Edit produk": "catalog_edit",
+  "Tambah produk": "catalog_add", "Atur promo": "promotion_manage", "Kelola voucher": "voucher_manage",
 };
 
 export function assistantPolicyAllows(policy: Policy | undefined, access: Access) {

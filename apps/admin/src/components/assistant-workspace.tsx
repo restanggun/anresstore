@@ -6,7 +6,7 @@ import { ArrowRight, BarChart3, Box, MessageSquare, ShoppingBag, Sparkles } from
 import { AssistantChanges } from "./assistant-changes";
 import { AssistantComposer, type AssistantOptions, type ComposerContext } from "./assistant-composer";
 import { AssistantSessions, assistantSessionsKey, type SavedSession } from "./assistant-sessions";
-import { AssistantBatch, AssistantProposal, type AssistantBatchData, type AssistantProposalData, type AssistantVariant } from "./assistant-proposal";
+import { AssistantActionCard, AssistantBatch, AssistantProposal, type AssistantActionData, type AssistantBatchData, type AssistantProposalData, type AssistantVariant } from "./assistant-proposal";
 import { adminRequest, rupiah } from "./workspace-api";
 import styles from "./assistant-workspace.module.css";
 
@@ -49,6 +49,7 @@ type Message = {
   choices?: AssistantVariant[];
   proposal?: AssistantProposalData;
   batch?: AssistantBatchData;
+  action?: AssistantActionData;
   sources?: { title: string; url: string; checkedAt: string }[];
   trace?: { tool: string; label: string; status: string }[];
   model?: string;
@@ -61,7 +62,7 @@ const destinations = {
   vouchers: "Buka voucher", overview: "Buka ringkasan", tasks: "Buka joki tugas", apps: "Buka aplikasi premium",
 };
 export type AssistantStatus = { configured: boolean; attachments: boolean; tools: string[]; canManage?: boolean; canManageLanding?: boolean; skills?: AssistantOptions["skills"]; agents?: AssistantOptions["agents"]; models?: string[]; defaultModel?: string };
-type AssistantReply = Pick<Message, "text" | "section" | "choices" | "proposal" | "batch" | "sources" | "trace" | "model"> & { sentAt?: string };
+type AssistantReply = Pick<Message, "text" | "section" | "choices" | "proposal" | "batch" | "action" | "sources" | "trace" | "model"> & { sentAt?: string };
 
 export function AssistantWorkspace({ onNavigate }: { onNavigate: (section: string) => void }) {
   const queryClient = useQueryClient();
@@ -217,6 +218,7 @@ export function AssistantWorkspace({ onNavigate }: { onNavigate: (section: strin
                 )}
                 {message.proposal && <AssistantProposal proposal={message.proposal} />}
                 {message.batch && <AssistantBatch batch={message.batch} />}
+                {message.action && <AssistantActionCard action={message.action} />}
                 {!!message.sources?.length && <div className={styles.references}>
                   <strong>Sumber publik · Tavily</strong>
                   <ol>{message.sources.map((source, index) => (

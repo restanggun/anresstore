@@ -7,6 +7,8 @@ import styles from "./assistant-workspace.module.css";
 const skills = [
   { label: "Cari produk", tool: "catalog_search" }, { label: "Edit harga", tool: "catalog_edit" },
   { label: "Edit produk", tool: "catalog_edit" }, { label: "Cek promo", tool: "promotions" },
+  { label: "Tambah produk", tool: "catalog_add" }, { label: "Atur promo", tool: "promotion_manage" },
+  { label: "Kelola voucher", tool: "voucher_manage" },
   { label: "Ringkas transaksi", tool: "analytics" }, { label: "Draf balasan CS", tool: "support_draft" },
   { label: "Pantau joki tugas", tool: "task_orders" }, { label: "Pantau pesanan premium", tool: "premium_orders" },
   { label: "Analisis lampiran", tool: "file_review" },
@@ -49,9 +51,10 @@ export function AssistantComposer({
   const fileInput = useRef<HTMLInputElement>(null);
   const knownSkills = !demo && options ? options.skills : skills.filter(item => demo || tools.includes(item.tool)).map(item => ({ id: item.label, label: item.label }));
   const availableAgents: AssistantAgentOption[] = !demo && options ? options.agents : agents.filter(item => demo || tools.includes(item.tool)).map(item => ({ id: item.label, label: item.label }));
+  const skillTools: Record<string, string> = { "Edit harga": "catalog_edit", "Edit produk": "catalog_edit", "Cek promo": "promotions", "Tambah produk": "catalog_add", "Atur promo": "promotion_manage", "Kelola voucher": "voucher_manage" };
   const agentAllows = (agentId: string, skillId: string) => {
     const scope = availableAgents.find(item => item.id === agentId)?.tools;
-    return !scope || skillId === "file_review" || scope.includes(skillId === "Edit harga" ? "catalog_edit" : skillId);
+    return !scope || skillId === "file_review" || scope.includes(skillTools[skillId] ?? skillId);
   };
   const availableSkills = knownSkills.filter(item => agentAllows(context.agent, item.id));
   const optionLabel = (items: AssistantOption[], id: string) => items.find(item => item.id === id)?.label ?? id;

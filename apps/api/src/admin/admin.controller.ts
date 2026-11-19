@@ -4,6 +4,7 @@ import { Body, Controller, Delete, Get, HttpException, Param, Patch, Post, Query
 import type { Request, Response } from "express";
 import { adminDb, type ManagedProduct } from "./admin-store";
 import { CatalogController } from "../catalog/catalog.controller";
+import type { CatalogItem } from "../catalog/catalog-mapping";
 import { boundedFetch } from "../common/bounded-fetch";
 import { uuid, pageIndex, messageInput } from "../help/conversations.controller";
 import { premiumImage } from "../payments/premium-orders.controller";
@@ -31,7 +32,7 @@ import {
 
 const assistantRupiah = new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 });
 type AssistantEvidence = { invoice?: Record<string, unknown>; choices?: unknown[] };
-type AssistantOutput = { text: string; section?: string; choices?: unknown[]; proposal?: unknown; batch?: unknown; sources?: { title: string; url: string; checkedAt: string }[] };
+type AssistantOutput = { text: string; section?: string; choices?: unknown[]; proposal?: unknown; batch?: unknown; action?: unknown; sources?: { title: string; url: string; checkedAt: string }[] };
 
 @Controller("admin")
 export class AdminController {
@@ -385,7 +386,7 @@ export class AdminController {
     if (can("products.read") && access.categories.length) {
       tools.push("catalog_search");
       if (!access.productSlugs.length) tools.push("promotions");
-      if (can("products.write")) tools.push("catalog_edit");
+      if (can("products.write")) tools.push("catalog_edit", "catalog_add", "promotion_manage");
       if (assistantRegistryEnabled()) {
         tools.push("pricing", "duplicates", "promo_preview", "content_draft");
         if (can("products.write")) tools.push("pricing_batch");
@@ -397,7 +398,7 @@ export class AdminController {
     if (full && can("orders.read") && can("payments.read")) tools.push("analytics", "operations", "balances");
     if (full && can("support.read")) tools.push("support", "support_draft");
     if (assistantConfig().attachments) tools.push("file_review");
-    if (access.superAdmin) tools.push("vouchers");
+    if (access.superAdmin) tools.push("vouchers", "voucher_manage");
     if (assistantRegistryEnabled()) {
       tools.push("sop_search");
       if (full && can("support.read")) tools.push("support_handoff");
@@ -621,7 +622,7 @@ export class AdminController {
       try {
         const result = await this.assistantStep(step, input, access, req, res, scopedProduct, registry.sops, evidence, modelOptions);
         outputs.push(result);
-        trace.push({ tool: step.tool, label: definitions[step.tool][0], status: result.proposal || result.batch ? "review" : "done", section: result.section });
+        trace.push({ tool: step.tool, label: definitions[step.tool][0], status: result.proposal || result.batch || result.action ? "review" : "done", section: result.section });
       } catch (error) {
         trace.push({ tool: step.tool, label: definitions[step.tool][0], status: "failed" });
         if (!outputs.length) {
@@ -672,13 +673,24 @@ export class AdminController {
         return { text: redactAssistantText(text.trim()) };
       }
       case "catalog_search": {
-        const result = await this.assistantCatalog(access, arg("query"), arg("category"), null);
+        const range = input.text.match(/\b(\d{1,6})\s*(?:-|–|sampai|hingga)\s*(\d{1,6})\b/i);
+        const result = await this.assistantCatalog(access, arg("query") ?? "", arg("category"), null, {
+          product: arg("product"), minAmount: arg("minAmount") ?? range?.[1], maxAmount: arg("maxAmount") ?? range?.[2],
+        });
         if ("choices" in result) evidence.choices = result.choices;
         return result;
       }
       case "catalog_edit":
         return scopedProduct ? this.draftAssistantProduct(access, scopedProduct, assistantPatch(arg("patch")))
-          : this.assistantCatalog(access, arg("query"), arg("category"), assistantPatch(arg("patch")));
+          : this.assistantCatalog(access, arg("query"), arg("category"), assistantPatch(arg("patch")), {
+            product: arg("product"), minAmount: arg("minAmount") ?? input.text.match(/\b(\d{1,6})\s*(?:-|–|sampai|hingga)\s*(\d{1,6})\b/i)?.[1],
+            maxAmount: arg("maxAmount") ?? input.text.match(/\b(\d{1,6})\s*(?:-|–|sampai|hingga)\s*(\d{1,6})\b/i)?.[2],
+            batch: arg("batch") === true || /\b(semua|seluruh|tiap|setiap|massal|batch|rentang|range|antara)\b|\b\d{1,6}\s*(?:-|–|sampai|hingga)\s*\d{1,6}\b/i.test(input.text),
+          });
+      case "catalog_add":
+        return this.assistantCatalogAdd(access, plan);
+      case "promotion_manage":
+        return this.assistantPromotionDraft(access, plan);
       case "promotions": {
         const category = arg("category");
         if (typeof category !== "string") throw new HttpException("Sebutkan kategori promo.", 422);
@@ -785,6 +797,8 @@ export class AdminController {
         const { rows, hasMore } = await this.vouchers("0", req, res);
         return { text: `${rows.length} voucher pada halaman pertama${hasMore ? ", masih ada halaman berikutnya" : ""}. Buka Voucher untuk melihat kode dan pengaturannya.`, section: "vouchers" };
       }
+      case "voucher_manage":
+        return this.assistantVoucherDraft(access, plan, input.text);
     }
   }
 
@@ -918,7 +932,8 @@ export class AdminController {
   @Post("assistant/batches/:id/apply")
   async assistantApplyBatch(@Param("id") id: string, @Body() raw: unknown, @Req() req: Request, @Res({ passthrough: true }) res: Response) {
     const access = await this.authorize(req, res, true, true, true);
-    if (!assistantConfig().configured || !(await this.assistantCapabilities(access)).tools.includes("pricing_batch")) {
+    const tools = (await this.assistantCapabilities(access)).tools;
+    if (!assistantConfig().configured || !tools.some(tool => ["pricing_batch", "catalog_edit"].includes(tool))) {
       throw new HttpException("Konfirmasi draf massal tidak tersedia untuk sesi ini.", 403);
     }
     const body = assistantObject(raw);
@@ -932,6 +947,85 @@ export class AdminController {
     const [result] = await adminDb<{ result: string }>("rpc/apply_admin_assistant_batch", "", "POST", { p_id: id, p_actor: access.id });
     if (result?.result !== "applied") throw new HttpException(result?.result === "expired" ? "Draf massal kedaluwarsa." : "Draf massal sudah berubah. Buat draf baru.", 409);
     return { ok: true, published: process.env.ADMIN_CATALOG_ENABLED === "true" };
+  }
+
+  @Post("assistant/actions/:id/apply")
+  async assistantApplyAction(@Param("id") id: string, @Body() raw: unknown, @Req() req: Request, @Res({ passthrough: true }) res: Response) {
+    const access = await this.authorize(req, res, true, true, true);
+    const body = assistantObject(raw);
+    if (!uuid(id) || body.confirm !== true || Object.keys(body).length !== 1) throw new HttpException("Konfirmasi perubahan tidak valid.", 400);
+    const [draft] = await adminDb<{ action_type: string; payload: Record<string, unknown>; expires_at: string; applied_at: string | null }>(
+      "admin_assistant_action_drafts", `?id=eq.${id}&actor_id=eq.${access.id}&select=action_type,payload,expires_at,applied_at&limit=1`);
+    if (!draft) throw new HttpException("Draf tidak ditemukan atau bukan milik akun ini.", 404);
+    if (draft.applied_at) return { ok: true, published: process.env.ADMIN_CATALOG_ENABLED === "true" };
+    if (Date.parse(draft.expires_at) <= Date.now()) throw new HttpException("Draf kedaluwarsa. Siapkan draf baru.", 409);
+    const tools = (await this.assistantCapabilities(access)).tools;
+    const requiredTool = draft.action_type === "product_create" ? "catalog_add"
+      : draft.action_type === "product_batch" ? "catalog_edit"
+      : draft.action_type === "promotion_save" ? "promotion_manage"
+      : draft.action_type === "voucher_save" ? "voucher_manage" : "";
+    if (!assistantConfig().configured || !requiredTool || !tools.includes(requiredTool as AssistantTool)) {
+      throw new HttpException("Draf ini tidak lagi tersedia untuk izin sesi admin.", 403);
+    }
+    const payload = assistantObject(draft.payload);
+    let published = process.env.ADMIN_CATALOG_ENABLED === "true";
+    if (draft.action_type === "product_create" || draft.action_type === "product_batch") {
+      const products = draft.action_type === "product_create" ? [payload] : payload.items;
+      if (!Array.isArray(products) || !products.length || products.length > 20) throw new HttpException("Draf produk tidak valid.", 409);
+      this.permit(access, "products.read"); this.permit(access, "products.write");
+      for (const value of products) {
+        const productDraft = assistantObject(value);
+        const category = productDraft.category, productSlug = productDraft.product_slug;
+        if (typeof category !== "string" || typeof productSlug !== "string") throw new HttpException("Draf produk tidak valid.", 409);
+        this.category(access, category); this.product(access, productSlug);
+        const result = await this.saveProduct(productDraft, req, res);
+        published = result.published;
+      }
+    } else if (draft.action_type === "promotion_save") {
+      const category = payload.category, itemCode = payload.item_code;
+      if (typeof category !== "string" || typeof itemCode !== "string") throw new HttpException("Draf promo tidak valid.", 409);
+      this.permit(access, "products.read"); this.permit(access, "products.write"); this.category(access, category);
+      const result = await this.savePromotion(payload, req, res);
+      published = result.published;
+    } else {
+      const voucherAccess = await this.voucherAdmin(req, res, true);
+      const operation = payload.operation;
+      const voucherId = payload.id;
+      const version = payload.version;
+      const settings = parseVoucherSettings(payload.settings);
+      if (typeof voucherId !== "string" || !voucherUuid.test(voucherId) || !Number.isSafeInteger(version) || Number(version) < 1) {
+        throw new HttpException("Draf voucher tidak valid.", 409);
+      }
+      if (settings.active && settings.product_slug && settings.category) {
+        const source = await this.catalogReader.list(settings.category, true);
+        if (!source.items.some(item => item.productSlug === settings.product_slug && (!settings.variant_code || item.code === settings.variant_code))) {
+          throw new HttpException("Produk target voucher sudah tidak tersedia. Periksa katalog sebelum mencoba lagi.", 409);
+        }
+      }
+      if (operation === "create") {
+        const [existing] = await this.voucherStore.request<{ id: string }[]>(`vouchers?id=eq.${voucherId}&select=id&limit=1`);
+        if (!existing) {
+          await this.audit(voucherAccess.id, "voucher.create", voucherId);
+          const [saved] = await this.voucherStore.request<Record<string, unknown>[]>("vouchers?on_conflict=id", "POST", {
+            ...settings, id: voucherId, version: 1, updated_at: new Date().toISOString(),
+          });
+          if (!saved) throw new HttpException("Voucher belum berhasil dibuat.", 503);
+        }
+      } else if (operation === "update") {
+        await this.audit(voucherAccess.id, "voucher.update", voucherId);
+        const rows = await this.voucherStore.request<Record<string, unknown>[]>(`vouchers?id=eq.${voucherId}&version=eq.${Number(version)}`, "PATCH", {
+          ...settings, version: Number(version) + 1, updated_at: new Date().toISOString(),
+        });
+        if (!rows[0]) throw new HttpException("Voucher berubah sejak draf dibuat. Muat ulang dan siapkan draf baru.", 409);
+      } else throw new HttpException("Jenis perubahan voucher tidak dikenal.", 409);
+      published = true;
+    }
+    const updated = await adminDb("admin_assistant_action_drafts", `?id=eq.${id}&actor_id=eq.${access.id}&applied_at=is.null`, "PATCH", { applied_at: new Date().toISOString() });
+    if (!updated.length) {
+      const [current] = await adminDb<{ applied_at: string | null }>("admin_assistant_action_drafts", `?id=eq.${id}&actor_id=eq.${access.id}&select=applied_at&limit=1`);
+      if (!current?.applied_at) throw new HttpException("Perubahan tersimpan tetapi status draf belum tercatat. Muat ulang sebelum mencoba lagi.", 503);
+    }
+    return { ok: true, published };
   }
 
   private async assistantEditorProduct(access: Awaited<ReturnType<AdminController["authorize"]>>, id: string) {
@@ -948,13 +1042,158 @@ export class AdminController {
     return { name: row.name, product: row.product, sku: row.provider_code, category: row.category, price: Number(row.price), active: row.active };
   }
 
+  private async createAssistantActionDraft(access: Awaited<ReturnType<AdminController["authorize"]>>,
+    actionType: "product_create" | "product_batch" | "promotion_save" | "voucher_save", payload: Record<string, unknown>, title: string, summary: string) {
+    const id = randomUUID();
+    const [row] = await adminDb<{ expires_at: string }>("admin_assistant_action_drafts", "", "POST", {
+      id, actor_id: access.id, action_type: actionType, payload,
+    });
+    if (!row?.expires_at) throw new HttpException("Draf perubahan belum dapat disimpan.", 503);
+    return { text: "Draf sudah disiapkan. Periksa rincian lalu pilih Terapkan untuk menyimpan.", section: actionType === "voucher_save" ? "vouchers" : "catalog",
+      action: { id, expiresAt: row.expires_at, title, summary } };
+  }
+
+  private assistantProviderPayload(row: ManagedProduct, patch: ReturnType<typeof assistantPatch>, item: CatalogItem): ManagedProduct {
+    return {
+      id: row.id || randomUUID(), provider: "vipayment", provider_code: row.provider_code, category: row.category,
+      product: row.product, product_slug: row.product_slug, section: row.section ?? item.section ?? null,
+      name: patch.name ?? row.name, price: patch.price ?? Number(row.price),
+      cost_price: row.cost_price ?? item.providerCost ?? null,
+      description: patch.description ?? row.description ?? item.description ?? "",
+      active: patch.active ?? row.active, fulfillment_mode: row.fulfillment_mode ?? (item.requiresManualReview ? "manual" : "vipayment"),
+      supplier_code: row.supplier_code ?? item.code,
+      service_quantity: row.service_quantity ?? (row.category === "social" ? item.minimum ?? item.serviceQuantity ?? 1 : item.serviceQuantity ?? 1),
+    };
+  }
+
+  private async assistantCatalogAdd(access: Awaited<ReturnType<AdminController["authorize"]>>, plan: AssistantStep): Promise<AssistantOutput> {
+    const category = plan.category;
+    const sku = plan.query;
+    const price = plan.price;
+    if (typeof category !== "string" || !assistantCategories.includes(category as typeof assistantCategories[number]) ||
+        typeof sku !== "string" || !sku.trim() || sku.length > 200 || /[<>\u0000-\u001f]/.test(sku) ||
+        !Number.isSafeInteger(price) || Number(price) < 1 || Number(price) > 100000000) {
+      throw new HttpException("Untuk menambah produk, sebutkan kategori, SKU provider persis, dan harga jual rupiah.", 422);
+    }
+    this.permit(access, "products.read"); this.permit(access, "products.write"); this.category(access, category);
+    const source = await this.catalogReader.list(category, true);
+    const matches = source.items.filter(row => row.code.toLowerCase() === sku.trim().toLowerCase() || row.name.trim().toLowerCase() === sku.trim().toLowerCase());
+    if (matches.length > 1) return { text: "Nama itu cocok dengan beberapa SKU. Kirim kode provider yang tepat.", choices: matches.slice(0, 20).map(row => ({ name: row.name, product: row.product, sku: row.code, category, price: row.price, active: true })), section: "catalog" };
+    const item = matches[0];
+    if (!item) return { text: "SKU itu tidak ditemukan pada katalog provider yang tersedia. Gunakan Cari produk atau impor varian dari dashboard terlebih dahulu.", section: "catalog" };
+    this.product(access, item.productSlug);
+    const [existing] = await adminDb<ManagedProduct>("managed_products", `?provider=eq.vipayment&category=eq.${category}&provider_code=eq.${encodeURIComponent(item.code)}&select=id,active,deleted_at&limit=1`);
+    if (existing) return { text: existing.active && !existing.deleted_at ? `Varian ${item.name} sudah ada dan aktif. Gunakan Edit produk untuk mengubahnya.` : `Varian ${item.name} sudah tercatat tetapi disembunyikan. Gunakan Edit produk untuk menampilkannya kembali.`, section: "catalog" };
+    const fulfillmentMode = item.requiresManualReview ? "manual" : "vipayment";
+    const quantity = category === "social" ? item.minimum ?? item.serviceQuantity ?? 1 : item.serviceQuantity ?? 1;
+    const payload: ManagedProduct = {
+      id: randomUUID(), provider: "vipayment", provider_code: item.code, category, product: item.product,
+      product_slug: item.productSlug, section: item.section ?? null, name: item.name, price: Number(price),
+      cost_price: item.providerCost ?? null, description: item.description ?? "", active: true,
+      fulfillment_mode: fulfillmentMode, supplier_code: item.code, service_quantity: quantity,
+    };
+    return this.createAssistantActionDraft(access, "product_create", payload,
+      `Tambah ${item.name}`, `${item.product} · ${item.code} · harga ${assistantRupiah.format(Number(price))}`);
+  }
+
+  private async assistantPromotionDraft(access: Awaited<ReturnType<AdminController["authorize"]>>, plan: AssistantStep): Promise<AssistantOutput> {
+    const category = plan.category, query = plan.query, action = plan.action ?? "set";
+    if (typeof category !== "string" || !assistantCategories.includes(category as typeof assistantCategories[number]) ||
+        typeof query !== "string" || !query.trim() || query.length > 150 || !["set", "disable"].includes(String(action))) {
+      throw new HttpException("Sebutkan kategori, satu SKU/nama varian, dan jadwal promo atau permintaan untuk menonaktifkannya.", 422);
+    }
+    this.permit(access, "products.read"); this.permit(access, "products.write"); this.category(access, category);
+    const source = await this.catalogReader.list(category);
+    const normalized = query.trim().toLowerCase();
+    const exact = source.items.filter(row => row.code.toLowerCase() === normalized);
+    const matches = exact.length ? exact : source.items.filter(row => `${row.name} ${row.product}`.toLowerCase() === normalized);
+    if (matches.length !== 1) return { text: matches.length ? "Nama itu cocok dengan beberapa varian. Kirim SKU provider yang tepat." : "Varian promo tidak ditemukan di katalog provider.",
+      choices: matches.slice(0, 20).map(item => ({ name: item.name, product: item.product, sku: item.code, category, price: item.price, active: true })), section: "catalog" };
+    const item = matches[0]!;
+    this.product(access, item.productSlug);
+    const existing = (await adminDb<Record<string, unknown>>("catalog_promotions",
+      `?category=eq.${category}&item_code=eq.${encodeURIComponent(item.code)}&select=*&limit=1`))[0];
+    let salePrice: number, startsAt: string, endsAt: string, active: boolean;
+    if (action === "disable" || plan.active === false) {
+      if (!existing) return { text: `Tidak ada jadwal promo tersimpan untuk ${item.name}.`, section: "catalog" };
+      salePrice = Number(existing.sale_price); startsAt = String(existing.starts_at); endsAt = String(existing.ends_at); active = false;
+      if (!Number.isSafeInteger(salePrice) || salePrice < 1 || salePrice >= item.price) salePrice = Math.max(1, item.price - 1);
+      if (!Number.isFinite(Date.parse(startsAt)) || !Number.isFinite(Date.parse(endsAt)) || Date.parse(endsAt) <= Date.parse(startsAt)) {
+        startsAt = new Date().toISOString(); endsAt = new Date(Date.now() + 60_000).toISOString();
+      }
+    } else {
+      const discount = plan.discount;
+      if (plan.salePrice !== undefined) salePrice = Number(plan.salePrice);
+      else if (Number.isFinite(Number(discount)) && Number(discount) > 0 && Number(discount) < 100) {
+        salePrice = Math.max(1, Math.ceil(item.price * (10000 - Math.round(Number(discount) * 100)) / 10000));
+      } else throw new HttpException("Tentukan harga promo atau persen diskon di bawah 100%.", 422);
+      startsAt = String(plan.startsAt ?? ""); endsAt = String(plan.endsAt ?? ""); active = true;
+      const zoned = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2}(?:\.\d{1,3})?)?(?:Z|[+-]\d{2}:\d{2})$/;
+      if (!zoned.test(startsAt) || !zoned.test(endsAt) || !Number.isFinite(Date.parse(startsAt)) || !Number.isFinite(Date.parse(endsAt)) || Date.parse(endsAt) <= Date.parse(startsAt)) {
+        throw new HttpException("Jadwal promo perlu waktu mulai dan akhir yang valid, lengkap dengan zona waktu.", 422);
+      }
+      if (Date.parse(endsAt) - Date.parse(startsAt) > 90 * 86400000) throw new HttpException("Jadwal promo maksimal 90 hari.", 422);
+    }
+    if (!Number.isSafeInteger(salePrice) || salePrice < 1 || salePrice >= item.price) throw new HttpException("Harga promo harus rupiah bulat di bawah harga dasar.", 422);
+    const payload = { category, item_code: item.code, sale_price: salePrice, starts_at: startsAt, ends_at: endsAt, active };
+    return this.createAssistantActionDraft(access, "promotion_save", payload, `${active ? "Atur" : "Nonaktifkan"} promo ${item.name}`,
+      `${item.product} · ${item.code} · ${assistantRupiah.format(salePrice)}${active ? ` · ${startsAt} s.d. ${endsAt}` : " · jadwal promo dinonaktifkan"}`);
+  }
+
+  private async assistantVoucherDraft(access: Awaited<ReturnType<AdminController["authorize"]>>, plan: AssistantStep, prompt: string): Promise<AssistantOutput> {
+    if (!access.superAdmin) throw new HttpException("Pengelolaan voucher hanya untuk super admin.", 403);
+    const action = plan.action;
+    if (!["create", "update", "disable"].includes(String(action))) throw new HttpException("Tentukan apakah akan membuat, mengubah, atau menonaktifkan voucher.", 422);
+    const supplied = plan.settings === undefined ? {} : assistantObject(plan.settings);
+    const safeFields = new Set(["name", "code", "kind", "value", "discount_cap", "minimum_amount", "category", "product_slug", "variant_code", "starts_at", "ends_at", "total_limit", "account_limit", "allow_promotion", "active"]);
+    if (Object.keys(supplied).some(key => !safeFields.has(key))) throw new HttpException("Draf voucher berisi kolom yang tidak didukung.", 422);
+    let id = randomUUID(), version = 1;
+    let settings: ReturnType<typeof parseVoucherSettings>;
+    if (action === "create") {
+      const draft = { ...supplied, active: supplied.active === true && /\baktifkan|langsung aktif\b/i.test(prompt), allow_promotion: supplied.allow_promotion ?? false };
+      settings = parseVoucherSettings(draft);
+    } else {
+      const query = plan.query;
+      if (typeof query !== "string" || !query.trim() || query.length > 100) throw new HttpException("Untuk mengubah voucher, sebutkan kode atau nama voucher secara tepat.", 422);
+      const rows = await this.voucherStore.request<Record<string, unknown>[]>("vouchers?select=*&order=created_at.desc&limit=500");
+      const term = query.trim().toLowerCase();
+      const matches = rows.filter(row => typeof row.code === "string" && row.code.toLowerCase() === term || typeof row.name === "string" && row.name.trim().toLowerCase() === term);
+      if (matches.length !== 1) return { text: matches.length ? "Nama voucher tidak unik. Gunakan kode voucher yang tepat." : "Voucher tidak ditemukan.", section: "vouchers" };
+      const current = matches[0]!;
+      if (typeof current.id !== "string" || !voucherUuid.test(current.id) || !Number.isSafeInteger(current.version)) throw new HttpException("Versi voucher belum tersedia untuk perubahan aman.", 503);
+      id = current.id; version = Number(current.version);
+      settings = parseVoucherSettings({ ...current, ...supplied, active: action === "disable" ? false : supplied.active ?? current.active,
+        allow_promotion: supplied.allow_promotion ?? current.allow_promotion });
+    }
+    if (settings.active && settings.product_slug && settings.category) {
+      const source = await this.catalogReader.list(settings.category, true);
+      if (!source.items.some(item => item.productSlug === settings.product_slug && (!settings.variant_code || item.code === settings.variant_code)))
+        throw new HttpException("Produk atau varian target voucher tidak tersedia.", 409);
+    }
+    const payload = { operation: action === "create" ? "create" : "update", id, version, settings };
+    return this.createAssistantActionDraft(access, "voucher_save", payload,
+      `${action === "create" ? "Buat" : action === "disable" ? "Nonaktifkan" : "Ubah"} voucher ${settings.name}`,
+      `${settings.code || "Kode dibuat otomatis"} · ${settings.kind} · ${settings.active ? "aktif" : "nonaktif"} · hingga ${settings.ends_at}`);
+  }
+
   private async assistantCatalog(
     access: Awaited<ReturnType<AdminController["authorize"]>>,
     query: unknown, category: unknown, patch: ReturnType<typeof assistantPatch> | null,
+    selector: { product?: unknown; minAmount?: unknown; maxAmount?: unknown; batch?: boolean } = {}, prompt = "",
   ) {
-    if (typeof query !== "string" || !query.trim() || query.length > 150 ||
+    const productFilter = selector.product;
+    const term = typeof query === "string" ? query.trim().toLowerCase() : "";
+    const parent = typeof productFilter === "string" ? productFilter.trim().toLowerCase() : "";
+    const parseAmount = (value: unknown) => value === undefined || value === null || value === "" ? undefined
+      : typeof value === "number" || typeof value === "string" && /^\d{1,7}$/.test(value) ? Number(value) : NaN;
+    const minAmount = parseAmount(selector.minAmount), maxAmount = parseAmount(selector.maxAmount);
+    if (typeof query !== "string" || query.length > 150 || (!term && !parent) ||
+        (typeof productFilter !== "undefined" && (typeof productFilter !== "string" || productFilter.length > 120)) ||
+        (minAmount !== undefined && (!Number.isSafeInteger(minAmount) || minAmount < 0)) ||
+        (maxAmount !== undefined && (!Number.isSafeInteger(maxAmount) || maxAmount < 1)) ||
+        (minAmount !== undefined && maxAmount !== undefined && minAmount > maxAmount) ||
         (category !== undefined && category !== null && !assistantCategories.some(value => value === category))) {
-      throw new HttpException("Sebutkan nama varian atau SKU dan kategori yang valid.", 422);
+      throw new HttpException("Sebutkan produk induk atau varian, kategori, dan rentang nominal yang valid.", 422);
     }
     if (typeof category === "string") this.category(access, category);
     const categories = access.categories.filter(value => !category || category === value);
@@ -969,18 +1208,66 @@ export class AdminController {
         } as ManagedProduct)),
       ];
     });
-    const term = query.trim().toLowerCase();
-    const exactSku = candidates.filter(row => row.provider_code.toLowerCase() === term);
-    const terms = term.split(/[^\p{L}\p{N}]+/u).filter(Boolean);
-    const matches = exactSku.length ? exactSku : candidates.filter(row => {
-      const words = `${row.name} ${row.product} ${row.provider_code}`.toLowerCase().split(/[^\p{L}\p{N}]+/u);
-      return terms.length && terms.every(term => words.some(word => /\d/.test(term) ? word === term : word.includes(term)));
+    const exactSku = term ? candidates.filter(row => row.provider_code.toLowerCase() === term) : [];
+    const productTerms = parent.split(/[^\p{L}\p{N}]+/u).filter(Boolean);
+    const parentSet = new Set(productTerms);
+    const queryTerms = term.split(/[^\p{L}\p{N}]+/u).filter(word => word && (!parent || !parentSet.has(word)));
+    const matches = (exactSku.length ? exactSku : candidates).filter(row => {
+      const productWords = `${row.product} ${row.product_slug}`.toLowerCase().split(/[^\p{L}\p{N}]+/u).filter(Boolean);
+      const variantWords = `${row.name} ${row.provider_code}`.toLowerCase().split(/[^\p{L}\p{N}]+/u).filter(Boolean);
+      if (productTerms.length && !productTerms.every(word => productWords.some(candidate => candidate.includes(word) || word.includes(candidate)))) return false;
+      if (queryTerms.length && !queryTerms.every(word => (parent ? variantWords : [...variantWords, ...productWords]).some(candidate =>
+        /\d/.test(word) ? candidate === word : candidate.includes(word)))) return false;
+      const quantities = (row.name.match(/\d+/g) ?? []).map(Number);
+      if (minAmount !== undefined || maxAmount !== undefined) {
+        if (!quantities.length || quantities.every(value => value < (minAmount ?? 0) || value > (maxAmount ?? Number.MAX_SAFE_INTEGER))) return false;
+      }
+      return true;
     });
-    const choices = matches.slice(0, 8).map(row => this.assistantCatalogChoice(row));
+    const choices = matches.slice(0, 20).map(row => this.assistantCatalogChoice(row));
     const sourceIncomplete = data.some(result => !result.providerAvailable);
     if (!patch || matches.length !== 1) {
-      const message = matches.length === 0 ? "Varian tidak ditemukan. Coba nama, SKU, atau kategori yang lebih spesifik."
-        : patch ? "Beberapa varian cocok. Tulis SKU dan kategori varian yang ingin diubah." : `Ditemukan ${matches.length} varian dalam cakupan akses kamu.`;
+      const message = matches.length === 0 ? "Varian tidak ditemukan. Coba nama, SKU, produk induk, atau rentang nominal yang lebih spesifik."
+        : matches.length > 20 ? `Ditemukan ${matches.length} varian. Draf AI dibatasi 20 item; persempit produk atau rentang sebelum mengubah apa pun.`
+        : patch && matches.length > 1 && !selector.batch ? `Ditemukan ${matches.length} varian. Tinjau hasil di bawah, lalu minta perubahan untuk semua varian yang cocok atau sebutkan SKU tertentu.`
+        : `Ditemukan ${matches.length} varian dalam cakupan akses kamu.`;
+      if (patch && selector.batch && matches.length > 1 && matches.length <= 20) {
+        this.permit(access, "products.write");
+        const targets = matches.filter(row => Object.keys(patch).some(key => {
+          const old = ({ name: row.name, price: Number(row.price), description: row.description, active: row.active } as Record<string, unknown>)[key];
+          return old !== (patch as Record<string, unknown>)[key];
+        }));
+        if (!targets.length) return { text: "Semua varian yang dipilih sudah memiliki nilai tersebut.", choices, section: "catalog" };
+        if (targets.every(row => row.id && row.updated_at)) {
+          const id = randomUUID();
+          const items = targets.map(row => {
+            const before = { name: row.name, price: Number(row.price), description: row.description, active: row.active };
+            const beforeValues = Object.fromEntries(Object.keys(patch).map(key => [key, before[key as keyof typeof before]]));
+            return { id: randomUUID(), product_id: row.id, category: row.category, product_slug: row.product_slug,
+              product_version: row.updated_at, before_values: beforeValues, patch };
+          });
+          const [entry] = await adminDb<{ expires_at: string }>("rpc/stage_admin_assistant_batch", "", "POST", { p_id: id, p_actor: access.id, p_items: items });
+          if (!entry?.expires_at) throw new HttpException("Draf perubahan varian belum dapat disimpan.", 503);
+          return { text: `Draf berisi ${targets.length} varian ${parent || term}. Periksa setiap SKU dan perubahan sebelum menerapkan.`, section: "catalog",
+            batch: { id, expiresAt: entry.expires_at, rows: targets.map(row => ({ ...this.assistantCatalogChoice(row),
+              changes: Object.keys(patch).map(key => ({ key, before: ({ name: row.name, price: Number(row.price), description: row.description, active: row.active } as Record<string, unknown>)[key], after: (patch as Record<string, unknown>)[key] })) })) } };
+        }
+        if (targets.some(row => row.provider !== "vipayment")) {
+          return { text: "Sebagian varian khusus belum mendukung draf massal. Persempit pilihan atau edit SKU satu per satu.", choices, section: "catalog" };
+        }
+        const sourceByCategory = new Map<string, CatalogItem[]>();
+        for (const itemCategory of [...new Set(targets.map(row => row.category))]) {
+          sourceByCategory.set(itemCategory, (await this.catalogReader.list(itemCategory, true)).items);
+        }
+        const payloads = targets.map(row => {
+          const source = sourceByCategory.get(row.category)?.find(item => item.code === (row.supplier_code || row.provider_code));
+          return source ? this.assistantProviderPayload(row, patch, source) : null;
+        });
+        if (payloads.some(payload => !payload)) return { text: "Satu atau lebih SKU sudah tidak tersedia pada provider. Segarkan katalog sebelum membuat draf.", choices, section: "catalog" };
+        const validPayloads = payloads.filter((payload): payload is ManagedProduct => !!payload);
+        return this.createAssistantActionDraft(access, "product_batch", { items: validPayloads }, `Ubah ${targets.length} varian`,
+          `${parent || term} · ${targets.map(row => `${row.name} (${row.provider_code})`).join(", ")}`);
+      }
       return { text: message + (sourceIncomplete ? " Sebagian katalog provider mungkin tidak tersedia." : ""), choices, section: "catalog" };
     }
     return this.draftAssistantProduct(access, matches[0]!, patch);
@@ -988,8 +1275,19 @@ export class AdminController {
 
   private async draftAssistantProduct(access: Awaited<ReturnType<AdminController["authorize"]>>, row: ManagedProduct, patch: ReturnType<typeof assistantPatch>) {
     const choice = this.assistantCatalogChoice(row);
-    if (!row.id || !row.updated_at || (patch.active === true && !row.active && row.provider === "vipayment")) {
-      return { text: "Varian ini perlu disimpan atau diaktifkan melalui editor katalog agar pemetaan provider dapat diperiksa.", choices: [choice], section: "catalog" };
+    if (!row.id || !row.updated_at) {
+      if (row.provider !== "vipayment") return { text: "Varian khusus ini perlu disimpan melalui editor katalog sebelum dapat diubah AI.", choices: [choice], section: "catalog" };
+      const source = (await this.catalogReader.list(row.category, true)).items.find(item => item.code === row.provider_code);
+      if (!source) return { text: "Varian tidak tersedia pada katalog provider. Segarkan katalog sebelum mengubahnya.", choices: [choice], section: "catalog" };
+      this.permit(access, "products.write"); this.category(access, row.category); this.product(access, row.product_slug);
+      const payload = this.assistantProviderPayload(row, patch, source);
+      const fields = Object.keys(patch).map(key => `${key}: ${(patch as Record<string, unknown>)[key]}`).join(" · ");
+      const action = await this.createAssistantActionDraft(access, "product_create", payload,
+        `${patch.active === false ? "Sembunyikan" : "Atur"} ${row.name}`, `${row.product} · ${row.provider_code} · ${fields}`);
+      return { ...action, text: "Varian default provider akan disimpan sebagai pengaturan admin setelah kamu menyetujui draf." };
+    }
+    if (patch.active === true && !row.active && row.provider === "vipayment") {
+      return { text: "Untuk menampilkan kembali varian provider yang disembunyikan, tinjau pemetaan supplier di editor katalog terlebih dahulu.", choices: [choice], section: "catalog" };
     }
     this.permit(access, "products.write");
     this.category(access, row.category);

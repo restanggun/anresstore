@@ -14,7 +14,10 @@ export type AssistantProposalData = {
   variant: AssistantVariant;
   changes: { key: keyof typeof labels; before: VariantValue; after: VariantValue }[];
 };
-export type AssistantBatchData = { id: string; expiresAt: string; rows: (AssistantVariant & { after: number })[] };
+export type AssistantBatchData = { id: string; expiresAt: string; rows: (AssistantVariant & {
+  after?: number; changes?: { key: keyof typeof labels; before: VariantValue; after: VariantValue }[];
+})[] };
+export type AssistantActionData = { id: string; expiresAt: string; title: string; summary: string };
 
 function valueText(value: VariantValue) {
   if (typeof value === "number") return rupiah(value);
@@ -30,6 +33,7 @@ function useAssistantApproval(path: string) {
       await Promise.all([
         query.invalidateQueries({ queryKey: ["product-management"] }),
         query.invalidateQueries({ queryKey: ["product-promotions"] }),
+        query.invalidateQueries({ queryKey: ["vouchers"] }),
         query.invalidateQueries({ queryKey: ["admin-catalog"] }),
       ]);
     },
@@ -62,17 +66,35 @@ export function AssistantProposal({ proposal, onApplied }: { proposal: Assistant
 
 export function AssistantBatch({ batch }: { batch: AssistantBatchData }) {
   const apply = useAssistantApproval(`assistant/batches/${batch.id}/apply`);
+  const rows = batch.rows.flatMap(row => row.changes?.length
+    ? row.changes.map(change => ({ label: `${row.name} · ${row.sku} · ${labels[change.key]}`, before: valueText(change.before), after: valueText(change.after) }))
+    : [{ label: `${row.name} · ${row.sku} · ${row.category}`, before: rupiah(row.price), after: rupiah(row.after ?? row.price) }]);
   return (
-    <section className={styles.proposal} aria-label="Draf perubahan harga massal">
-      <AssistantChanges rows={batch.rows.map(row => ({ label: `${row.name} · ${row.sku} · ${row.category}`, before: rupiah(row.price), after: rupiah(row.after) }))} />
-      {apply.isSuccess ? <p role="status">{apply.data.published ? "Seluruh perubahan harga disimpan." : "Seluruh perubahan harga disimpan. Publikasi katalog admin belum aktif."}</p>
+    <section className={styles.proposal} aria-label="Draf perubahan beberapa varian">
+      <AssistantChanges rows={rows} />
+      {apply.isSuccess ? <p role="status">{apply.data.published ? "Seluruh perubahan varian disimpan." : "Perubahan varian disimpan. Publikasi katalog admin belum aktif."}</p>
         : <div className={styles.proposalActions}>
           <small>Berlaku sampai <time dateTime={batch.expiresAt}>{new Date(batch.expiresAt).toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" })}</time></small>
           <button type="button" className="primary-button" disabled={apply.isPending} onClick={() => apply.mutate()}>
-            {apply.isPending ? "Menyimpan…" : `Terapkan ${batch.rows.length} perubahan harga`}
+            {apply.isPending ? "Menyimpan…" : `Terapkan ${batch.rows.length} varian`}
           </button>
         </div>}
       {apply.error && <p className={styles.chatError} role="alert">{apply.error.message}</p>}
     </section>
   );
+}
+
+export function AssistantActionCard({ action }: { action: AssistantActionData }) {
+  const apply = useAssistantApproval(`assistant/actions/${action.id}/apply`);
+  return <section className={styles.proposal} aria-label="Draf pengelolaan katalog">
+    <div><strong>{action.title}</strong><small>{action.summary}</small></div>
+    {apply.isSuccess ? <p role="status">Perubahan disimpan{apply.data.published ? " dan diterbitkan." : ". Publikasi katalog admin belum aktif."}</p>
+      : <div className={styles.proposalActions}>
+        <small>Berlaku sampai <time dateTime={action.expiresAt}>{new Date(action.expiresAt).toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" })}</time></small>
+        <button type="button" className="primary-button" disabled={apply.isPending} onClick={() => apply.mutate()}>
+          {apply.isPending ? "Menyimpan…" : "Terapkan perubahan"}
+        </button>
+      </div>}
+    {apply.error && <p className={styles.chatError} role="alert">{apply.error.message}</p>}
+  </section>;
 }
