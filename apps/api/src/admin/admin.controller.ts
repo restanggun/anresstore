@@ -622,7 +622,7 @@ export class AdminController {
     const csv = selection.includes("pricing_batch") && input.attachments.length > 0;
     if (csv && (scopedProduct || !tools.includes("pricing_batch") || profile && !profile.tools.includes("pricing_batch"))) throw new HttpException("Draf CSV di luar cakupan agent.", 403);
     if (input.attachments.length && !csv && !tools.includes("file_review")) throw new HttpException("Analisis lampiran tidak diizinkan.", 403);
-    const catalogListingIntent = !scopedProduct && /\b(tampilkan|lihatkan|daftar|list|urutkan|lihat|cari|carikan|temukan)\b/i.test(input.text) &&
+    const catalogListingIntent = !scopedProduct && /\b(tampilkan|lihatkan|daftar|list|urutkan|lihat)\b/i.test(input.text) &&
       /\b(produk|product|varian|item|katalog|diamond|pulsa|voucher|token|paket|aplikasi|premium|game|skin|membership|top\s?up)\b/i.test(input.text);
     const mobileLegendsListing = catalogListingIntent && /mobile\s*legends|mobile\s*legend|\bmlbb\b/i.test(input.text) && /\bdiamond\b/i.test(input.text);
     const requestedRange = input.text.match(/\b(\d{1,6})\s*(?:diamond\s*)?(?:-|sampai|hingga)\s*(?:diamond\s*)?(\d{1,6})\b/i);

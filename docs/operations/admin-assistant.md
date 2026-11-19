@@ -41,7 +41,7 @@ docker compose -p anres-production \
 
 Pastikan akun Groq tetap pada paket Free; paket Developer menagih penggunaan berdasarkan token. Google harus memakai proyek AI Studio Free Tier, bukan proyek yang ditingkatkan ke Paid. Limit dan ketersediaan model dapat berubah berdasarkan provider. Google menyatakan konten dari Free Tier dapat digunakan untuk meningkatkan produknya; jangan kirim rahasia, data pribadi, atau dokumen sensitif.
 
-Chat dibatasi enam permintaan per menit per admin dan 24 per jendela harian bersama. Jika respons melewati `ADMIN_AI_SLOW_RESPONSE_MS` (default 8 detik) atau provider gagal, server mencoba maksimal dua model cadangan aktif. Matikan dengan `ADMIN_AI_AUTO_SWITCH_ENABLED=false`. Tiap provider diminta dalam waktu ambang yang sama; keseluruhan respons dapat memerlukan beberapa percobaan. Server hanya memakai model yang diaktifkan dan key-nya tersedia.
+Chat dibatasi enam permintaan per menit per admin; tidak ada kuota harian bersama. Jika respons melewati `ADMIN_AI_SLOW_RESPONSE_MS` (default 8 detik) atau provider gagal, server mencoba maksimal dua model cadangan aktif. Matikan dengan `ADMIN_AI_AUTO_SWITCH_ENABLED=false`. Tiap provider diminta dalam waktu ambang yang sama; keseluruhan respons dapat memerlukan beberapa percobaan. Server hanya memakai model yang diaktifkan dan key-nya tersedia.
 
 Tavily menerima maksimal 20 pencarian basic per hari untuk seluruh dashboard. Asisten memakai satu frasa publik dari pesan terbaru. Contoh **Cari di web dokumentasi VIPayment**. Riset publik dan draf perubahan katalog dijalankan di pesan terpisah.
 
