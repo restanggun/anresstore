@@ -1,32 +1,24 @@
 .workspace { display:grid; gap:18px; }
 .workspace>.workspace-heading { margin-bottom:0; }
 .filters { display:grid; grid-template-columns:repeat(2,minmax(0,250px)); align-items:end; gap:14px; padding:18px 20px; border-bottom:1px solid #edf1f5; }
-.filters label,.form label { display:grid; gap:7px; min-width:0; color:#46515e; font-size:12px; font-weight:700; line-height:1.45; }
+.filters label,.form > label { display:grid; gap:7px; min-width:0; color:#46515e; font-size:12px; font-weight:700; line-height:1.45; }
 .filters select,.form select,.form textarea { box-sizing:border-box; width:100%; min-width:0; border:1px solid var(--field-border,#dce2e8); border-radius:12px; background:#fff; color:#263d4c; font:inherit; font-size:12px; }
 .filters select,.form select { min-height:44px; padding:10px 12px; }
 .form select:focus-visible,.filters select:focus-visible,.form textarea:focus-visible { outline:2px solid var(--focus,#287ba2); outline-offset:2px; }
-.ratingField { min-width:0; margin:0; padding:0; border:0; }
-.ratingField legend { margin-bottom:7px; color:#46515e; font-size:12px; font-weight:700; }
-.ratingField>div { display:flex; gap:3px; }
-.ratingField>div label { position:relative; display:grid; place-items:center; width:44px; height:44px; border-radius:9px; color:#7b8790; cursor:pointer; touch-action:manipulation; transition:background-color 130ms ease-out,color 130ms ease-out,transform 130ms ease-out; }
-.ratingField>div label:hover,.ratingField>div .ratingActive { background:#fff0f6; color:#ae6e20; }
-.ratingField input { position:absolute; width:1px; height:1px; margin:-1px; padding:0; overflow:hidden; clip-path:inset(50%); white-space:nowrap; }
-.ratingField label:focus-within { outline:2px solid var(--focus,#287ba2); outline-offset:2px; }
-.ratingField label:active { transform:scale(.97); }
-.ratingField>small { display:block; margin-top:3px; color:#788b98; font-size:11px; }
 .cards { display:grid; gap:12px; padding:16px; }
-.card { display:grid; gap:14px; min-width:0; padding:18px; border:1px solid #e5ecf1; border-radius:12px; background:#fff; }
+.card { display:grid; gap:14px; min-width:0; padding:18px; border-radius:12px; background:var(--primary-soft); }
 .cardHead { display:flex; justify-content:space-between; align-items:flex-start; gap:15px; }
 .cardHead>div { display:grid; gap:5px; min-width:0; }
 .cardHead strong { color:#243746; font-size:13px; overflow-wrap:anywhere; }
 .cardHead span,.cardHead time,.email { color:#788b98; font-size:10px; }
 .cardHead time { white-space:nowrap; font-variant-numeric:tabular-nums; }
 .email { margin:0; overflow-wrap:anywhere; }
-.form { display:grid; grid-template-columns:minmax(160px,.5fr) minmax(140px,.35fr) minmax(0,2fr); align-items:start; gap:12px; }
-.form textarea { min-height:96px; padding:11px 13px; line-height:1.6; resize:vertical; }
+.form { display:grid; grid-template-columns:minmax(140px,250px) minmax(0,1fr); align-items:start; gap:12px 20px; }
+.form select,.form textarea { border:0; box-shadow:none; }
+.form textarea { min-height:96px; padding:11px 13px; font-size:1rem; line-height:1.6; resize:vertical; }
 .commentField { grid-column:1/-1; }
 .actions { grid-column:1/-1; display:flex; flex-wrap:wrap; gap:8px; }
-.actions button { min-height:42px; }
+.actions button { min-height:42px; box-shadow:none; }
 .empty { margin:0; padding:23px; color:#788b98; font-size:12px; line-height:1.7; }
 
 @media(max-width:680px) {
@@ -34,7 +26,6 @@
   .form { grid-template-columns:minmax(0,1fr) minmax(0,1fr); }
   .commentField,.actions { grid-column:1/-1; }
 }
-@media(prefers-reduced-motion:reduce) { .ratingField>div label { transition:none; } }
 @media(max-width:420px) {
   .cards { padding:10px; }
   .card { padding:14px; }

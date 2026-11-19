@@ -28,6 +28,11 @@ export class ConversationsController {
   if(!summary) throw new HttpException("Notifikasi belum tersedia.",503);
   return {count:Number(summary.unread_count),recent:summary.recent};
  }
+ @Post("notifications/read") async readNotifications(@Req() req:Request,@Res({passthrough:true}) res:Response) {
+  const user=await this.user(req,res,true);
+  await adminDb("support_conversations?user_id=eq."+user+"&select=id","PATCH",{customer_read_at:new Date().toISOString()});
+  return {read:true};
+ }
  @Post() async create(@Body() input:{id?:unknown;subject?:unknown;body?:unknown},@Req() req:Request,@Res({passthrough:true}) res:Response) {
   const user=await this.user(req,res,true);
   if(!input || !uuid(input.id) || typeof input.subject!=="string" || input.subject.trim().length<3 || input.subject.length>160) throw new HttpException("Isi subjek 3–160 karakter.",400);

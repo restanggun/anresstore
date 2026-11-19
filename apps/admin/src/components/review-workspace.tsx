@@ -2,7 +2,8 @@
 
 import { useState, type FormEvent } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Star, Trash2 } from "lucide-react";
+import { Trash2 } from "lucide-react";
+import { RatingInput } from "@anres/ui";
 import { adminRequest } from "./workspace-api";
 import styles from "./review-workspace.module.css";
 
@@ -38,13 +39,7 @@ function ReviewCard({ row, busy, save, remove }: {
       <label>Status<select name="status" value={status} disabled={busy} onChange={event=>setStatus(event.target.value as ReviewStatus)}>
       {statuses.map(([value,label])=><option key={value} value={value} disabled={value === "published" && (!row.purchase_verified || !row.invoice_id)}>{label}</option>)}
       </select></label>
-      <fieldset className={styles.ratingField} disabled={busy}><legend>Rating</legend><div>
-        {[1,2,3,4,5].map(value=><label key={value} className={value<=rating?styles.ratingActive:""}>
-          <input type="radio" name={`rating-${row.id}`} value={value} checked={rating===value}
-            aria-label={`${value} bintang`} onChange={()=>setRating(value)}/>
-          <Star size={21} strokeWidth={1.8} fill={value<=rating?"currentColor":"none"} aria-hidden="true"/>
-        </label>)}
-      </div><small>{rating} dari 5 bintang</small></fieldset>
+      <RatingInput name={`rating-${row.id}`} value={rating} onChange={setRating} disabled={busy} label="Rating"/>
       <label className={styles.commentField}>Komentar<textarea name="comment" required minLength={5} maxLength={1000} rows={4}
         value={comment} disabled={busy} onChange={event=>setComment(event.target.value)}/></label>
       <div className={styles.actions}>

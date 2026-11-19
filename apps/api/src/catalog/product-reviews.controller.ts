@@ -5,6 +5,7 @@ import { adminDb } from "../admin/admin-store";
 import { PaymentIdentityService } from "../payments/payment-identity";
 import { PaymentStore } from "../payments/payment-store";
 import { paymentHash } from "../payments/payment-contract";
+import { isReviewRating } from "./review-rating";
 
 const categories = new Set(["game", "prepaid", "apps", "social", "tasks"]);
 const slugPattern = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
@@ -61,8 +62,8 @@ export class ProductReviewsController {
       throw new HttpException("Permintaan ulasan tidak valid.", 400);
     const invoiceId = typeof input.invoiceId === "string" && /^[a-f0-9-]{36}$/i.test(input.invoiceId) ? input.invoiceId.toLowerCase() : "";
     if (!invoiceId) throw new HttpException("Pilih invoice yang sudah selesai untuk mengirim ulasan.", 400);
-    if (!Number.isInteger(input.rating) || Number(input.rating) < 1 || Number(input.rating) > 5)
-      throw new HttpException("Pilih rating dari 1 sampai 5 bintang.", 400);
+    if (!isReviewRating(input.rating))
+      throw new HttpException("Pilih rating 0,5 sampai 5 bintang dengan kelipatan 0,5.", 400);
     if (typeof input.comment !== "string" || input.comment.trim().length < 5 || input.comment.trim().length > 1000 ||
       /[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/.test(input.comment))
       throw new HttpException("Tulis komentar 5–1000 karakter.", 400);
@@ -101,7 +102,7 @@ export class ProductReviewsController {
 
     try {
       const [review] = await this.store.request<{ id: string }[]>("product_reviews?select=id", "POST", {
-        category, product_slug: slug, rating: Number(input.rating), comment: input.comment.trim(),
+        category, product_slug: slug, rating: input.rating, comment: input.comment.trim(),
         reviewer_email: email, reviewer_user_id: userId, invoice_id: invoiceId, purchase_verified: true, status: "pending",
       });
       if (!review?.id) throw new Error("Review insert returned no row");

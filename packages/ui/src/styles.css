@@ -76,3 +76,20 @@ button:disabled { cursor: not-allowed; }
 .anres-select-item[data-state="checked"] { background:var(--pink-soft); color:var(--pink-ink); }
 .anres-select-item[data-disabled] { opacity:.45; pointer-events:none; }
 .anres-select-scroll { display:flex; justify-content:center; padding:4px; background:white; color:var(--focus); }
+
+.ui-rating-stars { display: inline-flex; align-items: center; gap: 2px; }
+.ui-rating-star { position: relative; display: inline-flex; flex: none; color: #ae6e20; }
+.ui-rating-fill { position: absolute; inset: 0; }
+.ui-rating-input { min-width: 0; margin: 0; padding: 0; border: 0; }
+.ui-rating-input > legend { padding: 0; color: var(--foreground); font-size: 13px; font-weight: 750; }
+.ui-rating-input > small { display: block; color: var(--muted); font-size: 12px; }
+.ui-rating-input:disabled { opacity: .65; }
+.ui-rating-choices { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); width: min(100%, 240px); }
+.ui-rating-choice { position: relative; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); min-height: 48px; }
+.ui-rating-choice .ui-rating-star { position: absolute; inset: 0; display: grid; place-items: center; pointer-events: none; }
+.ui-rating-choice .ui-rating-fill { inset: auto; }
+.ui-rating-choice > label { position: relative; grid-row: 1; min-height: 48px; border-radius: 6px; cursor: pointer; touch-action: manipulation; }
+.ui-rating-choice > label:has(input:focus-visible) { z-index: 1; outline: 2px solid var(--focus); outline-offset: -2px; }
+@media (hover: hover) {
+  .ui-rating-input:not(:disabled) .ui-rating-choice > label:hover { background: #ae6e201c; }
+}

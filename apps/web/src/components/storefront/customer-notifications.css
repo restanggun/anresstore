@@ -1,0 +1,34 @@
+.customer-notice-dialog { display: flex; width: min(520px, calc(100vw - 28px)); max-width: none; max-height: min(78dvh, 720px); flex-direction: column; gap: 0; overflow: hidden; padding: 0; border: 1px solid var(--border); border-radius: 24px; background: var(--surface); color: var(--foreground); }
+.customer-notice-dialog-heading { display: flex; flex-direction: row; align-items: center; justify-content: space-between; gap: 14px; padding: 23px 24px 18px; border-bottom: 1px solid var(--border); text-align: left; }
+.customer-notice-dialog-heading [data-slot="dialog-description"] { margin-top: 6px; }
+.customer-notice-dialog-actions { display: flex; align-items: center; gap: 9px; }
+.customer-notice-dialog-actions > button { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 40px; padding: 9px 12px; border: 0; border-radius: 12px; background: var(--primary-soft); color: var(--focus); font: inherit; font-size: 11px; font-weight: 700; cursor: pointer; }
+.customer-notice-dialog-actions > .customer-notice-dialog-close { width: 40px; padding: 0; background: var(--pink-soft); color: var(--pink-ink); }
+.customer-notice-read-error { margin: 12px 18px 0; color: var(--pink-ink); font-size: 12px; }
+.customer-notice-dialog :is(button, a):focus-visible { outline: 2px solid var(--focus); outline-offset: 3px; }
+.customer-notice-list { display: grid; gap: 3px; overflow: auto; padding: 8px; overscroll-behavior: contain; }
+.customer-notice-item { position: relative; display: flex; align-items: flex-start; gap: 12px; min-width: 0; padding: 14px; border: 0; border-radius: 15px; background: var(--primary-soft); color: inherit; font: inherit; text-align: left; text-decoration: none; cursor: pointer; }
+.customer-notice-item:nth-child(even) { background: var(--pink-soft); }
+.customer-notice-item.is-read { opacity: .76; }
+.customer-notice-item-icon { display: grid; flex: 0 0 36px; width: 36px; height: 36px; place-items: center; border-radius: 12px; background: var(--primary); color: var(--focus); }
+.customer-notice-item-icon.is-review { background: var(--pink); color: var(--pink-ink); }
+.customer-notice-item-icon.is-campaign { background: white; }
+.customer-notice-item-copy { display: grid; min-width: 0; flex: 1; gap: 4px; }
+.customer-notice-item-copy strong { font-size: 12px; line-height: 1.5; }
+.customer-notice-item-copy > span { color: var(--muted); font-size: 12px; line-height: 1.6; overflow-wrap: anywhere; }
+.customer-notice-item-copy time { margin-top: 3px; color: var(--muted); font-size: 10px; }
+.customer-notice-unread-dot { flex: 0 0 8px; width: 8px; height: 8px; margin-top: 5px; border-radius: 50%; background: var(--pink-ink); }
+.customer-notice-empty { display: grid; justify-items: center; gap: 8px; padding: 38px 25px 42px; text-align: center; }
+.customer-notice-empty > span { display: grid; width: 50px; height: 50px; place-items: center; border-radius: 16px; background: var(--primary-soft); color: var(--focus); }
+.customer-notice-empty strong { font-size: 13px; }
+.customer-notice-empty p { max-width: 310px; margin: 0; color: var(--muted); font-size: 12px; line-height: 1.7; }
+@media (max-width: 600px) {
+  .customer-notice-bar { gap: 5px; padding-inline: 8px; font-size: 11px; }
+  .customer-notice-copy { padding-inline: 18px; }
+  .customer-notice-dialog { width: calc(100vw - 20px); max-height: calc(100dvh - 36px); border-radius: 20px; }
+  .customer-notice-dialog-heading { padding: 18px 16px 15px; }
+  .customer-notice-dialog-actions { gap: 6px; }
+  .customer-notice-dialog-actions > button { padding-inline: 9px; }
+  .customer-notice-list { padding: 7px; }
+  .customer-notice-item { padding: 12px; }
+}

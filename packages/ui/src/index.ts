@@ -3,5 +3,6 @@ export { cn } from "./utils";
 
 export { CustomSelect } from "./select";
 export { SearchField, SearchSubmit } from "./search-field";
+export { RatingInput, RatingStars } from "./rating";
 export {SupportChatDialog} from "./support-chat-dialog";
 export type {SupportChatMessage} from "./support-chat-dialog";

@@ -2,8 +2,9 @@
 
 import Link from "@/components/storefront/domain-link";
 import { useEffect, useRef, useState } from "react";
-import { Button, SearchField, SearchSubmit } from "@anres/ui";
-import { ArrowRight, ArrowUpRight, BookOpenCheck, Search, ShieldCheck, Star, UserRoundPlus, LogIn } from "lucide-react";
+import { Button, RatingStars, SearchField, SearchSubmit } from "@anres/ui";
+import { ArrowRight, ArrowUpRight, BookOpenCheck, ChevronLeft, ChevronRight, Pause, Play, Search, ShieldCheck, Star, UserRoundPlus, LogIn } from "lucide-react";
+import useEmblaCarousel from "embla-carousel-react";
 import { motion, useReducedMotion } from "motion/react";
 import { TextGenerateEffect } from "@/components/ui/text-generate-effect";
 import { useReveal } from "@/components/ui/use-reveal";
@@ -29,6 +30,68 @@ type LandingData = {
   config: { announcementEnabled:boolean; announcementText:string; announcementHref:string; announcementLabel:string; announcementMoving:boolean; startsAt:string|null; endsAt:string|null; closingTitle:string; closingBody:string; showAuthCta:boolean };
   stats: { transactionCount:number; averageRating:number; reviewCount:number; recentReviews:{id:string;rating:number;comment:string;category:string;productSlug:string;createdAt:string;author:string}[] };
 };
+
+function LandingReviews({ reviews }: { reviews: LandingData["stats"]["recentReviews"] }) {
+  const [viewportRef, carousel] = useEmblaCarousel({ align: "start", loop: true });
+  const carouselRef = useRef<HTMLElement>(null);
+  const [paused, setPaused] = useState(false);
+  const multiple = reviews.length > 1;
+
+  useEffect(() => {
+    const region = carouselRef.current;
+    if (!carousel || !region || !multiple || paused) return;
+
+    const hover = window.matchMedia("(any-hover: hover)");
+    const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
+    let visible = false;
+    const observer = new IntersectionObserver(([entry]) => { visible = !!entry?.isIntersecting; });
+    observer.observe(carousel.rootNode());
+
+    const timer = window.setInterval(() => {
+      if (!visible || reducedMotion.matches || document.hidden || region.matches(":focus-within, :active") || (hover.matches && region.matches(":hover"))) return;
+      if (carousel.canScrollNext()) carousel.scrollNext();
+      else carousel.scrollTo(0, true);
+    }, 6000);
+
+    return () => {
+      window.clearInterval(timer);
+      observer.disconnect();
+    };
+  }, [carousel, multiple, paused]);
+
+  function move(direction: -1 | 1) {
+    if (!carousel) return;
+    const jump = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (direction === 1) {
+      if (carousel.canScrollNext()) carousel.scrollNext(jump);
+      else carousel.scrollTo(0, true);
+    } else if (carousel.canScrollPrev()) {
+      carousel.scrollPrev(jump);
+    } else {
+      carousel.scrollTo(carousel.scrollSnapList().length - 1, true);
+    }
+  }
+
+  return <section ref={carouselRef} className="landing-reviews" aria-label="Ulasan terbaru" aria-roledescription={multiple ? "karusel" : undefined}>
+    {multiple && <div className="landing-review-controls">
+      <button type="button" className="landing-review-autoplay" onClick={() => setPaused(value => !value)} aria-label={paused ? "Aktifkan putar otomatis" : "Jeda putar otomatis"}>
+        {paused ? <Play size={15} aria-hidden="true"/> : <Pause size={15} aria-hidden="true"/>}
+      </button>
+      <button type="button" onClick={() => move(-1)} aria-label="Ulasan sebelumnya"><ChevronLeft size={18} aria-hidden="true"/></button>
+      <button type="button" onClick={() => move(1)} aria-label="Ulasan berikutnya"><ChevronRight size={18} aria-hidden="true"/></button>
+    </div>}
+    {reviews.length ? <div className="landing-review-viewport" ref={viewportRef}>
+      <div className="landing-review-track">
+        {reviews.map((review, index) => <article className="landing-review-card" key={review.id}
+          role={multiple ? "group" : undefined} aria-roledescription={multiple ? "slide" : undefined}
+          aria-label={multiple ? `${index + 1} dari ${reviews.length}` : undefined}>
+          <div className="landing-review-top"><span>{review.author}</span><RatingStars value={review.rating} size={13}/></div>
+          <p>{review.comment}</p><Link href={`/katalog/${encodeURIComponent(review.category)}/${encodeURIComponent(review.productSlug)}`}>{review.productSlug.replaceAll("-"," ")}<ArrowUpRight size={13} aria-hidden="true"/></Link>
+        </article>)}
+      </div>
+    </div> : <article className="landing-review-empty"><Star size={18} aria-hidden="true"/><strong>Ulasan pelanggan segera hadir.</strong><span>Setiap ulasan ditinjau sebelum ditampilkan di sini.</span></article>}
+  </section>;
+}
 
 function LandingHero({ showAuthCta }: { showAuthCta:boolean }) {
   const [activeIndex, setActiveIndex] = useState(0);
@@ -82,12 +145,7 @@ export function HomeContent() {
       <div className="landing-proof-grid">
         <article className="landing-stat-card"><span>Transaksi berhasil</span><strong>{new Intl.NumberFormat("id-ID").format(landing.stats.transactionCount)}</strong><small>Pesanan lunas, termasuk layanan premium yang sudah terkirim.</small></article>
         <article className="landing-stat-card landing-rating-stat"><span>Rating produk</span><strong>{landing.stats.reviewCount ? landing.stats.averageRating.toFixed(1).replace(".", ",") : "—"}<Star size={20} fill="currentColor" aria-hidden="true"/></strong><small>{new Intl.NumberFormat("id-ID").format(landing.stats.reviewCount)} ulasan yang sudah ditinjau admin.</small></article>
-        <div className="landing-review-list" aria-label="Ulasan terbaru">
-          {landing.stats.recentReviews.length ? landing.stats.recentReviews.map(review => <article className="landing-review-card" key={review.id}>
-            <div className="landing-review-top"><span>{review.author}</span><span className="landing-review-stars" aria-label={`${review.rating} dari 5 bintang`}>{Array.from({length:5},(_,index)=><Star key={index} size={13} fill={index<review.rating?"currentColor":"none"} aria-hidden="true"/>)}</span></div>
-            <p>{review.comment}</p><Link href={`/katalog/${encodeURIComponent(review.category)}/${encodeURIComponent(review.productSlug)}`}>{review.productSlug.replaceAll("-"," ")}<ArrowUpRight size={13}/></Link>
-          </article>) : <article className="landing-review-empty"><Star size={18} aria-hidden="true"/><strong>Ulasan pelanggan segera hadir.</strong><span>Setiap ulasan ditinjau sebelum ditampilkan di sini.</span></article>}
-        </div>
+        <LandingReviews reviews={landing.stats.recentReviews} />
       </div>
     </motion.section>}
     <section className="landing-guide" aria-labelledby="guide-title"><motion.div className="guide-intro" {...reveal()}><div className="guide-brand" aria-hidden="true"><img src="/logo.svg" alt="" width="37" height="44"/></div><h2 id="guide-title">Kenali layanannya.<br/>Pilih dengan tenang.</h2><p>Kebutuhan digital tidak selalu sama. Mulai dari informasi yang jelas untuk menemukan pilihan yang tepat.</p><TextLink href="/about">Tentang Anres Store</TextLink></motion.div><ol className="guide-steps">{guide.map(({icon:Icon,title,description,href,action},index)=><motion.li key={title} {...reveal(index*.08)}><span className="guide-step-icon"><Icon size={22}/></span><div><h3>{title}</h3><p>{description}</p><Link href={href}>{action}<ArrowUpRight size={15}/></Link></div></motion.li>)}</ol></section>

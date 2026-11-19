@@ -317,15 +317,30 @@ export class PaymentsController implements OnModuleInit, OnModuleDestroy {
     const rows = await this.db("?" + owner + "&order=created_at.desc&limit=51&offset=" + index*50);
     const visible = rows.slice(0,50).filter(row => ownsPayment(row,identity) && (identity.userId && scope !== "guest" ? row.owner_user_id===identity.userId || row.claimed_user_id===identity.userId : !row.owner_user_id && !row.claimed_user_id));
     const ids = visible.map(row=>row.id).join(",");
-    const [deliveries,refunds] = visible.length ? await Promise.all([
+    const [deliveries,refunds,tasks,reviews] = visible.length ? await Promise.all([
       this.store.request<{id:string;fulfillment_status:string;provider_note:string|null;payment_mode:string}[]>(`live_transactions?id=in.(${ids})&payment_mode=eq.${tripayConfig().mode}&select=id,fulfillment_status,provider_note,payment_mode&limit=50`),
       this.store.request<{id:string;payment_id:string;refund_status:string;refund_requires_admin:boolean;refund_resolution:string|null;refund_reference:string|null}[]>(`support_conversations?payment_id=in.(${ids})&kind=eq.refund&select=id,payment_id,refund_status,refund_requires_admin,refund_resolution,refund_reference&limit=50`),
-    ]) : [[],[]];
-    const payments=visible.map(row=>{const delivery=deliveries.find(item=>item.id===row.id),refund=refunds.find(item=>item.payment_id===row.id);return {...this.publicPayment(row),refund:refund??null,fulfillment:delivery?{status:delivery.fulfillment_status,note:delivery.provider_note,mode:delivery.payment_mode}:null};});
+      this.store.request<{payment_id:string;workflow_status:string}[]>(`task_order_specs?payment_id=in.(${ids})&select=payment_id,workflow_status&limit=50`),
+      this.store.request<{invoice_id:string}[]>(`product_reviews?invoice_id=in.(${ids})&select=invoice_id&limit=50`),
+    ]) : [[],[],[],[]];
+    const payments=visible.map(row=>{
+      const delivery=deliveries.find(item=>item.id===row.id),refund=refunds.find(item=>item.payment_id===row.id);
+      const task=tasks.find(item=>item.payment_id===row.id),submitted=reviews.some(item=>item.invoice_id===row.id);
+      const eligible=row.payment_mode==="live"&&row.status==="paid"&&Number(row.amount)>0&&Boolean(row.product_slug)&&delivery?.fulfillment_status==="completed"&&(row.source!=="tasks"||task?.workflow_status==="completed");
+      return {...this.publicPayment(row),refund:refund??null,fulfillment:delivery?{status:delivery.fulfillment_status,note:delivery.provider_note,mode:delivery.payment_mode}:null,review:{eligible,submitted,category:row.source,productSlug:row.product_slug??null}};
+    });
     if(scope!=="guest"){
       const premiumOwner=identity.userId?`user_id=eq.${identity.userId}`:`guest_session_hash=eq.${identity.guestHash}`;
       const premiums=await this.store.request<any[]>(`premium_orders?${premiumOwner}&payment_mode=eq.live&select=id,invoice_number,product_name,amount,status,created_at,customer_email&order=created_at.desc&limit=50`);
-      const mapped=premiums.map(row=>({id:row.id,invoiceNumber:row.invoice_number,createdAt:row.created_at,product:row.product_name,amount:Number(row.amount),total:Number(row.amount),method:"QRIS",status:row.status,reference:null,fulfillment:{status:row.status,mode:"manual",note:row.status==="delivered"?"Data aplikasi telah dikirim ke email.":null},ownership:identity.userId?"account":"guest"}));
+      const premiumIds=premiums.map(row=>row.id).filter((id:string)=>paymentId.test(id));
+      const [premiumInvoices,premiumReviews]=premiumIds.length?await Promise.all([
+        this.store.request<{id:string;payment_mode:string;payment_status:string;fulfillment_status:string;product_slug:string|null}[]>(`invoices?id=in.(${premiumIds.join(",")})&select=id,payment_mode,payment_status,fulfillment_status,product_slug&limit=50`),
+        this.store.request<{invoice_id:string}[]>(`product_reviews?invoice_id=in.(${premiumIds.join(",")})&select=invoice_id&limit=50`),
+      ]):[[],[]];
+      const mapped=premiums.map(row=>{
+        const invoice=premiumInvoices.find(item=>item.id===row.id);
+        return {id:row.id,invoiceNumber:row.invoice_number,createdAt:row.created_at,product:row.product_name,amount:Number(row.amount),total:Number(row.amount),method:"QRIS",status:row.status,reference:null,fulfillment:{status:row.status,mode:"manual",note:row.status==="delivered"?"Data aplikasi telah dikirim ke email.":null},ownership:identity.userId?"account":"guest",review:{eligible:invoice?.payment_mode==="live"&&invoice.payment_status==="paid"&&invoice.fulfillment_status==="completed"&&Number(row.amount)>0&&Boolean(invoice.product_slug),submitted:premiumReviews.some(item=>item.invoice_id===row.id),category:"apps",productSlug:invoice?.product_slug??null}};
+      });
       payments.push(...mapped as typeof payments);
       payments.sort((a:any,b:any)=>Date.parse(b.createdAt)-Date.parse(a.createdAt));
     }
