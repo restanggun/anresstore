@@ -76,7 +76,9 @@ function integerBetween(value: unknown, min: number, max: number): value is numb
 export function parseVoucherSettings(input: unknown) {
   if (!input || typeof input !== "object" || Array.isArray(input)) throw new HttpException("Pengaturan voucher tidak valid.", 400);
   const data = input as Record<string, unknown>;
-  const invalid = (message: string): never => { throw new HttpException(message, 400); };
+  function invalid(message: string): never {
+    throw new HttpException(message, 400);
+  }
   const name = typeof data.name === "string" ? data.name.trim() : "";
   if (!name || name.length > 100) invalid("Isi nama voucher, maksimal 100 karakter.");
   const kind = data.kind;

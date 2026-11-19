@@ -1145,10 +1145,10 @@ export class AdminController {
   }
 
   private async assistantCatalogAdd(access: Awaited<ReturnType<AdminController["authorize"]>>, plan: AssistantStep): Promise<AssistantOutput> {
-    const category = plan.category;
+    const category = assistantCategories.find(value => value === plan.category);
     const sku = plan.query;
     const price = plan.price;
-    if (typeof category !== "string" || !assistantCategories.includes(category as typeof assistantCategories[number]) ||
+    if (!category ||
         typeof sku !== "string" || !sku.trim() || sku.length > 200 || /[<>\u0000-\u001f]/.test(sku) ||
         !Number.isSafeInteger(price) || Number(price) < 1 || Number(price) > 100000000) {
       throw new HttpException("Untuk menambah produk, sebutkan kategori, SKU provider persis, dan harga jual rupiah.", 422);
@@ -1455,7 +1455,7 @@ export class AdminController {
     const supplied = plan.settings === undefined ? {} : assistantObject(plan.settings);
     const safeFields = new Set(["name", "code", "kind", "value", "discount_cap", "minimum_amount", "category", "product_slug", "variant_code", "starts_at", "ends_at", "total_limit", "account_limit", "allow_promotion", "active"]);
     if (Object.keys(supplied).some(key => !safeFields.has(key))) throw new HttpException("Draf voucher berisi kolom yang tidak didukung.", 422);
-    let id = randomUUID(), version = 1;
+    let id: string = randomUUID(), version = 1;
     let settings: ReturnType<typeof parseVoucherSettings>;
     if (action === "create") {
       const draft = { ...supplied, active: supplied.active === true && /\baktifkan|langsung aktif\b/i.test(prompt), allow_promotion: supplied.allow_promotion ?? false };
@@ -2298,7 +2298,7 @@ export class AdminController {
     if (!body || typeof body.category !== "string" || !["game", "prepaid", "apps", "social", "tasks"].includes(body.category) || typeof body.item_code !== "string" || !/^[A-Za-z0-9._-]{1,120}$/.test(body.item_code) || !Number.isSafeInteger(body.sale_price) || Number(body.sale_price) < 1 || Number(body.sale_price) > 100000000 || typeof body.starts_at !== "string" || typeof body.ends_at !== "string" || !Number.isFinite(Date.parse(body.starts_at)) || !Number.isFinite(Date.parse(body.ends_at)) || Date.parse(body.ends_at) <= Date.parse(body.starts_at) || typeof body.active !== "boolean") throw new HttpException("Periksa varian, harga, dan jadwal promo.", 400);
     this.category(access, body.category);
     if (body.category === "tasks") throw new HttpException("Kategori joki tugas menggunakan aturan tarif, bukan promo katalog.", 400);
-    let source: CatalogItem | undefined;
+    let source: Awaited<ReturnType<CatalogController["list"]>>["items"][number] | undefined;
     try { source = (await this.catalogReader.list(body.category)).items.find(row => row.code === body.item_code); } catch { /* manual managed variants do not require a live provider list */ }
     let managed: ManagedProduct | undefined;
     if (body.item_code.startsWith("managed.")) {
@@ -2307,11 +2307,10 @@ export class AdminController {
     } else {
       managed = (await adminDb<ManagedProduct>("managed_products", `?category=eq.${body.category}&provider_code=eq.${encodeURIComponent(body.item_code)}&select=*&limit=1`))[0];
     }
-    const managedIsVisible = !!managed && managed.active && !managed.deleted_at;
-    if (managed && !managedIsVisible) throw new HttpException("Promo tidak dapat diatur pada varian yang disembunyikan atau dihapus.", 409);
-    const regularPrice = managedIsVisible ? Number(managed.price) : source?.promotion?.originalPrice ?? source?.price;
-    const productSlug = managedIsVisible ? managed!.product_slug : source?.productSlug;
-    if ((!managedIsVisible && !source) || !regularPrice || !productSlug || Number(body.sale_price) >= regularPrice) {
+    if (managed && (!managed.active || managed.deleted_at)) throw new HttpException("Promo tidak dapat diatur pada varian yang disembunyikan atau dihapus.", 409);
+    const regularPrice = managed ? Number(managed.price) : source?.promotion?.originalPrice ?? source?.price;
+    const productSlug = managed?.product_slug ?? source?.productSlug;
+    if (!regularPrice || !productSlug || Number(body.sale_price) >= regularPrice) {
       throw new HttpException("Varian tidak tersedia atau harga promo tidak lebih rendah dari harga jual reguler.", 400);
     }
     this.product(access, productSlug);

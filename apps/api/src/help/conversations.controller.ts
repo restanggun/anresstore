@@ -30,7 +30,7 @@ export class ConversationsController {
  }
  @Post("notifications/read") async readNotifications(@Req() req:Request,@Res({passthrough:true}) res:Response) {
   const user=await this.user(req,res,true);
-  await adminDb("support_conversations?user_id=eq."+user+"&select=id","PATCH",{customer_read_at:new Date().toISOString()});
+  await adminDb("support_conversations",`?user_id=eq.${user}&select=id`,"PATCH",{customer_read_at:new Date().toISOString()});
   return {read:true};
  }
  @Post() async create(@Body() input:{id?:unknown;subject?:unknown;body?:unknown},@Req() req:Request,@Res({passthrough:true}) res:Response) {
