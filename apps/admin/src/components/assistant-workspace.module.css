@@ -59,6 +59,10 @@
 .historyButton:hover:not(:disabled), .newSessionButton:hover:not(:disabled), .sessionIconButton:hover:not(:disabled) { background: var(--primary-hover); }
 .sessionActions button:disabled, .sessionDialog button:disabled { opacity: .55; cursor: not-allowed; }
 .sessionDialog {
+  position: fixed;
+  inset: 50% auto auto 50%;
+  transform: translate(-50%, -50%);
+  box-sizing: border-box;
   width: min(32rem, calc(100% - 28px));
   max-height: min(38rem, calc(100dvh - 30px));
   overflow: auto;
