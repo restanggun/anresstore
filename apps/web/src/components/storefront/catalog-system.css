@@ -37,6 +37,7 @@
 .shop-products { grid-template-columns:repeat(4,minmax(0,1fr)); }
 .catalog-product-card { display:flex;flex-direction:column;min-width:0;padding:7px;border:0;border-radius:24px;background:#f3f6f8;color:var(--foreground);text-align:left;cursor:pointer;transition:background-color .2s; }
 .catalog-product-card:hover { background:var(--pink); }
+.catalog-product-art-wrap { position:relative;display:block;width:100%;min-width:0; }
 .catalog-product-art { position:relative;display:grid;place-items:center;width:100%;height:170px;overflow:hidden;border-radius:18px;background:#d6effb;color:#286589; }
 .catalog-product-pin { position:absolute;z-index:1;top:9px;right:9px;display:grid;place-items:center;width:32px;height:32px;border-radius:50%;background:#fff;color:#eeb800;box-shadow:0 3px 12px rgba(80,55,0,.16);animation:pin-glow 3s ease-in-out infinite; }
 .catalog-product-pin svg { animation:pin-twinkle 3s ease-in-out infinite; }
@@ -167,7 +168,7 @@
 .catalog-product-art-social .social-thumbnail img { width:46px;height:46px;object-fit:contain; }
 .social-product-title { display:flex;align-items:center;gap:12px; }
 .social-product-title .catalog-product-game-icon { flex-shrink:0; }
-.catalog-product-rating { display:inline-flex; align-items:center; gap:4px; align-self:flex-start; margin:-4px 0 2px; color:#a86512; font-size:11px; font-weight:750; }
+.catalog-product-rating { position:absolute;z-index:3;top:9px;left:9px;display:inline-flex;align-items:center;gap:4px;max-width:calc(100% - 18px);min-height:27px;padding:5px 8px;border:1px solid rgb(255 255 255 / 76%);border-radius:999px;background:rgb(255 255 255 / 94%);color:#8a5a11;font-size:10px;font-weight:800;line-height:1;box-shadow:0 2px 8px rgb(23 25 28 / 12%); }
 .catalog-product-rating span { color:var(--muted); font-weight:550; }
 
 .social-mobile-total { display:none; }
