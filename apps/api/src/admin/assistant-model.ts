@@ -86,9 +86,10 @@ export function assistantConfig() {
   }
   const enabled = process.env.ADMIN_AI_ENABLED === "true";
   const configured = enabled && Object.keys(targets).length > 0;
-  const preferred = openRouterModel && targets[openRouterModel] ? openRouterModel
-    : groqModel && targets[providerModelId("groq", groqModel)] ? providerModelId("groq", groqModel)
+  const preferred = groqModel && targets[providerModelId("groq", groqModel)] ? providerModelId("groq", groqModel)
+    : targets[providerModelId("groq", "openai/gpt-oss-120b")] ? providerModelId("groq", "openai/gpt-oss-120b")
       : googleModel && targets[providerModelId("google", googleModel)] ? providerModelId("google", googleModel)
+      : openRouterModel && targets[openRouterModel] ? openRouterModel
         : models.find(id => !!targets[id]);
   return { configured, key: openRouterKey, model: configured ? preferred : undefined, models: configured ? [...new Set(models)].slice(0, 400) : [], targets,
     attachments: configured && process.env.ADMIN_AI_ATTACHMENTS_ENABLED === "true" };
@@ -203,8 +204,10 @@ async function completion(system: string, data: unknown, json: boolean, options:
   if (!config.configured) throw new HttpException("Asisten Anres belum diaktifkan.", 503);
   const selectedModel = options.model ?? config.model;
   if (!selectedModel || !config.models.includes(selectedModel) || !config.targets[selectedModel]) throw new HttpException("Model AI tidak tersedia untuk Asisten Anres.", 422);
+  const fallbackRank = (id: string) => id.startsWith("groq::") ? 0 : id.startsWith("google::") ? 1 : id.endsWith(":free") ? 2 : 3;
   const freeFallbacks = config.models.filter(id => id !== selectedModel &&
-    (id.endsWith(":free") || id.startsWith("groq::") || id.startsWith("google::")));
+    (id.endsWith(":free") || id.startsWith("groq::") || id.startsWith("google::")))
+    .sort((left, right) => fallbackRank(left) - fallbackRank(right));
   const orderedIds = [selectedModel, ...freeFallbacks];
   const autoSwitch = process.env.ADMIN_AI_AUTO_SWITCH_ENABLED !== "false";
   const maxAttempts = autoSwitch ? Math.min(orderedIds.length, 3) : 1;

@@ -14,7 +14,7 @@ ADMIN_AI_OPENROUTER_API_KEY=isi_dengan_key_openrouter_admin
 ADMIN_AI_OPENROUTER_MODEL=inclusionai/ling-3.2-flash:free
 ADMIN_AI_OPENROUTER_MODELS=
 ADMIN_AI_GROQ_API_KEY=isi_dengan_key_groq
-ADMIN_AI_GROQ_MODEL=openai/gpt-oss-20b
+ADMIN_AI_GROQ_MODEL=openai/gpt-oss-120b
 ADMIN_AI_GROQ_MODELS=openai/gpt-oss-20b,openai/gpt-oss-120b
 ADMIN_AI_GOOGLE_API_KEY=isi_dengan_key_google_ai_studio
 ADMIN_AI_GOOGLE_MODEL=gemini-3.1-flash-lite
@@ -45,7 +45,7 @@ Chat dibatasi enam permintaan per menit per admin dan 24 per jendela harian bers
 
 Tavily menerima maksimal 20 pencarian basic per hari untuk seluruh dashboard. Asisten memakai satu frasa publik dari pesan terbaru. Contoh **Cari di web dokumentasi VIPayment**. Riset publik dan draf perubahan katalog dijalankan di pesan terpisah.
 
-Pilih model untuk pesan berikutnya lewat **Model AI** di kolom chat. Katalog OpenRouter gratis dimuat otomatis dan menampilkan ID `:free` dengan semua harga bernilai nol. ID tambahan di `ADMIN_AI_OPENROUTER_MODELS` boleh diisi manual dan ditandai sebagai tarif standar jika tidak gratis. Groq mengambil semua model yang tersedia untuk key aktif; `ADMIN_AI_GROQ_MODELS` dapat dipakai untuk menambah ID model tertentu. Google memakai daftar Free Tier pada `ADMIN_AI_GOOGLE_MODELS`. Untuk mengganti provider utama, isi variabel `*_MODEL` yang sesuai. Setelah mengubah env, buat ulang container API. Riwayat menampilkan model aktual dan urutan fallback yang digunakan.
+Model utama default adalah Groq `openai/gpt-oss-120b` bila model tersebut tersedia; jika tidak, pemilihan berlanjut ke Google AI Studio, lalu OpenRouter. Pilih model lain untuk pesan berikutnya lewat **Model AI** di kolom chat. Katalog OpenRouter gratis dimuat otomatis dan menampilkan ID `:free` dengan semua harga bernilai nol. ID tambahan di `ADMIN_AI_OPENROUTER_MODELS` boleh diisi manual dan ditandai sebagai tarif standar jika tidak gratis. Groq mengambil model yang tersedia untuk key aktif; `ADMIN_AI_GROQ_MODELS` dapat dipakai menambah ID tertentu. Google memakai daftar Free Tier pada `ADMIN_AI_GOOGLE_MODELS`. Setelah mengubah env, buat ulang container API. Riwayat menampilkan model aktual dan urutan fallback yang digunakan.
 
 ## Riwayat dan memori
 
