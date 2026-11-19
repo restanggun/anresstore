@@ -6,9 +6,6 @@
   max-width: 64rem;
   height: max(29rem, calc(100dvh - 9rem));
   margin-inline: auto;
-  border: 1px solid var(--border);
-  border-radius: 24px;
-  background: var(--surface);
 }
 .status {
   margin-inline-start: auto;
@@ -35,9 +32,7 @@
   flex: none;
   align-items: center;
   gap: 10px;
-  padding: 12px var(--chat-gutter);
-  border-radius: 23px 23px 0 0;
-  background: var(--primary);
+  padding: 0 var(--chat-gutter) 10px;
 }
 .chatHeader h1 { margin: 0; font-size: 18px; font-weight: 800; letter-spacing: -.035em; }
 .icon {
@@ -49,7 +44,7 @@
   color: var(--pink-ink);
   border-radius: 11px;
 }
-.chatHeader .icon { background: var(--surface); color: var(--focus); }
+.chatHeader .icon { background: var(--primary); color: var(--focus); }
 .conversation {
   display: flex;
   flex-direction: column;
@@ -316,8 +311,7 @@
   padding: 14px 20px max(14px, env(safe-area-inset-bottom));
 }
 @media (max-width: 560px) {
-  .workspace { height: max(27rem, calc(100dvh - 7.5rem)); border-radius: 18px; }
-  .chatHeader { border-radius: 17px 17px 0 0; }
+  .workspace { height: max(27rem, calc(100dvh - 7.5rem)); }
   .chatHeader h1 { font-size: 16px; }
   .conversation { padding-block-start: 16px; }
   .assistantMessage { max-width: 100%; }
