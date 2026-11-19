@@ -8,7 +8,7 @@ import "./support-notifications.css";
 
 type Ticket = { id: string; subject: string; created_at: string };
 type SupportSummary = { count: number; unreadCount?: number; recent: Ticket[]; recentMessages?: Ticket[] };
-type WorkSection = "orders" | "tasks" | "apps" | "reviews";
+export type WorkSection = "orders" | "tasks" | "apps" | "reviews";
 type WorkEntry = {
   id: string;
   subject: string;
@@ -17,7 +17,7 @@ type WorkEntry = {
   reason: string | null;
   unread: boolean;
 };
-type WorkSummary = {
+export type WorkSummary = {
   section: WorkSection;
   count: number;
   unread_count: number;
@@ -58,6 +58,11 @@ export function useWorkNotifications() {
       adminRequest(`work-notifications/${section}/read`, "POST", { through: snapshot_at }),
     onSuccess: () => client.invalidateQueries({ queryKey: workKey }),
   });
+  const { mutate: markItemRead } = useMutation({
+    mutationFn: ({ section, id }: { section: WorkSection; id: string }) =>
+      adminRequest(`work-notifications/${section}/read-item`, "POST", { id }),
+    onSuccess: () => client.invalidateQueries({ queryKey: workKey }),
+  });
 
   const read = useCallback((section: string) => {
     const data = client.getQueryData<{ sections: WorkSummary[] }>(workKey);
@@ -65,7 +70,9 @@ export function useWorkNotifications() {
     if (summary?.unread_count) markRead(summary);
   }, [client, markRead]);
 
-  return { query, readError, read };
+  const readItem = useCallback((section: WorkSection, id: string) => markItemRead({ section, id }), [markItemRead]);
+
+  return { query, readError, read, readItem };
 }
 
 export function NotificationCount({ count, label }: { count: number; label?: string }) {
@@ -91,7 +98,7 @@ function combineArrivals(current: Arrival | null, next: Arrival): Arrival {
 }
 
 export function SupportNotifications({ onNavigate, systemAlerts = 0, work }: {
-  onNavigate: (section: string) => void;
+  onNavigate: (section: string, itemId?: string) => void;
   systemAlerts?: number;
   work: ReturnType<typeof useWorkNotifications>;
 }) {
@@ -180,10 +187,10 @@ export function SupportNotifications({ onNavigate, systemAlerts = 0, work }: {
     bell.current?.focus();
   }
 
-  function navigate(section: string) {
+  function navigate(section: string, itemId?: string) {
     closePanel();
     setArrival(null);
-    onNavigate(section);
+    onNavigate(section, itemId);
   }
 
   const supportEntries = [
@@ -216,9 +223,9 @@ export function SupportNotifications({ onNavigate, systemAlerts = 0, work }: {
           <span><strong>{ticket.subject}</strong><small>{ticket.kind} · {notificationDate.format(new Date(ticket.created_at))}</small></span>
           <i aria-hidden="true" />
         </button>)}
-        {workEntries.map(entry => {
+        {workEntries.slice(0, 5).map(entry => {
           const { label, arrival: arrivalLabel, icon: Icon } = workLabels[entry.section];
-          return <button type="button" key={`${entry.section}:${entry.id}`} onClick={() => navigate(entry.section)}>
+          return <button type="button" key={`${entry.section}:${entry.id}`} onClick={() => navigate(entry.section, entry.id)}>
             <span className="cs-notification-icon"><Icon size={18} aria-hidden="true" /></span>
             <span>
               <strong>{entry.subject}</strong>

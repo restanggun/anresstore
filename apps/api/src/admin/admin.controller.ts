@@ -1672,6 +1672,18 @@ export class AdminController {
     return { ok: true };
   }
 
+  @Post("work-notifications/:section/read-item")
+  async readWorkNotificationItem(@Param("section") section: string, @Body() body: { id?: unknown },
+    @Req() req: Request, @Res({ passthrough: true }) res: Response) {
+    const access = await this.authorize(req, res, true);
+    if (!this.workNotificationSections(access).includes(section)) throw new HttpException("Izin admin tidak mencukupi.", 403);
+    if (!uuid(body?.id)) throw new HttpException("Pesanan tidak valid.", 400);
+    await adminDb("rpc/mark_admin_work_notification_item_read", "", "POST", {
+      p_admin: access.id, p_section: section, p_item: body.id,
+    });
+    return { ok: true };
+  }
+
   @Get("conversations/notifications")
   async supportNotifications(@Req() req:Request,@Res({passthrough:true}) res:Response) {
     const access=await this.authorize(req,res); this.permit(access,"support.read"); this.allServices(access);

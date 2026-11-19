@@ -50,7 +50,7 @@ type Analytics = {
 type ProviderBalance = { available: boolean; balance: number | null; status?: "setup_required" | "unavailable" };
 type ProviderBalances = { tripay: ProviderBalance; vipayment: ProviderBalance };
 
-export function TransactionAnalytics({ overview = false, onNavigate }: { overview?: boolean; onNavigate?: (section: string, status?: string) => void }) {
+export function TransactionAnalytics({ overview = false, onNavigate, unreadOrderIds, onReadOrder }: { overview?: boolean; onNavigate?: (section: string, status?: string) => void; unreadOrderIds?: ReadonlySet<string>; onReadOrder?: (id: string) => void }) {
   const [days, setDays] = useState(30);
   const [metric, setMetric] = useState<keyof typeof trendMetrics>("paidCount");
   const [distribution, setDistribution] = useState<"payment" | "fulfillment">("payment");
@@ -243,7 +243,7 @@ export function TransactionAnalytics({ overview = false, onNavigate }: { overvie
       </details>}
 
       {overview && <>
-        <OrderWorkspace compact onViewAll={() => onNavigate?.("orders")} />
+        <OrderWorkspace compact unreadIds={unreadOrderIds} onReadItem={onReadOrder} onViewAll={() => onNavigate?.("orders")} />
         <div className="overview-links"><span>Operasional berikutnya</span><button onClick={() => onNavigate?.("conversations")}>Buka chat pelanggan<ArrowRight size={15} /></button><button onClick={() => onNavigate?.("catalog")}>Kelola katalog &amp; harga<ArrowRight size={15} /></button></div>
       </>}
     </div>

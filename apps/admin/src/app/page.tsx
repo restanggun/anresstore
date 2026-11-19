@@ -60,13 +60,18 @@ function AdminDashboard(){
  const {health,samples,refresh,fetching}=useApiHealth(); const reducedMotion=useReducedMotion();
  const [transactionStatus,setTransactionStatus]=useState<string>();
  const workNotifications = useWorkNotifications();
- const readNotifications = workNotifications.read;
  const select=useCallback((id:string,status?:string)=>{
-   readNotifications(id);
    setActive(id);
    setTransactionStatus(status);
    setMenuOpen(false);
- }, [readNotifications]);
+ }, []);
+ const openWorkNotification=useCallback((section:string,itemId?:string)=>{
+   if(itemId && (section==="orders"||section==="tasks"||section==="apps"||section==="reviews")) workNotifications.readItem(section,itemId);
+   select(section);
+ },[select,workNotifications.readItem]);
+ const unreadWorkIds=(section:"orders"|"tasks"|"apps")=>new Set(
+   workNotifications.query.data?.sections.find(summary=>summary.section===section)?.recent.filter(item=>item.unread).map(item=>item.id)??[]
+ );
  useEffect(() => {
    const handler = (event: Event) => {
      const section = (event as CustomEvent<{ section?: string }>).detail?.section;
@@ -118,15 +123,15 @@ function AdminDashboard(){
    onClick={event=>{if(event.target===event.currentTarget){const box=event.currentTarget.getBoundingClientRect();if(event.clientX<box.left||event.clientX>box.right||event.clientY<box.top||event.clientY>box.bottom)setMenuOpen(false);}}}>
    {menuOpen&&sidebarContents}
  </dialog>
- <div className="main-wrap"><header className="topbar"><div className="topbar-left"><button className="icon-button mobile-menu" onClick={()=>setMenuOpen(true)} aria-label="Buka menu" aria-controls="admin-navigation" aria-expanded={menuOpen}><Icon name="menu"/></button><span className="breadcrumb"><span className="breadcrumb-root">Ruang kerja</span> <span className="breadcrumb-divider">/</span> <strong>{current.label}</strong></span></div><div className="topbar-right"><span className="setup-pill"><span/> Akses administrator</span><button className="text-button" onClick={() => void logout()}>Keluar</button><SupportNotifications onNavigate={select} systemAlerts={alerts} work={workNotifications}/><span className="top-avatar">A</span></div></header>
+ <div className="main-wrap"><header className="topbar"><div className="topbar-left"><button className="icon-button mobile-menu" onClick={()=>setMenuOpen(true)} aria-label="Buka menu" aria-controls="admin-navigation" aria-expanded={menuOpen}><Icon name="menu"/></button><span className="breadcrumb"><span className="breadcrumb-root">Ruang kerja</span> <span className="breadcrumb-divider">/</span> <strong>{current.label}</strong></span></div><div className="topbar-right"><span className="setup-pill"><span/> Akses administrator</span><button className="text-button" onClick={() => void logout()}>Keluar</button><SupportNotifications onNavigate={openWorkNotification} systemAlerts={alerts} work={workNotifications}/><span className="top-avatar">A</span></div></header>
  <motion.main id="main" className={`main-content${active === "assistant" ? " main-content-assistant" : ""}`} key={active} initial={reducedMotion ? false : {opacity:0}} animate={{opacity:1}} transition={{duration:reducedMotion ? 0 : 0.15}}>
- {active === "overview" && <TransactionAnalytics overview onNavigate={select}/>}
+ {active === "overview" && <TransactionAnalytics overview onNavigate={select} unreadOrderIds={unreadWorkIds("orders")} onReadOrder={id=>workNotifications.readItem("orders",id)}/>}
  {active === "assistant" && <AssistantWorkspace onNavigate={select}/>}
  {active === "assistant-registry" && <AssistantRegistryWorkspace/>}
  {active === "reports" && <TransactionAnalytics onNavigate={select}/>}
- {["orders","payments","fulfillment"].includes(active) && <OrderWorkspace view={active as "orders"|"payments"|"fulfillment"} initialStatus={transactionStatus}/>}
- {active === "tasks" && <TaskWorkspace/>}
- {active === "apps" && <PremiumWorkspace/>}
+ {["orders","payments","fulfillment"].includes(active) && <OrderWorkspace view={active as "orders"|"payments"|"fulfillment"} initialStatus={transactionStatus} unreadIds={unreadWorkIds("orders")} onReadItem={id=>workNotifications.readItem("orders",id)}/>}
+ {active === "tasks" && <TaskWorkspace unreadIds={unreadWorkIds("tasks")} onReadItem={id=>workNotifications.readItem("tasks",id)}/>}
+ {active === "apps" && <PremiumWorkspace unreadIds={unreadWorkIds("apps")} onReadItem={id=>workNotifications.readItem("apps",id)}/>}
  {active === "catalog" && <ProductWorkspace/>}
  {active === "vouchers" && <VoucherWorkspace/>}
  {active === "reviews" && <ReviewWorkspace/>}
