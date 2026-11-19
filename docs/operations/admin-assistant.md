@@ -67,6 +67,16 @@ Asisten dapat merencanakan maksimal empat langkah berurutan dalam satu pesan. La
 4. **Draf perubahan yang aman.** Edit massal hanya dibuat jika admin meminta semua/rentang dengan jelas, maksimal 50 varian. Draf menampilkan target serta nilai sebelum/sesudah; server memvalidasi izin, versi data, kategori, supplier, dan batas field. Perubahan baru berjalan setelah admin menekan **Terapkan**.
 5. **Jika target tidak ditemukan atau ambigu, berhenti dan tanya.** AI tidak memilih produk yang mirip, mengganti SKU, atau mengarang data.
 
+### Impor daftar JSON/CSV
+
+Kirim satu file JSON/CSV atau tempel daftar berheader. Setiap baris wajib memiliki `sku` dan sedikitnya satu perubahan: `harga`, `nama`, `deskripsi`, atau `status`. Format harga rupiah bulat; harga seperti `27.000` diterima. Kolom penjaga `nama_lama`, `produk_lama`, dan `kategori` bersifat opsional.
+
+Contoh JSON: `[{"sku":"ML86","harga":27000,"nama":"86 Diamonds"}]`.
+
+Contoh CSV: `sku,harga,nama` lalu `ML86,27000,86 Diamonds`.
+
+Server mencocokkan SKU secara tepat di katalog tersimpan dan cakupan izin admin. Jika ada SKU hilang, ganda, nama lama berbeda, atau ambigu, server hanya menampilkan laporan baris dan tidak membuat draf. Jika semua baris cocok, server membuat satu draf massal dengan nilai sebelum/sesudah per SKU; perubahan baru berjalan setelah admin menekan **Terapkan**. Maksimal 50 baris per impor. File perlu `ADMIN_AI_ATTACHMENTS_ENABLED=true`; daftar dapat ditempel langsung di chat tanpa mengirim isi daftar ke model.
+
 ## Kemampuan
 
 | Tindakan | Sumber Anres | Izin |

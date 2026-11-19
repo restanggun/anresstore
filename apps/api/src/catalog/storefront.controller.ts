@@ -31,7 +31,7 @@ export class StorefrontController {
         id: review.id, rating: Number(review.rating), comment: review.comment, category: review.category,
         productSlug: review.product_slug, createdAt: review.created_at,
         author: review.reviewer_user_id === null ? "Pengunjung" : (() => {
-          const [local, domain] = review.reviewer_email.split("@");
+          const [local = "", domain = ""] = review.reviewer_email.split("@");
           const maskedEmail = `${local.slice(0, 1)}***@${domain ?? ""}`;
           return `${names.get(review.reviewer_user_id) || maskedEmail} (${maskedEmail})`;
         })(),

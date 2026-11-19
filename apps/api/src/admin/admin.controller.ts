@@ -25,7 +25,7 @@ import {
   definitions, loadAssistantRegistry, resolvedRegistry, validateAssistantRegistry, editingTools,
 } from "./assistant-registry";
 import { tavilyEnabled, tavilySearch } from "./assistant-research";
-import { parseAssistantPriceCsv, percentage, targetPrice } from "./assistant-pricing";
+import { parseAssistantCatalogImport, parseAssistantPriceCsv, percentage, targetPrice, type AssistantCatalogImport } from "./assistant-pricing";
 import {
   createAssistantSession, deleteAssistantSession, getAssistantMemory, getAssistantSession,
   listAssistantSessions, renameAssistantSession, saveAssistantMemory, saveAssistantTurn,
@@ -57,6 +57,24 @@ const assistantPromptCategory = (prompt: string) => /\b(pulsa|paket data|token l
   : /\b(joki|tugas|task)\b/i.test(prompt) ? "tasks"
   : /\b(game|games|diamond|top\s?up|skin|membership|mlbb|mobile\s*legends?)\b/i.test(prompt) ? "game" : undefined;
 const assistantPromptProduct = (prompt: string) => /mobile\s*legends|mobile\s*legend|\bmlbb\b/i.test(prompt) ? "Mobile Legends" : undefined;
+const assistantStructuredImportSource = (input: ReturnType<typeof assistantInput>): { format: "csv" | "json"; text: string } | null => {
+  if (input.attachments.length === 1) {
+    const file = input.attachments[0]!;
+    const format = /\.json$/i.test(file.name) ? "json" : /\.csv$/i.test(file.name) ? "csv" : null;
+    if (format) return { format, text: file.text };
+  }
+  const fenced = /```\s*(json|csv)\s*([\s\S]*?)```/i.exec(input.text);
+  if (fenced) return { format: fenced[1]!.toLowerCase() as "json" | "csv", text: fenced[2]!.trim() };
+  const trimmed = input.text.trim();
+  if (trimmed.startsWith("{") || trimmed.startsWith("[")) return { format: "json", text: trimmed };
+  const lines = input.text.split(/\r?\n/);
+  const headerIndex = lines.findIndex(line => /\bsku\b/i.test(line) && /\b(harga|price|nama|name)\b/i.test(line));
+  if (headerIndex >= 0) return { format: "csv", text: lines.slice(headerIndex).join("\n").trim() };
+  const embeddedJson = /\[[\s\S]*\]/.exec(input.text);
+  const embeddedObject = /\{[\s\S]*\}/.exec(input.text);
+  return embeddedJson ? { format: "json", text: embeddedJson[0] }
+    : embeddedObject ? { format: "json", text: embeddedObject[0] } : null;
+};
 const showCatalogValue = (key: string, value: unknown) => key === "price" || key === "cost_price"
   ? value == null ? "Belum diisi" : assistantRupiah.format(Number(value))
   : key === "active" ? value ? "Tampil" : "Disembunyikan"
@@ -639,21 +657,28 @@ export class AdminController {
     if (profile && selection.some(skill => skill && skill !== "file_review" && !profile.tools.includes(skill))) {
       throw new HttpException("Skill pilihan berada di luar cakupan agent.", 403);
     }
+    const importSource = assistantStructuredImportSource(input);
+    const structuredImportIntent = selection.includes("pricing_batch") || (!input.attachments.length &&
+      !/\b(analisa|analisis|ringkas|jelaskan|baca saja|cek saja|jangan edit)\b/i.test(input.text)) ||
+      /\b(cocokkan|cocokin|cocokan|impor|import|update|perbarui|ubah|edit|sesuaikan|input|masukkan|terapkan|proses)\b/i.test(input.text);
+    const structuredImport = !!importSource && !scopedProduct && tools.includes("pricing_batch") &&
+      (!profile || profile.tools.includes("pricing_batch")) && structuredImportIntent;
     const webRequested = selection.includes("web_search") || profile?.id === "research" || /\b(?:cari di web|tavily|cari di internet|riset publik|pencarian web)\b/i.test(input.text);
     const available = tools.filter(tool => (tool === "reply" || !profile || profile.tools.includes(tool) || tool === "file_review") &&
       (!scopedProduct || tool === "reply" || tool === "catalog_edit") &&
       (tool !== "web_search" || (webRequested && !input.attachments.length)) &&
       (!input.attachments.length || !editingTools.includes(tool)));
-    const csv = selection.includes("pricing_batch") && input.attachments.length > 0;
+    const csv = !structuredImport && selection.includes("pricing_batch") && input.attachments.length > 0;
     if (csv && (scopedProduct || !tools.includes("pricing_batch") || profile && !profile.tools.includes("pricing_batch"))) throw new HttpException("Draf CSV di luar cakupan agent.", 403);
-    if (input.attachments.length && !csv && !tools.includes("file_review")) throw new HttpException("Analisis lampiran tidak diizinkan.", 403);
+    if (input.attachments.length && !csv && !structuredImport && !tools.includes("file_review")) throw new HttpException("Analisis lampiran tidak diizinkan.", 403);
     const catalogListingIntent = !scopedProduct && /\b(tampilkan|tampilin|lihatkan|liatin|tunjukkan|tunjukin|perlihatkan|daftar|list|urutkan|lihat|show)\b/i.test(input.text) &&
       /\b(produk|product|varian|item|katalog|diamond|pulsa|token|paket|aplikasi|premium|game|skin|membership|top\s?up)\b/i.test(input.text);
     const mobileLegendsListing = catalogListingIntent && !!assistantPromptProduct(input.text) && /\bdiamond\b/i.test(input.text);
     const requestedRange = assistantCatalogRange(input.text);
     const category = assistantPromptCategory(input.text);
     const searchQuery = assistantCatalogQuery(input.text);
-    const plan: AssistantStep[] = csv ? [{ tool: "pricing_batch", csv: true }]
+    const plan: AssistantStep[] = structuredImport ? [{ tool: "pricing_batch", structured_import: true }]
+      : csv ? [{ tool: "pricing_batch", csv: true }]
       : catalogListingIntent && available.includes("catalog_search") && (searchQuery || mobileLegendsListing) ? [{ tool: "catalog_search",
         query: mobileLegendsListing ? "diamond" : searchQuery, ...(mobileLegendsListing && { product: "Mobile Legends" }),
         ...(category && { category }), ...requestedRange }]
@@ -679,7 +704,7 @@ export class AdminController {
     await this.logAssistantRun(access.id, trace);
     const last = outputs.at(-1)!;
     const reply = { ...last, text: outputs.map(result => result.text).join("\n\n"),
-      model: csv ? undefined : usedModels.length ? usedModels.map(id => id.replace(/^groq::/, "Groq · ").replace(/^google::/, "Google AI Studio · ")).join(" → ") : modelOptions.model,
+      model: csv || structuredImport ? undefined : usedModels.length ? usedModels.map(id => id.replace(/^groq::/, "Groq · ").replace(/^google::/, "Google AI Studio · ")).join(" → ") : modelOptions.model,
       section: [...outputs].reverse().find(result => result.section)?.section,
       choices: [...outputs].reverse().find(result => result.choices?.length)?.choices,
       sources: outputs.flatMap(result => result.sources ?? []),
@@ -860,9 +885,74 @@ export class AdminController {
     }
   }
 
+  private async assistantCatalogImport(
+    access: Awaited<ReturnType<AdminController["authorize"]>>,
+    source: { format: "csv" | "json"; text: string },
+  ): Promise<AssistantOutput> {
+    const rows = parseAssistantCatalogImport(source.text, source.format);
+    const categories = access.categories.filter(category => assistantCategories.includes(category as typeof assistantCategories[number]));
+    if (!categories.length) throw new HttpException("Tidak ada akses kategori untuk pencocokan katalog.", 403);
+    const skus = [...new Set(rows.flatMap(row => [row.sku, row.sku.toLowerCase(), row.sku.toUpperCase()]))];
+    const productScope = access.productSlugs.length ? `&product_slug=in.(${access.productSlugs.map(encodeURIComponent).join(",")})` : "";
+    const catalog = await adminDb<ManagedProduct>("managed_products",
+      `?category=in.(${categories.join(",")})&provider_code=in.(${skus.map(encodeURIComponent).join(",")})${productScope}&deleted_at=is.null&select=*&limit=500`);
+    const normalize = (value: string) => value.normalize("NFKC").toLocaleLowerCase("id-ID").replace(/\s+/g, " ").trim();
+    const resolutions: { input: AssistantCatalogImport; row?: ManagedProduct; status: string; detail: string }[] = rows.map(input => {
+      let matches = catalog.filter(row => row.provider_code.toLowerCase() === input.sku.toLowerCase() &&
+        (!input.category || row.category === input.category));
+      if (!matches.length) return { input, status: "tidak ditemukan", detail: "SKU tidak ditemukan pada katalog tersimpan dalam cakupan akses." };
+      if (input.currentName) matches = matches.filter(row => normalize(row.name) === normalize(input.currentName!));
+      if (input.currentProduct) matches = matches.filter(row => normalize(row.product) === normalize(input.currentProduct!));
+      if (!matches.length) return { input, status: "nama tidak cocok", detail: "SKU ada, tetapi nama lama tidak sesuai." };
+      if (matches.length > 1) return { input, status: "ambigu", detail: "SKU cocok ke beberapa produk; tambahkan kategori atau nama_lama." };
+      const row = matches[0]!;
+      if (!row.id || !row.updated_at) return { input, status: "belum tersimpan", detail: "Varian belum memiliki entri tersimpan untuk edit massal." };
+      return { input, row, status: "cocok", detail: "" };
+    });
+    const repeated = new Map<string, number>();
+    for (const result of resolutions) if (result.row) repeated.set(result.row.id, (repeated.get(result.row.id) ?? 0) + 1);
+    for (const result of resolutions) if (result.row && (repeated.get(result.row.id) ?? 0) > 1) {
+      result.status = "SKU berulang"; result.detail = "SKU target muncul lebih dari sekali di daftar.";
+    }
+    const failures = resolutions.filter(result => result.status !== "cocok");
+    const choices = resolutions.flatMap(result => result.row ? [this.assistantCatalogChoice(result.row)] : []);
+    if (failures.length) {
+      const report = resolutions.map(result => `Baris ${result.input.line} | ${result.input.sku}: ${result.status}${result.detail ? " - " + result.detail : ""}`);
+      return { text: `Belum ada perubahan disiapkan. ${rows.length - failures.length}/${rows.length} baris cocok. Perbaiki daftar lalu kirim ulang:\n${report.join("\n")}`,
+        ...(choices.length && { choices }), section: "catalog" };
+    }
+    const changes = resolutions.flatMap(result => {
+      const row = result.row!;
+      const before = { name: row.name, price: Number(row.price), description: row.description, active: row.active };
+      const patch = Object.fromEntries(Object.entries(result.input.patch).filter(([key, value]) => before[key as keyof typeof before] !== value)) as AssistantCatalogImport["patch"];
+      return Object.keys(patch).length ? [{ input: result.input, row, before, patch }] : [];
+    });
+    if (!changes.length) return { text: `Semua ${rows.length} SKU cocok, tetapi nilainya sudah sama. Tidak ada draf perubahan.`, choices, section: "catalog" };
+    const id = randomUUID();
+    const items = changes.map(({ row, before, patch }) => {
+      this.category(access, row.category); this.product(access, row.product_slug);
+      const beforeValues = Object.fromEntries(Object.keys(patch).map(key => [key, before[key as keyof typeof before]]));
+      return { id: randomUUID(), product_id: row.id, category: row.category, product_slug: row.product_slug,
+        product_version: row.updated_at, before_values: beforeValues, patch };
+    });
+    const [entry] = await adminDb<{ expires_at: string }>("rpc/stage_admin_assistant_batch", "", "POST", { p_id: id, p_actor: access.id, p_items: items });
+    if (!entry?.expires_at) throw new HttpException("Draf impor katalog belum dapat disimpan.", 503);
+    return { text: `Semua ${rows.length} baris cocok berdasarkan SKU. Draf berisi ${changes.length} perubahan; data baru berubah setelah kamu menekan Terapkan.`,
+      section: "catalog", batch: { id, expiresAt: entry.expires_at, rows: changes.map(({ input, row, before, patch }) => ({
+        ...this.assistantCatalogChoice(row), changes: Object.keys(patch).map(key => ({ key,
+          before: before[key as keyof typeof before], after: patch[key as keyof typeof patch] })),
+      })) } };
+  }
+
   private async assistantPricing(
     access: Awaited<ReturnType<AdminController["authorize"]>>, plan: AssistantStep, input: ReturnType<typeof assistantInput>,
   ): Promise<AssistantOutput> {
+    if (plan.structured_import === true) {
+      const source = assistantStructuredImportSource(input);
+      if (!source) throw new HttpException("Lampirkan satu file CSV/JSON atau tempel daftar dengan header SKU dan kolom perubahan.", 422);
+      this.permit(access, "products.read"); this.permit(access, "products.write");
+      return this.assistantCatalogImport(access, source);
+    }
     const csv = plan.csv === true && input.attachments.length > 0;
     if (plan.csv === true && !csv) throw new HttpException("Lampiran CSV diperlukan.", 422);
     if (plan.tool === "pricing_batch" && !/\b(draf|draft|siapkan|usulkan|rancangan)\b/i.test(input.text)) {

@@ -13,7 +13,7 @@ export const definitions = {
   pricing: ["Analisis margin", "Hitung margin, markup, dan harga target dari modal yang tercatat."],
   duplicates: ["Cek varian duplikat", "Cari nama varian yang sama di satu produk."],
   promo_preview: ["Simulasi promo", "Hitung diskon dan estimasi margin tanpa menerbitkan jadwal."],
-  pricing_batch: ["Draf harga massal", "Siapkan draf dari target margin atau CSV harga."],
+  pricing_batch: ["Impor & edit daftar produk", "Cocokkan setiap SKU pada daftar JSON/CSV sebelum menyiapkan draf perubahan."],
   transactions: ["Cari transaksi", "Periksa pesanan, pembayaran, atau antrean pemenuhan."],
   invoice_timeline: ["Kronologi invoice", "Tampilkan status dan jejak audit yang tersedia."],
   reconcile: ["Rekonsiliasi gateway", "Bandingkan invoice dengan status dan nilai di Tripay."],
