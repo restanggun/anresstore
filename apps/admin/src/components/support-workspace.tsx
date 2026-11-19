@@ -1,9 +1,10 @@
 "use client";
+import { SearchField } from "@anres/ui";
 import { AdminInput, AdminTextarea } from "./form-controls";
 
 import {useEffect,useRef,useState,type FormEvent} from "react";
 import {useQuery,useQueryClient} from "@tanstack/react-query";
-import {MessageCircle,Plus,RefreshCw,Search} from "lucide-react";
+import {MessageCircle,Plus,RefreshCw} from "lucide-react";
 import {adminRequest} from "./workspace-api";
 import {CustomSelect} from "./custom-select";
 import {SupportChatDialog} from "@anres/ui";
@@ -34,7 +35,7 @@ export function SupportWorkspace(){
  const rows=(list.data?.rows||[]).filter(row=>(filter==="all"||row.status===filter)&&`${row.subject} ${row.id} ${row.user_id}`.toLowerCase().includes(search.toLowerCase()));
  return <div className="operations cs-workspace"><section className="panel cs-ticket-panel">
   <div className="cs-list-heading"><div><h2>Tiket pelanggan</h2><p>Terima tiket untuk mulai percakapan dengan pelanggan.</p></div><div className="cs-heading-actions"><button className="ops-button" onClick={()=>void list.refetch()} aria-label="Muat ulang tiket"><RefreshCw size={16}/></button><button className="ops-button cs-primary" onClick={()=>{setNotice("");setCreateOpen(true);}}><Plus size={17}/> Tiket / Room chat</button></div></div>
-  <div className="cs-list-toolbar"><label className="cs-search"><Search size={18} aria-hidden="true"/><span className="sr-only">Cari tiket pada halaman ini</span><AdminInput value={search} onChange={e=>setSearch(e.target.value)} placeholder="Cari subjek, nomor tiket, atau pelanggan"/></label><label className="cs-filter"><span>Status</span><CustomSelect value={filter} onChange={e=>setFilter(e.target.value)}><option value="all">Semua status</option>{Object.entries(labels).map(([value,label])=><option key={value} value={value}>{label}</option>)}</CustomSelect></label></div>
+  <div className="cs-list-toolbar"><SearchField className="cs-search" aria-label="Cari tiket pada halaman ini" value={search} onChange={e=>setSearch(e.target.value)} placeholder="Cari subjek, nomor tiket, atau pelanggan"/><label className="cs-filter"><span>Status</span><CustomSelect value={filter} onChange={e=>setFilter(e.target.value)}><option value="all">Semua status</option>{Object.entries(labels).map(([value,label])=><option key={value} value={value}>{label}</option>)}</CustomSelect></label></div>
   {!selected&&!createOpen&&notice&&<p role="alert" className="cs-feedback">{notice}</p>}
   {list.isPending?<p className="cs-empty" role="status">Memuat tiket...</p>:list.error?<div className="cs-empty" role="alert"><p>{list.error.message}</p><button className="ops-button" onClick={()=>void list.refetch()}>Coba lagi</button></div>:<><div className="ops-table-wrap"><table className="ops-table cs-ticket-table"><thead><tr><th>Tiket</th><th>Status</th><th>Dibuat</th><th><span className="sr-only">Aksi</span></th></tr></thead><tbody>{rows.map(row=><tr key={row.id}><td><strong>{row.subject}</strong>{row.kind==="refund"&&<small>{refundLabels[row.refund_status||"requested"]}{row.refund_requires_admin?" / Di atas Rp50.000: wajib admin":" / Pengembalian manual"}</small>}<small>#{row.id.slice(0,8).toUpperCase()} · Akun {row.user_id.slice(0,8)}</small></td><td><span className={`cs-status cs-status-${row.status}`}>{labels[row.status]}</span></td><td>{date(row.created_at)}</td><td><button className="ops-button" onClick={()=>open(row)}>Buka</button></td></tr>)}</tbody></table></div>{!rows.length&&<div className="cs-empty"><MessageCircle size={28}/><h3>{search||filter!=="all"?"Tidak ada tiket yang cocok":"Belum ada tiket"}</h3><p>{search||filter!=="all"?"Coba kata pencarian atau status lain.":"Permintaan bantuan pelanggan akan muncul di sini."}</p></div>}<div className="ops-pagination"><button className="ops-button" disabled={!page||list.isFetching} onClick={()=>setPage(p=>p-1)}>Sebelumnya</button><span>Halaman {page+1}</span><button className="ops-button" disabled={!list.data?.hasMore||list.isFetching} onClick={()=>setPage(p=>p+1)}>Berikutnya</button></div></>}
  </section>

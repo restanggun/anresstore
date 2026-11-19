@@ -1,15 +1,21 @@
-.checkout-voucher { margin:24px 0; padding:18px; border:1px solid var(--field-border); border-radius:16px; }
+.checkout-voucher { margin:24px 0; padding:20px; border:0; border-radius:20px; background:var(--primary-soft); }
 .checkout-voucher h3 { display:flex;align-items:center;gap:8px;margin:0 0 12px;font-size:15px; }
 .checkout-voucher-entry { display:flex;gap:8px; }
 .checkout-voucher-entry input { flex:1;min-width:0; }
-.checkout-voucher-entry button { flex:none;min-height:48px;padding:0 14px;border:0;border-radius:12px;background:var(--primary-soft);font-weight:700;cursor:pointer; }
+.checkout-voucher-entry button { flex:none;min-height:48px;padding:0 16px;border:0;border-radius:14px;background:var(--pink);color:var(--pink-ink);font-weight:750;cursor:pointer;touch-action:manipulation;transition:background-color 140ms ease-out,transform 140ms ease-out; }
+.checkout-voucher-entry button:hover:not(:disabled) { background:var(--pink-soft); }
+.checkout-voucher-entry button:active:not(:disabled) { transform:scale(.98); }
 .checkout-voucher-entry button:disabled { opacity:.5;cursor:not-allowed; }
 .checkout-voucher p { margin:10px 0 0;font-size:12px;color:var(--muted); }
-.checkout-voucher-list { margin-top:12px;border:1px solid var(--field-border);border-radius:12px; }
-.checkout-voucher-list summary { display:flex;align-items:center;justify-content:space-between;padding:12px;cursor:pointer;font-size:13px;font-weight:700;list-style:none; }
+.checkout-voucher-list { margin-top:12px;border:0;border-radius:14px;background:var(--surface); }
+.checkout-voucher-list summary { display:flex;align-items:center;justify-content:space-between;min-height:46px;padding:12px 14px;border-radius:14px;cursor:pointer;font-size:13px;font-weight:700;list-style:none;touch-action:manipulation; }
+.checkout-voucher-list summary:focus-visible { outline:2px solid var(--focus);outline-offset:2px; }
+.checkout-voucher-list summary:hover { background:var(--pink-soft); }
 .checkout-voucher-list summary::-webkit-details-marker { display:none; }
+.checkout-voucher-list summary svg { transition:transform 160ms ease-out; }
 .checkout-voucher-list[open] summary svg { transform:rotate(180deg); }
 .checkout-voucher-list div { padding:0 12px 12px; }
 .checkout-voucher-list ul { display:grid;gap:6px;margin:0;padding:0;list-style:none; }
 .checkout-voucher-list li { display:flex;flex-wrap:wrap;align-items:center;gap:4px 10px;overflow-wrap:anywhere; }
 .checkout-voucher .shop-text-button { min-height:44px; }
+@media(prefers-reduced-motion:reduce) { .checkout-voucher-entry button,.checkout-voucher-list summary svg { transition:none; } }

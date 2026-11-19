@@ -23,6 +23,12 @@ type Catalog = { products: { slug: string; name: string }[];
 const categories: [Category, string][] = [["game","Top up game"],["prepaid","PPOB"],["apps","Aplikasi premium"],["social","Booster media sosial"],["tasks","Joki tugas"]];
 const kinds = { percent: "Diskon persen", fixed: "Potongan rupiah", gift: "Hadiah produk" };
 const redemptionStates = { used:"Terpakai", reserved:"Direservasi", released:"Dibebaskan" };
+function voucherStatus(row:Voucher){
+  if(!row.active)return {label:"Nonaktif",tone:"inactive"};
+  if(Date.parse(row.ends_at)<=Date.now())return {label:"Kedaluwarsa",tone:"expired"};
+  if(Date.parse(row.starts_at)>Date.now())return {label:"Terjadwal",tone:"scheduled"};
+  return {label:"Aktif",tone:"active"};
+}
 const wib = (time: string) => new Date(Date.parse(time) + 7 * 3600000).toISOString().slice(0,16);
 const dateLabel = new Intl.DateTimeFormat("id-ID", { dateStyle:"medium", timeStyle:"short", timeZone:"Asia/Jakarta" });
 const isoDate = (value: string) => new Date(value + ":00+07:00").toISOString();
@@ -123,9 +129,9 @@ export function VoucherWorkspace() {
           <thead><tr><th>Voucher</th><th>Jenis</th><th>Jadwal berakhir</th><th>Status</th><th>Aksi</th></tr></thead>
           <tbody>{list.data.rows.map(row => <tr key={row.id}>
             <td><strong>{row.name}</strong><small>{row.code ?? "Khusus akun"}</small></td>
-            <td>{kinds[row.kind]}</td><td>{dateLabel.format(new Date(row.ends_at))} WIB</td>
-            <td>{!row.active ? "Nonaktif" : Date.parse(row.ends_at) <= Date.now() ? "Kedaluwarsa" :
-              Date.parse(row.starts_at) > Date.now() ? "Terjadwal" : "Aktif"}</td>
+            <td><span className={`${styles.badge} ${styles["kind_"+row.kind]}`}>{kinds[row.kind]}</span></td>
+            <td><strong>{dateLabel.format(new Date(row.ends_at))} WIB</strong><small>Mulai {dateLabel.format(new Date(row.starts_at))} WIB</small></td>
+            <td>{(()=>{const state=voucherStatus(row);return <span className={`${styles.badge} ${styles[state.tone]}`}>{state.label}</span>;})()}</td>
             <td><button type="button" className="outline-button" disabled={busy}
               onClick={()=>open({...row,starts_at:wib(row.starts_at),ends_at:wib(row.ends_at)})}>Kelola <span className="sr-only">{row.name}</span></button></td>
           </tr>)}</tbody>
@@ -220,7 +226,7 @@ export function VoucherWorkspace() {
           <thead><tr><th>Invoice</th><th>Potongan</th><th>Status</th><th>Aksi</th></tr></thead>
           <tbody>{redemptions.data.rows.map(row=><tr key={row.id}>
             <td><strong>{row.invoice_number}</strong><small>{dateLabel.format(new Date(row.created_at))} WIB</small></td>
-            <td>{rupiah(row.discount)}</td><td>{redemptionStates[row.state]}</td>
+            <td>{rupiah(row.discount)}</td><td><span className={`${styles.badge} ${styles["redemption_"+row.state]}`}>{redemptionStates[row.state]}</span></td>
             <td>{row.can_release && <button type="button" className="outline-button" disabled={busy}
               onClick={()=>void release(row)}>Batalkan & lepas kuota</button>}</td>
           </tr>)}</tbody>

@@ -68,7 +68,7 @@
 .help-title h1 { min-width: 0; }
 .help-intro h1 { margin: 0; max-width: none; font-size: clamp(42px,5vw,58px); line-height: 1.1; letter-spacing: -2.2px; }
 .help-intro > p { margin: 13px 0 23px; color: var(--pink-ink); font-size: 14px; }
-.help-intro .search { width: min(100%,490px); height: 54px; margin: 0; border: 0; border-radius: 16px; background: white; }
+.help-intro .help-search { width:min(100%,490px); }
 .help-content { grid-template-columns: .75fr 1.25fr; gap: 8vw; padding: 58px 8px; }
 .help-content aside h2 { font-size: 30px; line-height: 1.2; letter-spacing: -1px; }
 .help-content aside > p { max-width: 300px; font-size: 14px; }
@@ -277,9 +277,9 @@ body:has(.auth-page) .header-space, body:has(.auth-page) .site-footer { display:
 .form-field input { border:1px solid var(--field-border);box-shadow:none; }
 .form-field input:focus { border-color:var(--field-focus);outline:var(--field-focus-width) solid var(--field-focus);outline-offset:2px;box-shadow:none; }
 .form-field input[aria-invalid="true"] { border-color:#b5445d; }
-.landing-page .landing-search,.catalog-toolbar .search,.help-intro .search { border:1px solid var(--field-border); }
-.landing-page .landing-search:focus-within,.catalog-toolbar .search:focus-within,.help-intro .search:focus-within { border-color:var(--field-focus);outline:var(--field-focus-width) solid var(--field-focus);outline-offset:2px;box-shadow:none; }
-.landing-search input:focus,.search input:focus { outline:none;box-shadow:none; }
+.catalog-toolbar .search { border:1px solid var(--field-border); }
+.catalog-toolbar .search:focus-within { border-color:var(--field-focus);outline:var(--field-focus-width) solid var(--field-focus);outline-offset:2px;box-shadow:none; }
+.search input:focus { outline:none;box-shadow:none; }
 @media(prefers-reduced-motion:reduce) { .auth-google,.auth-options button { transition:none; } }
 @media(max-width:760px) {
  .landing-hero-switch { grid-template-columns:1fr;gap:20px;padding:20px;border-radius:27px; }

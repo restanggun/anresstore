@@ -14,19 +14,19 @@
   gap: 8px;
   min-height: 44px;
   padding: 10px 15px;
-  border: 1px solid var(--field-border);
+  border: 0;
   border-radius: 14px;
-  background: var(--surface);
+  background: var(--primary-soft);
   color: var(--foreground);
   font: inherit;
   font-size: 13px;
   font-weight: 700;
   cursor: pointer;
   touch-action: manipulation;
-  transition: background-color 140ms ease-out, border-color 140ms ease-out, transform 140ms ease-out;
+  transition: background-color 140ms ease-out, transform 140ms ease-out;
 }
 
-.shareButton:hover { background: var(--primary-soft); border-color: var(--field-focus); }
+.shareButton:hover { background: var(--pink-soft); }
 .shareButton:active { transform: scale(.98); }
 .shareButton:focus-visible,.submit:focus-visible,.starChoice:focus-within { outline: 3px solid var(--focus); outline-offset: 3px; }
 .shareStatus { align-self:center; color:var(--muted); font-size:12px; }
@@ -36,9 +36,9 @@
   gap: 22px;
   margin-top: 32px;
   padding: clamp(20px, 3.2vw, 32px);
-  border: 1px solid var(--border);
+  border: 0;
   border-radius: 24px;
-  background: var(--surface);
+  background: var(--primary-soft);
 }
 
 .heading { display: flex; align-items: center; justify-content: space-between; gap: 20px; }
@@ -50,7 +50,7 @@
 .summary>span:last-child { font-size: 11px; }
 .reviewStars { display: inline-flex; align-items: center; gap: 2px; color: #ae6e20; }
 
-.form { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); align-items: start; gap: 17px 22px; padding: 20px; border-radius: 18px; background: #f7fafc; }
+.form { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); align-items: start; gap: 17px 22px; padding: 20px; border-radius: 18px; background: var(--surface); }
 .starField { min-width: 0; margin: 0; padding: 0; border: 0; }
 .starField legend { margin-bottom: 7px; font-size: 13px; font-weight: 750; }
 .starChoices { display: flex; align-items: center; gap: 5px; }
@@ -78,13 +78,13 @@
 .error:focus { outline: 2px solid #a52845; outline-offset: 3px; }
 .error button { margin-inline-start: 8px; border: 0; background: none; color: inherit; font: inherit; font-weight: 750; text-decoration: underline; cursor: pointer; }
 .notice { color: #24658a; }
-.invoiceReview { display:grid; gap:12px; margin-top:18px; padding:18px; border:1px solid var(--border); border-radius:18px; background:var(--surface); }
+.invoiceReview { display:grid; gap:12px; margin-top:18px; padding:18px; border:0; border-radius:18px; background:var(--primary-soft); }
 .invoiceReview h3 { margin:0; font-size:16px; }
 .invoiceReview>p { margin:0; color:var(--muted); font-size:13px; }
 .invoiceReview .form { grid-template-columns:minmax(0,1fr); }
 
 .reviewList { display: grid; gap: 12px; }
-.review { padding: 16px 18px; border: 1px solid var(--border); border-radius: 16px; background: var(--surface); }
+.review { padding: 16px 18px; border: 0; border-radius: 16px; background: var(--surface); }
 .reviewTop,.reviewTop>div { display: flex; align-items: center; gap: 10px; }
 .reviewTop { justify-content: space-between; }
 .reviewTop strong { font-size: 13px; }

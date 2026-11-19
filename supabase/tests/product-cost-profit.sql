@@ -24,4 +24,44 @@ begin
   if (report.summary->>'unknownCostCount')::integer <> initial_unknown_cost_count then raise exception 'Cost coverage is incorrect'; end if;
   if (report.summary->>'profitAmount')::numeric / ((report.summary->>'costAmount')::numeric + (report.summary->>'profitAmount')::numeric) <> 0.6 then raise exception 'Recorded margin is incorrect'; end if;
 end; $$;
+
+do $$
+declare
+  variant_id uuid := gen_random_uuid();
+  order_id uuid := gen_random_uuid();
+  imported_id bigint;
+  baseline jsonb;
+  report jsonb;
+begin
+  select summary into baseline from public.admin_transaction_analytics(7);
+  insert into public.managed_products(id,provider,provider_code,category,product,product_slug,name,price,cost_price,active,fulfillment_mode)
+  values(variant_id,'manual','REPORT-PREMIUM-COST','apps','Cost fixture','cost-fixture','Sharing 1 Bulan',20000,6000,true,'manual');
+
+  insert into public.premium_orders(id,guest_session_hash,customer_email,product_id,product_name,
+    access_type,duration_days,guarantee_days,guarantee_terms,amount,status,paid_at)
+  values(order_id,repeat('7',64),'test@example.com',variant_id,'Cost fixture - Sharing 1 Bulan',
+    'sharing',30,7,'Example guarantee',20000,'delivered',now());
+  update public.managed_products set cost_price=7000 where id=variant_id;
+  if (select accounting_cost from public.admin_transaction_records where id=order_id::text) is distinct from 6000::bigint then
+    raise exception 'Premium order cost did not preserve the checkout snapshot';
+  end if;
+
+  insert into public.historical_sales(import_key,sale_date,payment_method,amount,product_name,variant_description,quantity)
+  values('report-cost-match',(now() at time zone 'Asia/Jakarta')::date,'qris',35000,'cost fixture','SHARING · 1 BULAN',2)
+  returning id into imported_id;
+  select summary into report from public.admin_transaction_analytics(7);
+  if (report->>'costAmount')::bigint - (baseline->>'costAmount')::bigint <> 20000
+    or (report->>'profitAmount')::bigint - (baseline->>'profitAmount')::bigint <> 35000 then
+    raise exception 'Report did not include premium and matched QRIS costs and profit';
+  end if;
+
+  insert into public.managed_products(id,provider,provider_code,category,product,product_slug,name,price,cost_price,active,fulfillment_mode)
+  values(gen_random_uuid(),'manual','REPORT-AMBIGUOUS-COST','apps','Cost fixture','cost-fixture','Sharing 1 Bulan',25000,22000,true,'manual');
+  if (select accounting_cost from public.admin_transaction_records where id='historical-'||imported_id) is not null then
+    raise exception 'An ambiguous QRIS variant received a cost';
+  end if;
+  if has_table_privilege('authenticated','public.premium_order_costs','select') then
+    raise exception 'Premium order cost was exposed';
+  end if;
+end; $$;
 rollback;

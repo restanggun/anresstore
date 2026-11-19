@@ -36,6 +36,8 @@ begin
     or (report.summary->>'pendingCount')::int - (before_report.summary->>'pendingCount')::int <> 1
     or (report.summary->>'failedCount')::int - (before_report.summary->>'failedCount')::int <> 1
     or (report.summary->>'paidAmount')::bigint - (before_report.summary->>'paidAmount')::bigint <> 32000
+    or (report.summary->>'costAmount')::bigint - (before_report.summary->>'costAmount')::bigint <> 6000
+    or (report.summary->>'profitAmount')::bigint - (before_report.summary->>'profitAmount')::bigint <> 16000
     or (report.summary->>'completed')::int - (before_report.summary->>'completed')::int <> 1 then
     raise exception 'Dashboard summary omitted or duplicated a transaction: %', report.summary;
   end if;
@@ -52,14 +54,19 @@ begin
     or (chart_day->>'orders')::int - (baseline_day->>'orders')::int <> 3
     or (chart_day->>'paidCount')::int - (baseline_day->>'paidCount')::int <> 2
     or (chart_day->>'paid')::bigint - (baseline_day->>'paid')::bigint <> 37000
-    or (chart_day->>'profit')::bigint <> 9000
+    or (chart_day->>'cost')::bigint - (baseline_day->>'cost')::bigint <> 12000
+    or (chart_day->>'profit')::bigint - (baseline_day->>'profit')::bigint <> 25000
     or not report.products @> '[{"name":"Report fixture","value":3,"amount":47000}]'::jsonb then
     raise exception 'Payment update did not reach chart or best sellers: %, %', chart_day, report.products;
   end if;
 
   update public.payments set status='refunded',revision=revision+1 where id=checkout_id;
   select * into report from public.admin_transaction_analytics(7);
-  if (report.summary->>'refundedCount')::int <> 1
+  if (report.summary->>'refundedCount')::int - (before_report.summary->>'refundedCount')::int <> 1
+    or (report.summary->>'paidCount')::int - (before_report.summary->>'paidCount')::int <> 2
+    or (report.summary->>'paidAmount')::bigint - (before_report.summary->>'paidAmount')::bigint <> 32000
+    or (report.summary->>'costAmount')::bigint - (before_report.summary->>'costAmount')::bigint <> 6000
+    or (report.summary->>'profitAmount')::bigint - (before_report.summary->>'profitAmount')::bigint <> 16000
     or not report.products @> '[{"name":"Report fixture","value":2,"amount":32000}]'::jsonb then
     raise exception 'Refund did not update report counts or product ranking';
   end if;

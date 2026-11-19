@@ -35,6 +35,33 @@ button:disabled { cursor: not-allowed; }
 ::selection { background: var(--pink-soft); color: var(--foreground); }
 @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } *, *::before, *::after { animation: none !important; transition: none !important; } }
 
+.anres-search {
+  display:flex; align-items:center; gap:9px; width:100%; min-width:0; min-height:54px;
+  padding:5px 6px 5px 15px; border:1px solid var(--field-border); border-radius:17px;
+  background:var(--surface); color:var(--muted);
+}
+.anres-search:focus-within { border-color:var(--field-focus); outline:var(--field-focus-width) solid var(--field-focus); outline-offset:2px; }
+.anres-search:has(> [aria-invalid="true"]) { border-color:var(--pink-ink); }
+.anres-search-icon { flex:none; }
+.anres-search > input.anres-search-input {
+  flex:1 1 0; width:0; min-width:0; height:42px; padding:0;
+  border:0; border-radius:0; background:transparent; color:var(--foreground);
+  box-shadow:none; font:inherit; font-size:13px;
+}
+.anres-search > input.anres-search-input::placeholder { color:var(--muted); opacity:1; }
+.anres-search > input.anres-search-input:focus { outline:0; box-shadow:none; }
+.anres-search-submit {
+  display:grid; place-items:center; flex:0 0 42px; width:42px; height:42px;
+  padding:0; border:0; border-radius:13px; background:var(--pink); color:var(--pink-ink);
+}
+.anres-search-submit:hover { background:var(--primary); color:var(--foreground); }
+.anres-search-submit:focus-visible { outline:2px solid var(--focus); outline-offset:-3px; }
+@media (max-width:600px) { .anres-search > input.anres-search-input { font-size:16px; } }
+@media (pointer:coarse) {
+  .anres-search > input.anres-search-input { height:48px; }
+  .anres-search-submit { flex-basis:48px; width:48px; height:48px; }
+}
+
 /* Accessible shared blue/pink select. */
 .anres-select-trigger { display:inline-flex; align-items:center; justify-content:space-between; gap:12px; min-height:42px; min-width:130px; max-width:100%; padding:10px 13px; border:0; border-radius:12px; background:var(--primary-soft); color:var(--foreground); font-family:var(--font-sans); font-size:12px; font-weight:600; text-align:left; cursor:pointer; }
 .anres-select-trigger>span:first-child { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }

@@ -87,8 +87,8 @@ export function ReviewWorkspace() {
 
   return <div className={styles.workspace}>
     <div className="workspace-heading"><div><h1>Rating & ulasan</h1><p>Tinjau komentar pelanggan sebelum ditampilkan di halaman produk.</p></div></div>
-    {error&&<p className={styles.error} role="alert">{error}</p>}
-    {notice&&<p className={styles.notice} role="status">{notice}</p>}
+    {error&&<p className="workspace-error" role="alert">{error}</p>}
+    {notice&&<p className="workspace-feedback" role="status">{notice}</p>}
     <section className="commerce-panel" aria-label="Daftar ulasan produk">
       <div className={styles.filters}>
         <label>Status<select value={status} onChange={event=>{setPage(0);setStatus(event.target.value);}}>
@@ -100,7 +100,7 @@ export function ReviewWorkspace() {
         </select></label>
       </div>
       {list.isPending&&<p className={styles.empty} role="status">Memuat ulasan…</p>}
-      {list.error&&<p className={styles.error} role="alert">{list.error.message}</p>}
+      {list.error&&<p className="workspace-error" role="alert">{list.error.message}</p>}
       {list.data&&<>
         {!list.data.rows.length?<p className={styles.empty}>Belum ada ulasan pada filter ini.</p>:
           <div className={styles.cards}>{list.data.rows.map(row=><ReviewCard key={row.id} row={row} busy={busy} save={save} remove={remove}/>)}</div>}

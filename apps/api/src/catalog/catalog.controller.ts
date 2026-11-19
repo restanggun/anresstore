@@ -68,7 +68,7 @@ export class CatalogController {
     }
     const [campaigns, reviews] = await Promise.all([
       process.env.ADMIN_CATALOG_ENABLED === "true" ? adminDb<CatalogCampaign>("catalog_promotions", `?category=eq.${category}&active=eq.true&select=*`) : Promise.resolve([]),
-      adminDb<ProductReviewSummary>("product_review_summaries", `?category=eq.${category}&select=category,product_slug,review_count,average_rating&limit=1000`),
+      adminDb<ProductReviewSummary>("product_review_summaries", `?category=eq.${category}&select=category,product_slug,review_count,average_rating&limit=1000`).catch(() => []),
     ]);
     return { ...presentCatalog({ ...value, items }, Date.now(), campaigns, reviews), catalogRevision: version ? String(version.version) : null };
   }

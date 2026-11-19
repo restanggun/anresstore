@@ -722,9 +722,9 @@ export class AdminController {
         if (![7, 30, 90, "7", "30", "90"].includes(days as number | string)) throw new HttpException("Pilih periode 7, 30, atau 90 hari.", 422);
         const data = await this.analytics(String(Number(days)), req, res);
         const summary = data.summary as Record<string, unknown>;
-        const required = ["orders", "paidCount", "paidAmount", "pendingCount", "failedCount", "historicalCount", "unknownCostCount"];
+        const required = ["paidCount", "paidAmount", "pendingCount", "failedCount", "refundedCount", "historicalCount", "unknownCostCount"];
         if (required.some(key => !Number.isFinite(summary[key]))) throw new HttpException("Ringkasan transaksi belum lengkap.", 503);
-        return { text: `Ringkasan ${days} hari (WIB)\n${summary.orders} transaksi, ${summary.paidCount} lunas dengan nilai ${assistantRupiah.format(Number(summary.paidAmount))}.\n${summary.pendingCount} menunggu pembayaran, ${summary.failedCount} gagal atau kedaluwarsa.\nPenjualan historis: ${summary.historicalCount}. Transaksi lunas tanpa data modal: ${summary.unknownCostCount}.`, section: "reports" };
+        return { text: `Ringkasan ${days} hari (WIB)\n${summary.paidCount} penjualan lunas, omzet ${assistantRupiah.format(Number(summary.paidAmount))}.\nAktivitas pembayaran: ${summary.pendingCount} menunggu, ${summary.failedCount} gagal, kedaluwarsa, atau batal, dan ${summary.refundedCount} refund.\nPenjualan historis: ${summary.historicalCount}. Penjualan tanpa data modal: ${summary.unknownCostCount}.`, section: "reports" };
       }
       case "operations": {
         const data = await this.operationalStatus(req, res);

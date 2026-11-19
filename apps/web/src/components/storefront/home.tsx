@@ -2,11 +2,10 @@
 
 import Link from "@/components/storefront/domain-link";
 import { useEffect, useRef, useState } from "react";
-import { Button } from "@anres/ui";
+import { Button, SearchField, SearchSubmit } from "@anres/ui";
 import { ArrowRight, ArrowUpRight, BookOpenCheck, Search, ShieldCheck, Star, UserRoundPlus, LogIn } from "lucide-react";
 import { motion, useReducedMotion } from "motion/react";
 import { TextGenerateEffect } from "@/components/ui/text-generate-effect";
-import { Input } from "@/components/ui/input";
 import { useReveal } from "@/components/ui/use-reveal";
 import { categoryInfo } from "@/lib/storefront";
 import { ServiceIllustration } from "./service-illustration";
@@ -76,7 +75,7 @@ export function HomeContent() {
   const showAuthCta = landing?.config.showAuthCta ?? true;
   return <main id="main" className="container landing-page">
     <LandingHero showAuthCta={showAuthCta} />
-    <section className="landing-services" aria-labelledby="services-title"><motion.div className="section-heading" {...reveal()}><div><h2 id="services-title">Cari yang kamu perlukan.</h2><p>Lima kategori yang mencakup kebutuhan digital sehari-hari.</p></div><form className="landing-search" role="search" action="/katalog"><label className="sr-only" htmlFor="landing-search">Cari layanan</label><Search size={19}/><Input id="landing-search" name="q" type="search" placeholder="Cari game atau layanan"/><Button type="submit" aria-label="Cari layanan"><ArrowRight size={18}/></Button></form></motion.div>
+    <section className="landing-services" aria-labelledby="services-title"><motion.div className="section-heading" {...reveal()}><div><h2 id="services-title">Cari yang kamu perlukan.</h2><p>Lima kategori yang mencakup kebutuhan digital sehari-hari.</p></div><form className="landing-search" role="search" action="/katalog"><SearchField aria-label="Cari layanan" name="q" placeholder="Cari game atau layanan"><SearchSubmit label="Cari layanan"/></SearchField></form></motion.div>
     <ServiceCategoryGrid /></section>
     {landing && <motion.section className="landing-proof" aria-labelledby="proof-title" {...reveal()}>
       <div className="landing-proof-head"><div><span className="landing-proof-kicker">ANRES, MENURUT PELANGGAN</span><h2 id="proof-title">Pilihan nyata. Cerita nyata.</h2><p>Angka transaksi dan ulasan dihitung dari data Anres yang sudah terverifikasi.</p></div><Link href="/katalog" className="landing-proof-link">Jelajahi katalog<ArrowRight size={16}/></Link></div>

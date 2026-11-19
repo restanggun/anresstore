@@ -1,5 +1,6 @@
 "use client";
-import { AdminInput, AdminTextarea } from "./form-controls";
+import { SearchField, SearchSubmit } from "@anres/ui";
+import { AdminTextarea } from "./form-controls";
 
 import { CustomSelect } from "./custom-select";
 
@@ -7,7 +8,7 @@ import { useEffect, useRef, useState } from "react";
 
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 
-import { Search, RefreshCw, ArrowRight, ChevronLeft, ChevronRight, X, Copy, ShoppingBag, ShieldAlert } from "lucide-react";
+import { RefreshCw, ArrowRight, ChevronLeft, ChevronRight, X, Copy, ShoppingBag, ShieldAlert } from "lucide-react";
 
 import { adminRequest, rupiah, stateLabel } from "./workspace-api";
 
@@ -52,9 +53,8 @@ export function OrderWorkspace({compact=false,view="orders",initialStatus,onView
    <div className="order-tabs" role="group" aria-label="Filter status transaksi">
     {tabs.map(([id,label])=><button key={id} aria-pressed={tab===id} onClick={()=>{setTab(id);setPage(0);setSelected(null);}}>{label}</button>)}
    </div>
-   <form className="order-toolbar" onSubmit={e=>{e.preventDefault();setSearchTerm(search.trim());setPage(0);setSelected(null);}}>
-    <label className="search-field"><Search size={17}/><AdminInput aria-label="Cari transaksi" placeholder="Cari invoice, produk, atau tujuan" maxLength={200} value={search} onChange={e=>setSearch(e.target.value)}/></label>
-    <button type="submit" className="outline-button">Cari</button>
+   <form className="order-toolbar transaction-search-toolbar" role="search" onSubmit={e=>{e.preventDefault();setSearchTerm(search.trim());setPage(0);setSelected(null);}}>
+    <SearchField aria-label="Cari transaksi" placeholder="Cari invoice, produk, atau tujuan" maxLength={200} value={search} onChange={e=>setSearch(e.target.value)}><SearchSubmit label="Cari transaksi"/></SearchField>
     {searchTerm&&<button type="button" className="outline-button" onClick={()=>{setSearch("");setSearchTerm("");setPage(0);setSelected(null);}}>Hapus pencarian</button>}
    </form>
   </>}

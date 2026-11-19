@@ -1,8 +1,8 @@
 "use client";
+import { SearchField } from "@anres/ui";
 import { useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
-import { Check, ChevronDown, ChevronUp, Search } from "lucide-react";
-import { Input } from "@/components/ui/input";
+import { Check, ChevronDown, ChevronUp } from "lucide-react";
 import { tidyVariants, variantHint, variantRegion, currentPrice, isPromotionActive, money, slugify, type CatalogItem } from "@/lib/catalog";
 import { CatalogCategoryTabs } from "./catalog-category-tabs";
 import { FlashSaleInfo } from "./flash-sale-info";
@@ -47,7 +47,7 @@ export function CatalogVariants({items,selected,onSelect,onSelected,state,onRetr
   <div className="variant-heading"><div><h3 id="variant-heading" tabIndex={-1}>{taskServices ? "Pilih layanan" : "Pilih kebutuhanmu"}</h3><p>{taskServices ? "Pilih paket sesuai pekerjaanmu." : "Temukan nominal atau paket yang pas."}</p></div></div>
   {showRegions && <div className="variant-regions" role="group" aria-label="Region produk">{["Semua region",...regions].map(value=><button type="button" key={value} aria-pressed={region===value} onClick={()=>{clearTimeout(scrollTimer.current);setRegion(value);setTab("");setQuery("");setLimit(12);onSelect("");}}>{value}</button>)}</div>}
   <CatalogCategoryTabs values={sections} value={active} onChange={value=>{clearTimeout(scrollTimer.current);setTab(value);setQuery("");setLimit(12);onSelect("");}} label={taskServices ? "Jenis layanan" : "Kategori nominal"} id="variant-categories" images={sectionImages}/>
-  <div className="shop-search variant-search"><Search size={17} aria-hidden="true"/><Input type="search" aria-label={taskServices ? "Cari paket tugas" : "Cari nominal"} placeholder={taskServices ? "Cari paket tugas" : "Cari nominal atau paket"} value={query} onChange={event=>{clearTimeout(scrollTimer.current);setQuery(event.target.value);setLimit(12);}}/></div>
+  <SearchField className="variant-search" aria-label={taskServices ? "Cari paket tugas" : "Cari nominal"} placeholder={taskServices ? "Cari paket tugas" : "Cari nominal atau paket"} value={query} onChange={event=>{clearTimeout(scrollTimer.current);setQuery(event.target.value);setLimit(12);}}/>
   {searching && <p className="variant-search-count" role="status">{matches.length} pilihan ditemukan dalam region ini</p>}
   <AnimatePresence mode="wait" initial={false}><motion.div key={active} id="variant-categories-panel" role={searching ? "region" : "tabpanel"} aria-labelledby={searching ? "variant-heading" : `variant-categories-tab-${slugify(active)}`} className="variant-panel" initial={reduce ? false : {opacity:0,y:6}} animate={{opacity:1,y:0}} exit={reduce ? undefined : {opacity:0,y:-4}} transition={{duration:reduce ? 0 : .18}}>
    <div className="variant-grid" role="group" aria-label={searching ? "Hasil pencarian nominal" : active}>{shown.map(item=>{

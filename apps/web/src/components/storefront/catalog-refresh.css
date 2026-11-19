@@ -67,11 +67,7 @@
 .variant-regions button:focus-visible { outline:2px solid var(--focus);outline-offset:2px; }
 #game-variant-continue { scroll-margin-block:100px; }
 .variant-search { width:min(100%,420px);margin:0 0 18px; }
-.shop-flow .order-card .variant-search input[type="search"] { flex:1;min-width:0;min-height:42px;height:42px;padding:0;border:0;border-radius:0;background:transparent;font-size:13px;box-shadow:none;outline:0; }
-.variant-search:focus-within { outline:2px solid var(--focus);outline-offset:2px; }
 .variant-search-count { margin:-7px 0 14px; color:var(--muted); font-size:12px; }
-.shop-flow .order-card .variant-search input[type="search"]:focus { outline:0;border:0;box-shadow:none; }
-@media(max-width:600px) { .shop-flow .order-card .variant-search input[type="search"] { font-size:16px; } }
 .variant-grid { display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px; }
 .shop-flow .variant-card { position:relative;display:flex;min-width:0;min-height:105px;flex-direction:column;justify-content:space-between;gap:18px;padding:17px;border:0;border-radius:17px;background:white;color:var(--foreground);text-align:left;cursor:pointer;transition:background-color .18s ease; }
 .shop-flow .variant-card:hover { background:var(--primary-soft); }

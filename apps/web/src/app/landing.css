@@ -55,14 +55,7 @@
 .landing-services { padding: 55px 0 60px; }
 .landing-page .section-heading h2, .landing-faq h2 { font-size: 32px; line-height: 1.25; letter-spacing: -1.2px; }
 .landing-page .section-heading p { font-size: 14px; }
-.landing-search { display: flex; align-items: center; gap: 9px; width: min(100%, 350px); min-height: 54px; flex: 0 0 350px; padding: 5px 6px 5px 15px; border-radius: 17px; background: #f3f7f9; color: var(--muted); transition: background-color 160ms ease, outline-color 160ms ease; }
-.landing-search:focus-within { outline: 2px solid var(--focus); outline-offset: 3px; background: white; }
-.landing-search > svg { flex-shrink: 0; }
-.landing-search input { height: 42px; min-width: 0; padding: 0; border: 0; border-radius: 0; background: transparent; box-shadow: none; font-size: 13px; }
-.landing-search input:focus-visible { border: 0; outline: 0; box-shadow: none; }
-.landing-search [data-slot="button"] { display: grid; place-items: center; width: 42px; height: 42px; min-height: 42px; flex: 0 0 42px; padding: 0; border-radius: 13px; background: var(--pink); color: var(--pink-ink); }
-.landing-search [data-slot="button"]:hover { background: var(--primary); color: var(--foreground); }
-.landing-search [data-slot="button"]:active { background: var(--pink); }
+.landing-search { width:min(100%,350px); flex:0 0 350px; }
 .landing-guide { display: grid; grid-template-columns: 1fr 1.2fr; gap: 70px; padding: 48px 0; border-block: 1px solid var(--border); }
 .guide-brand { display: grid; place-items: center; width: 65px; height: 68px; background: var(--pink); border-radius: 20px; margin-bottom: 25px; }
 .guide-brand img { width: 29px; height: 35px; }
