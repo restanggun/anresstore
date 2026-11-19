@@ -25,6 +25,11 @@ export type AssistantOption = { id: string; label: string };
 type AssistantAgentOption = AssistantOption & { tools?: string[] };
 export type AssistantOptions = { skills: AssistantOption[]; agents: AssistantAgentOption[] };
 const emptyContext: ComposerContext = { skills: [], agent: "", files: [] };
+function modelLabel(id: string) {
+  if (id.startsWith("groq::")) return `Groq · ${id.slice(6)} · Free tier`;
+  if (id.startsWith("google::")) return `Google AI Studio · ${id.slice(8)} · Free tier`;
+  return id.endsWith(":free") ? `${id.slice(0, -5)} · Gratis` : `${id} · Tarif standar`;
+}
 
 export function AssistantComposer({
   text, onTextChange, onSend, responding, messageInput, attachments, demo, tools, disabled, options, models, model, onModelChange,
@@ -179,7 +184,7 @@ export function AssistantComposer({
                 <Select.ScrollUpButton className={styles.modelScroll}><ChevronUp size={15} aria-hidden="true" /></Select.ScrollUpButton>
                 <Select.Viewport className={styles.modelViewport}>
                   {models.map(id => <Select.Item key={id} value={id} className={styles.modelOption}>
-                    <Select.ItemText>{id.replace(/:free$/, "")} · {id.endsWith(":free") ? "Gratis" : "Tarif standar"}</Select.ItemText>
+                    <Select.ItemText>{modelLabel(id)}</Select.ItemText>
                     <Select.ItemIndicator><Check size={15} aria-hidden="true" /></Select.ItemIndicator>
                   </Select.Item>)}
                 </Select.Viewport>
@@ -196,6 +201,7 @@ export function AssistantComposer({
       <p className={styles.composerNote}>{demo ? "Pratinjau lokal. File dan pesan tidak diunggah."
         : attachments ? "Lampiran teks dikirim ke provider AI saat kamu menekan Kirim. Hindari rahasia dan data pribadi."
         : "Hindari mengirim kata sandi, OTP, atau data pribadi."}</p>
+      {!!models?.some(id => id.startsWith("groq::") || id.startsWith("google::")) && <p className={styles.composerNote}>Model bertanda Free tier mengikuti paket dan batas kuota provider.</p>}
     </form>
   );
 }

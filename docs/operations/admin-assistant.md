@@ -5,14 +5,22 @@ Asisten menggunakan sesi admin yang sudah ada. Setiap endpoint asisten memerluka
 ## Aktivasi
 
 1. Terapkan migrasi asisten dengan versi `20261120100000`, `20261120120000`, `20261120140000`, dan `20261120165000`. Deploy API dan dashboard dari rilis yang sama.
-2. Isi `ADMIN_AI_OPENROUTER_API_KEY` dan `ADMIN_AI_OPENROUTER_MODEL` hanya di lingkungan API. Model harus berupa ID eksplisit yang mendukung keluaran JSON pada endpoint OpenRouter dengan Zero Data Retention dan pengumpulan data ditolak. Periksa tarif dan set batas pengeluaran di key/workspace. Key AI Bantuan publik terpisah.
-3. Buka `nano /opt/anresstore/apps/api/.env.production` di VPS Anres. Buat OpenRouter key di [OpenRouter API Keys](https://openrouter.ai/keys). Pilih **Get API key** di [dashboard Tavily](https://app.tavily.com/) dan salin key ke `TAVILY_API_KEY`. Pencarian memakai [Tavily Search API](https://docs.tavily.com/documentation/api-reference/endpoint/search). Model contoh OpenRouter memakai kuota gratis.
+2. Isi key provider hanya di lingkungan API. `ADMIN_AI_OPENROUTER_API_KEY`, `ADMIN_AI_GROQ_API_KEY`, dan `ADMIN_AI_GOOGLE_API_KEY` tidak pernah dikirim ke browser. OpenRouter gratis ditemukan dari katalog live jika harga prompt dan completion nol serta mendukung JSON mode.
+3. Buka `nano /opt/anresstore/apps/api/.env.production` di VPS Anres. Buat key di [OpenRouter](https://openrouter.ai/keys), [Groq Console](https://console.groq.com/keys), dan [Google AI Studio](https://aistudio.google.com/api-keys). Google menggunakan model text Free Tier yang dicantumkan gratis pada [tabel harga Gemini API](https://ai.google.dev/gemini-api/docs/pricing); `gemini-2.5-flash` akan dialihkan oleh Google ke `gemini-3.5-flash-lite` mulai 1 Desember 2026.
 
 ```dotenv
 ADMIN_AI_ENABLED=true
 ADMIN_AI_OPENROUTER_API_KEY=isi_dengan_key_openrouter_admin
 ADMIN_AI_OPENROUTER_MODEL=inclusionai/ling-3.2-flash:free
-ADMIN_AI_OPENROUTER_MODELS=openai/gpt-oss-120b
+ADMIN_AI_OPENROUTER_MODELS=
+ADMIN_AI_GROQ_API_KEY=isi_dengan_key_groq
+ADMIN_AI_GROQ_MODEL=openai/gpt-oss-20b
+ADMIN_AI_GROQ_MODELS=openai/gpt-oss-20b,openai/gpt-oss-120b
+ADMIN_AI_GOOGLE_API_KEY=isi_dengan_key_google_ai_studio
+ADMIN_AI_GOOGLE_MODEL=gemini-3.1-flash-lite
+ADMIN_AI_GOOGLE_MODELS=gemini-3.5-flash-lite,gemini-3.1-flash-lite,gemini-3-flash-preview,gemini-2.5-flash-lite,gemini-2.5-flash
+ADMIN_AI_AUTO_SWITCH_ENABLED=true
+ADMIN_AI_SLOW_RESPONSE_MS=8000
 ADMIN_AI_REGISTRY_ENABLED=true
 ADMIN_AI_TAVILY_ENABLED=true
 TAVILY_API_KEY=isi_dengan_key_tavily
@@ -31,11 +39,13 @@ docker compose -p anres-production \
 
 5. Aktifkan `ADMIN_AI_ATTACHMENTS_ENABLED=true` jika kebijakan data toko mengizinkan file. Analisis umum menerima tiga file teks UTF-8 TXT, MD, CSV, atau JSON dengan total isi maksimal 8.000 karakter. Lampiran analisis diproses oleh model. Masking membantu menutup pola email, nomor telepon, dan token umum. Admin tetap perlu mengeluarkan informasi rahasia dan pribadi dari pesan atau dokumen.
 
-Chat dibatasi enam permintaan per menit per admin dan 24 per jendela harian bersama. Satu chat memakai paling banyak dua request model. Endpoint gagal tertutup saat provider tidak mendukung routing privat, hasil JSON tidak valid, atau database pembatas kuota tidak tersedia. Tidak ada fallback ke model lain.
+Pastikan akun Groq tetap pada paket Free; paket Developer menagih penggunaan berdasarkan token. Google harus memakai proyek AI Studio Free Tier, bukan proyek yang ditingkatkan ke Paid. Limit dan ketersediaan model dapat berubah berdasarkan provider. Google menyatakan konten dari Free Tier dapat digunakan untuk meningkatkan produknya; jangan kirim rahasia, data pribadi, atau dokumen sensitif.
+
+Chat dibatasi enam permintaan per menit per admin dan 24 per jendela harian bersama. Jika respons melewati `ADMIN_AI_SLOW_RESPONSE_MS` (default 8 detik) atau provider gagal, server mencoba maksimal dua model cadangan aktif. Matikan dengan `ADMIN_AI_AUTO_SWITCH_ENABLED=false`. Tiap provider diminta dalam waktu ambang yang sama; keseluruhan respons dapat memerlukan beberapa percobaan. Server hanya memakai model yang diaktifkan dan key-nya tersedia.
 
 Tavily menerima maksimal 20 pencarian basic per hari untuk seluruh dashboard. Asisten memakai satu frasa publik dari pesan terbaru. Contoh **Cari di web dokumentasi VIPayment**. Riset publik dan draf perubahan katalog dijalankan di pesan terpisah.
 
-Pilih model untuk pesan berikutnya lewat **Model AI** di kolom chat. Model default selalu ada. Tambahkan ID lain yang sudah diperiksa ke `ADMIN_AI_OPENROUTER_MODELS`, pisahkan dengan koma, lalu buat ulang container API. Model tambahan pada contoh di atas memakai kredit OpenRouter. Semua pilihan memakai key, kuota aplikasi, dan aturan Zero Data Retention yang sama. Riwayat menampilkan model yang dipakai pada setiap balasan baru.
+Pilih model untuk pesan berikutnya lewat **Model AI** di kolom chat. Katalog OpenRouter gratis dimuat otomatis dan menampilkan ID `:free` dengan semua harga bernilai nol. ID tambahan di `ADMIN_AI_OPENROUTER_MODELS` boleh diisi manual dan ditandai sebagai tarif standar jika tidak gratis. Groq mengambil semua model yang tersedia untuk key aktif; `ADMIN_AI_GROQ_MODELS` dapat dipakai untuk menambah ID model tertentu. Google memakai daftar Free Tier pada `ADMIN_AI_GOOGLE_MODELS`. Untuk mengganti provider utama, isi variabel `*_MODEL` yang sesuai. Setelah mengubah env, buat ulang container API. Riwayat menampilkan model aktual dan urutan fallback yang digunakan.
 
 ## Riwayat dan memori
 

@@ -18,7 +18,7 @@ import { parseVoucherSettings, voucherUuid } from "../payments/vouchers";
 import nodemailer from "nodemailer";
 import {
   assistantAnswer, assistantCategories, assistantConfig, assistantInput, assistantObject,
-  assistantPatch, assistantPlan, assistantQuota, redactAssistantText, type AssistantModelOptions, type AssistantStep, type AssistantTool,
+  assistantPatch, assistantPlan, assistantQuota, redactAssistantText, refreshAssistantModelCatalog, type AssistantModelOptions, type AssistantStep, type AssistantTool,
 } from "./assistant-model";
 import {
   assistantLegacyAgents, assistantLegacySkills, assistantPolicyAllows, assistantRegistryEnabled,
@@ -423,6 +423,7 @@ export class AdminController {
   @Get("assistant")
   async assistantStatus(@Req() req: Request, @Res({ passthrough: true }) res: Response) {
     const access = await this.authorize(req, res, false, true, true);
+    await refreshAssistantModelCatalog();
     const { configured, attachments, model, models } = assistantConfig();
     const { tools, agents, registry } = await this.assistantCapabilities(access);
     return { configured, models, defaultModel: configured ? model : undefined, attachments: attachments && (tools.includes("file_review") || tools.includes("pricing_batch")), tools, canManage: access.superAdmin && assistantRegistryEnabled(),
@@ -577,6 +578,7 @@ export class AdminController {
   @Post("assistant/chat")
   async assistantChat(@Body() body: unknown, @Req() req: Request, @Res({ passthrough: true }) res: Response) {
     const access = await this.authorize(req, res, true, true, true);
+    await refreshAssistantModelCatalog();
     const config = assistantConfig();
     if (!config.configured) throw new HttpException("Asisten Anres belum diaktifkan.", 503);
     const input = assistantInput(body, config.attachments);
@@ -594,7 +596,9 @@ export class AdminController {
     if (session?.revision === 100) throw new HttpException("Sesi sudah berisi 100 giliran. Mulai chat baru untuk melanjutkan.", 409);
     const sentAt = new Date().toISOString();
     const memory = session ? (await getAssistantMemory(access.id)).note : "";
-    const modelOptions = { memory, model: typeof model === "string" ? model : config.model };
+    const usedModels: string[] = [];
+    const modelOptions: AssistantModelOptions = { memory, model: typeof model === "string" ? model : config.model,
+      onModelUsed: used => { if (!usedModels.includes(used)) usedModels.push(used); } };
     if (session) input.history = session.turns.slice(-3).flatMap(turn => [
       `Admin: ${turn.user.text}`.slice(0, 1500),
       `Asisten: ${turn.reply.text}`.slice(0, 1500),
@@ -641,7 +645,7 @@ export class AdminController {
     await this.logAssistantRun(access.id, trace);
     const last = outputs.at(-1)!;
     const reply = { ...last, text: outputs.map(result => result.text).join("\n\n"),
-      model: csv ? undefined : modelOptions.model,
+      model: csv ? undefined : usedModels.length ? usedModels.map(id => id.replace(/^groq::/, "Groq · ").replace(/^google::/, "Google AI Studio · ")).join(" → ") : modelOptions.model,
       section: [...outputs].reverse().find(result => result.section)?.section,
       choices: [...outputs].reverse().find(result => result.choices?.length)?.choices,
       sources: outputs.flatMap(result => result.sources ?? []),
