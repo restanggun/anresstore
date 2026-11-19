@@ -85,7 +85,7 @@ function AdminDashboard(){
    {menuOpen&&sidebarContents}
  </dialog>
  <div className="main-wrap"><header className="topbar"><div className="topbar-left"><button className="icon-button mobile-menu" onClick={()=>setMenuOpen(true)} aria-label="Buka menu" aria-controls="admin-navigation" aria-expanded={menuOpen}><Icon name="menu"/></button><span className="breadcrumb"><span className="breadcrumb-root">Ruang kerja</span> <span className="breadcrumb-divider">/</span> <strong>{current.label}</strong></span></div><div className="topbar-right"><span className="setup-pill"><span/> Akses administrator</span><button className="text-button" onClick={() => void logout()}>Keluar</button><SupportNotifications onNavigate={select} systemAlerts={alerts}/><span className="top-avatar">A</span></div></header>
- <motion.main id="main" className="main-content" key={active} initial={reducedMotion ? false : {opacity:0}} animate={{opacity:1}} transition={{duration:reducedMotion ? 0 : 0.15}}>
+ <motion.main id="main" className={`main-content${active === "assistant" ? " main-content-assistant" : ""}`} key={active} initial={reducedMotion ? false : {opacity:0}} animate={{opacity:1}} transition={{duration:reducedMotion ? 0 : 0.15}}>
  {active === "overview" && <TransactionAnalytics overview onNavigate={select}/>}
  {active === "assistant" && <AssistantWorkspace onNavigate={select}/>}
  {active === "assistant-registry" && <AssistantRegistryWorkspace/>}

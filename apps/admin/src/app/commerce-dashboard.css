@@ -553,3 +553,7 @@ html,body,.admin-shell *, .anres-select-content { scrollbar-width:thin; scrollba
   overflow-wrap:anywhere;
  }
 }
+
+/* Keep the assistant composer close to the bottom edge of the admin viewport. */
+.admin-shell .main-content-assistant { padding-bottom:8px; }
+@media(max-width:767px) { .admin-shell .main-content-assistant { padding-bottom:8px; } }

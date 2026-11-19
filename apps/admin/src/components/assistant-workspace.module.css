@@ -4,7 +4,7 @@
   flex-direction: column;
   min-width: 0;
   max-width: 64rem;
-  height: max(29rem, calc(100dvh - 9rem));
+  height: max(29rem, calc(100dvh - 6.75rem));
   margin-inline: auto;
 }
 .status {
@@ -219,7 +219,7 @@
   width: min(100%, calc(46rem + 2 * var(--chat-gutter)));
   flex: none;
   margin-inline: auto;
-  padding: 0 var(--chat-gutter) 15px;
+  padding: 0 var(--chat-gutter) max(6px, env(safe-area-inset-bottom));
 }
 .composerSurface {
   padding: 8px;
@@ -414,7 +414,7 @@
   padding: 14px 20px max(14px, env(safe-area-inset-bottom));
 }
 @media (max-width: 560px) {
-  .workspace { height: max(27rem, calc(100dvh - 7.5rem)); }
+  .workspace { height: max(22rem, calc(100dvh - 5.875rem)); }
   .chatHeader { flex-wrap: wrap; }
   .chatHeader h1 { font-size: 16px; }
   .sessionActions { flex-basis: 100%; }
