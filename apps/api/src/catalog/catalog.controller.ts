@@ -1,7 +1,7 @@
 import { Controller, Get, HttpException, Param } from "@nestjs/common";
 import { createHash } from "node:crypto";
 import { mapCatalog, sellingPrice, type CatalogSource, type CatalogItem } from "./catalog-mapping";
-import { presentCatalog, type CatalogCampaign } from "./catalog-promotions";
+import { presentCatalog, type CatalogCampaign, type ProductReviewSummary } from "./catalog-promotions";
 import { adminDb, managedCatalog } from "../admin/admin-store";
 import { featuredGameSlugs } from "./featured-games";
 export { sellingPrice } from "./catalog-mapping";
@@ -66,8 +66,11 @@ export class CatalogController {
         }];
       });
     }
-    const campaigns = process.env.ADMIN_CATALOG_ENABLED === "true" ? await adminDb<CatalogCampaign>("catalog_promotions", `?category=eq.${category}&active=eq.true&select=*`) : [];
-    return { ...presentCatalog({ ...value, items }, Date.now(), campaigns), catalogRevision: version ? String(version.version) : null };
+    const [campaigns, reviews] = await Promise.all([
+      process.env.ADMIN_CATALOG_ENABLED === "true" ? adminDb<CatalogCampaign>("catalog_promotions", `?category=eq.${category}&active=eq.true&select=*`) : Promise.resolve([]),
+      adminDb<ProductReviewSummary>("product_review_summaries", `?category=eq.${category}&select=category,product_slug,review_count,average_rating&limit=1000`),
+    ]);
+    return { ...presentCatalog({ ...value, items }, Date.now(), campaigns, reviews), catalogRevision: version ? String(version.version) : null };
   }
 
   private async load(category: CatalogSource | "apps", id: string, key: string) {

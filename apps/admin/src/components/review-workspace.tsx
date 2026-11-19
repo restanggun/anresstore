@@ -8,7 +8,7 @@ import styles from "./review-workspace.module.css";
 
 type ReviewStatus = "pending" | "published" | "hidden" | "rejected";
 type Review = {
-  id: string; category: string; product_slug: string; rating: number; comment: string;
+  id: string; category: string; product_slug: string; invoice_id: string | null; purchase_verified: boolean; rating: number; comment: string;
   reviewer_email: string; reviewer_user_id: string | null; status: ReviewStatus;
   created_at: string; updated_at: string;
 };
@@ -30,13 +30,13 @@ function ReviewCard({ row, busy, save, remove }: {
   }
   return <article className={styles.card}>
     <header className={styles.cardHead}>
-      <div><strong>{row.product_slug}</strong><span>{category} · {row.reviewer_user_id ? "Akun" : "Guest"}</span></div>
+      <div><strong>{row.product_slug}</strong><span>{category} · {row.reviewer_user_id ? "Akun" : "Guest"}{row.purchase_verified && row.invoice_id ? " · Invoice terverifikasi" : " · Tanpa bukti invoice"}</span></div>
       <time dateTime={row.created_at}>{dateLabel.format(new Date(row.created_at))}</time>
     </header>
     <p className={styles.email}>{row.reviewer_email}</p>
     <form onSubmit={submit} className={styles.form}>
       <label>Status<select name="status" value={status} disabled={busy} onChange={event=>setStatus(event.target.value as ReviewStatus)}>
-        {statuses.map(([value,label])=><option key={value} value={value}>{label}</option>)}
+      {statuses.map(([value,label])=><option key={value} value={value} disabled={value === "published" && (!row.purchase_verified || !row.invoice_id)}>{label}</option>)}
       </select></label>
       <fieldset className={styles.ratingField} disabled={busy}><legend>Rating</legend><div>
         {[1,2,3,4,5].map(value=><label key={value} className={value<=rating?styles.ratingActive:""}>

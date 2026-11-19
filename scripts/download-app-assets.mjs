@@ -1,6 +1,6 @@
 import fs from 'node:fs/promises';
 import sharp from 'sharp';
-const apps=[['Zoom','zoom',546505307,'#e8f1ff'],['Claude AI','claude-ai',6473753684,'#f5ede5'],['iQIYI','iqiyi',1461999674,'#e9f8e7'],['PicsArt','picsart',587366035,'#f6e7fc'],['Vidio','vidio',1048858798,'#ffe9ed'],['Canva','canva',897446215,'#e0f7f6'],['CapCut','capcut',1500855883,'#edf0f3'],['ChatGPT','chatgpt',6448311069,'#e2f3ec'],['Alight Motion','alight-motion',1459833443,'#e3f5ee']];
+const apps=[['Zoom','zoom',546505307,'#e8f1ff'],['Claude AI','claude-ai',6473753684,'#f5ede5'],['iQIYI','iqiyi',1461999674,'#e9f8e7'],['PicsArt','picsart',587366035,'#f6e7fc'],['Vidio','vidio',1048858798,'#ffe9ed'],['Canva','canva',897446215,'#e0f7f6'],['CapCut','capcut',1500855883,'#edf0f3'],['ChatGPT','chatgpt',6448311069,'#e2f3ec'],['Gemini','gemini',6477489729,'#eaf2ff'],['Alight Motion','alight-motion',1459833443,'#e3f5ee']];
 const root='apps/web/public/brand/apps';await fs.mkdir(root,{recursive:true});
 const sources=[];
 async function download(url){const r=await fetch(url,{signal:AbortSignal.timeout(30000)});if(!r.ok)throw Error(`${r.status}: ${url}`);return Buffer.from(await r.arrayBuffer());}

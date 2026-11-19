@@ -88,15 +88,19 @@ export class PremiumOrdersController {
  }
  @Get("invoice/:invoice") async byInvoice(@Param("invoice") invoice:string,@Req() req:Request,@Res({passthrough:true}) res:Response){
   const identity=await this.owner(req,res); if(!/^ANRS-[A-Z0-9-]{6,60}$/.test(invoice))throw new HttpException("Invoice tidak ditemukan.",404);
-  const ownership=identity.userId?`user_id=eq.${identity.userId}`:`guest_session_hash=eq.${identity.guestHash}`;
-  const [order]=await adminDb("premium_orders",`?invoice_number=eq.${encodeURIComponent(invoice)}&${ownership}&payment_mode=eq.live&select=id,invoice_number,product_name,amount,status,created_at,paid_at,delivered_at,customer_email`);
-  if(!order)throw new HttpException("Invoice tidak ditemukan.",404); return {order};
+  const [canonical]=await adminDb<{id:string}> ("invoices",`?invoice_number=eq.${encodeURIComponent(invoice)}&order_kind=eq.premium&payment_mode=eq.live&select=id&limit=1`);
+  if(!canonical)throw new HttpException("Invoice tidak ditemukan.",404);
+  const order=await this.order(canonical.id,identity);
+  return {order};
  }
  @Get(":id") async detail(@Param("id") id:string,@Req() req:Request,@Res({passthrough:true}) res:Response){
   const identity=await this.owner(req,res),order=await this.order(id,identity);
   const [claim]=await adminDb("premium_guarantee_claims",`?order_id=eq.${id}&select=*`);
   const voucher=order.voucher_applied?await this.store.voucherReceipt("premium_id",id):null;
-  return {order:{...order,voucher},claim:claim??null};
+  const [invoice]=await adminDb<{id:string;payment_mode:string;payment_status:string;fulfillment_status:string;amount:number;product_slug:string|null}>("invoices",`?id=eq.${id}&order_kind=eq.premium&select=id,payment_mode,payment_status,fulfillment_status,amount,product_slug&limit=1`);
+  const [review]=invoice?await adminDb<{id:string;status:string}>("product_reviews",`?invoice_id=eq.${id}&select=id,status&limit=1`):[];
+  const reviewEligible=!!invoice&&invoice.payment_mode==="live"&&invoice.payment_status==="paid"&&invoice.fulfillment_status==="completed"&&Number(invoice.amount)>0&&!!invoice.product_slug;
+  return {order:{...order,voucher,review:{eligible:reviewEligible,submitted:!!review,status:review?.status??null}},claim:claim??null};
  }
  @Post(":id/proof") async proof(@Param("id") id:string,@Body() input:{image?:unknown;note?:unknown},@Req() req:Request,@Res({passthrough:true}) res:Response){
   const identity=await this.owner(req,res,true),order=await this.order(id,identity),ownership=identity.userId?`user_id=eq.${identity.userId}`:`guest_session_hash=eq.${identity.guestHash}`;

@@ -9,6 +9,7 @@ import { invoicePath, tripayCheckoutUrl } from "@/lib/payment-navigation";
 import { InvoiceRecovery } from "./invoice-recovery";
 import { RefundRequest } from "./refund-request";
 import { TaskOrderPanel } from "./task-order-panel";
+import { InvoiceReviewForm } from "./product-reviews";
 import { orderStatus } from "@/lib/order-status";
 import type { PaymentRecord } from "./payment-checkout";
 import "./payment-invoice.css";
@@ -79,6 +80,7 @@ export function PaymentInvoice({ id }: { id: string }) {
           {status!.needsHelp && <section className="ticket-resolution" aria-label="Bantuan pesanan"><h3>{status!.reason ? "Alasan pengiriman gagal" : "Langkah berikutnya"}</h3>{status!.reason && <p>{status!.reason}</p>}<p>Sertakan nomor invoice saat menghubungi CS. Tim akan memeriksa pesanan sebelum menentukan penyelesaiannya.</p><Button asChild variant="outline"><Link href="/bantuan">Hubungi CS</Link></Button></section>}
           {payment.fulfillment?.status === "completed" && payment.fulfillment.note && <section className="ticket-fulfillment"><h3>Informasi produk</h3><p>{payment.fulfillment.note}</p></section>}
           {payment.source === "tasks" && payment.status === "paid" && <TaskOrderPanel id={payment.id}/>}
+          {payment.review?.eligible && <InvoiceReviewForm key={payment.id} invoiceId={payment.id} submitted={payment.review.submitted}/>}
           {(payment.refund || payment.amount > 0 && payment.status === "paid" && status!.needsHelp) && <RefundRequest payment={payment} onUpdated={()=>void refresh()}/>}
           {payment.ownership === "guest" && <div className="invoice-guest-notice"><span>Invoice ini masih mengikuti browser pemesan. Simpan ke akun untuk akses dari perangkat lain.</span><InvoiceRecovery invoiceNumber={payment.invoiceNumber||payment.id} label="Simpan ke akun"/></div>}
           <footer className="ticket-footer"><span>Status diperiksa otomatis{payment.lastVerifiedAt ? ` · ${date(payment.lastVerifiedAt)}` : ""}</span><Link href="/bantuan">Butuh bantuan?</Link></footer>

@@ -10,7 +10,7 @@ import { authRequest } from "@/lib/auth-api";
 import { CartPopup } from "./cart-popup";
 import { Brand } from "./brand";
 import { GrandOpeningBar } from "./grand-opening-bar";
-const navigation = [["Beranda", "/"], ["Katalog", "/katalog"], ["Invoice", "/invoice"], ["Tentang", "/about"], ["Bantuan", "/bantuan"]] as const;
+const navigation = [["Beranda", "/"], ["Katalog", "/katalog"], ["Misi", "/misi"], ["Invoice", "/invoice"], ["Tentang", "/about"], ["Bantuan", "/bantuan"]] as const;
 const api = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000/v1").replace(/\/$/, "");
 const adminUrl = process.env.NEXT_PUBLIC_ADMIN_URL || (process.env.NODE_ENV === "development" ? "http://localhost:3001" : "");
 export function SiteShell({ children }: { children: React.ReactNode }) {

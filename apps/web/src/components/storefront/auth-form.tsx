@@ -26,7 +26,12 @@ export function AuthForm({ mode }: { mode: Mode }) {
   const [notice, setNotice] = useState("");
   const [busy, setBusy] = useState(false);
   const reduce = useReducedMotion();
-  useEffect(() => { if (new URLSearchParams(window.location.search).has("auth_error")) setError("Autentikasi gagal atau tautan kedaluwarsa. Silakan coba lagi."); }, []);
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.has("auth_error")) setError("Autentikasi gagal atau tautan kedaluwarsa. Silakan coba lagi.");
+    const referral = params.get("ref");
+    if (referral && /^[a-f0-9]{16}$/i.test(referral)) void authRequest("referral-visit", { code: referral }).catch(() => undefined);
+  }, []);
   useEffect(() => {
     if (new URLSearchParams(window.location.search).has("logged_out")) {
       sessionStorage.removeItem("anres_confirm_email");

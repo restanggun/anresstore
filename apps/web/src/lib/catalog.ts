@@ -8,7 +8,7 @@ export type CatalogItem = {
   code: string; name: string; displayName: string; section: string; group: string; type: string; price: number;
   product: string; productSlug: string; brand: string; developer?: string; description: string; promotion: CatalogPromotion | null;
 };
-export type CatalogProduct = { name: string; slug: string; category: CatalogKind; pinRank?: number | null; developer?: string; count: number; minPrice: number; regularMinPrice?: number; promotion: CatalogPromotion | null; offerName?: string | null; offerCode?: string | null };
+export type CatalogProduct = { name: string; slug: string; category: CatalogKind; pinRank?: number | null; developer?: string; count: number; minPrice: number; regularMinPrice?: number; promotion: CatalogPromotion | null; offerName?: string | null; offerCode?: string | null; ratingCount?: number; averageRating?: number };
 export type CatalogFeed = { items: CatalogItem[]; products: Omit<CatalogProduct, "category">[]; serverTime: string };
 export const categorySlugs: Record<CatalogKind, string> = { "Top up game": "top-up-game", PPOB: "ppob", "Booster media sosial": "sosial-media", "Aplikasi premium": "aplikasi-premium", "Joki tugas": "format-tugas" };
 export const slugify = (value: string) => value.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");

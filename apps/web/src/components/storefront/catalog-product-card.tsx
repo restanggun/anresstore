@@ -22,7 +22,7 @@ export const gameCoverArtwork: Record<string, string> = {
 const appSlugs: Record<string, string> = {
   Zoom: "zoom", Loklok: "loklok", Claude: "claude-ai", "Claude AI": "claude-ai",
   iQIYI: "iqiyi", PicsArt: "picsart", Vidio: "vidio", Canva: "canva",
-  CapCut: "capcut", ChatGPT: "chatgpt", "Alight Motion": "alight-motion",
+  CapCut: "capcut", ChatGPT: "chatgpt", Gemini: "gemini", "Alight Motion": "alight-motion",
 };
 export const appArtwork: Record<string, string> = Object.fromEntries(
   Object.entries(appSlugs).map(([name, slug]) => [name, `/brand/apps/${slug}-icon.webp`]),
@@ -79,8 +79,8 @@ export const gamePreviews: Record<string,string> = {
   "Age of Empires Mobile": "/brand/games/previews/age-of-empires-mobile.mp4?v=20261116",
 };
 
-export function CatalogProductCard({ name, category, developer, pinned = false, label = "Lihat pilihan", index = 0, onSelect }: {
-  name: string; category: string; developer?: string; pinned?: boolean; label?: string; index?: number; onSelect: () => void;
+export function CatalogProductCard({ name, category, developer, pinned = false, ratingCount = 0, averageRating = 0, label = "Lihat pilihan", index = 0, onSelect }: {
+  name: string; category: string; developer?: string; pinned?: boolean; ratingCount?: number; averageRating?: number; label?: string; index?: number; onSelect: () => void;
 }) {
   const reduce = useReducedMotion();
   const [preview, setPreview] = useState(false);
@@ -112,7 +112,7 @@ export function CatalogProductCard({ name, category, developer, pinned = false, 
     initial={{ opacity: 0, y: 14 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, amount: .12 }}
     transition={{ duration: reduce ? 0 : .35, delay: reduce ? 0 : Math.min(index, 5) * .04 }}
     whileHover={reduce ? undefined : { y: -4 }} whileTap={reduce ? undefined : { scale: .99 }}>
-    <span className={`catalog-product-art${category === "PPOB" ? " catalog-product-art-ppob" : category === "Aplikasi premium" ? " catalog-product-art-apps" : social ? " catalog-product-art-social" : ""}`} aria-hidden="true">{category === "PPOB" ? <span className="ppob-thumbnail"><PpobIcon size={46} strokeWidth={1.5}/></span> : cover ? <img className="catalog-product-cover" src={cover} alt="" loading="lazy"/> : social && image ? <span className="social-thumbnail"><img src={image} alt="" loading="lazy"/></span> : image ? <img src={image} alt="" loading="lazy"/> : <Icon size={38} strokeWidth={1.5} />}{preview && video && <video ref={videoRef} className={`catalog-product-video${videoReady ? " is-ready" : ""}`} src={video} poster={cover} muted loop playsInline preload="metadata" onCanPlay={() => setVideoReady(true)} onLoadedData={() => setVideoReady(true)} onError={stopPreview}/>} {pinned && <span className="catalog-product-pin"><Star size={17} fill="currentColor" strokeWidth={1.8}/></span>}</span>{pinned && <span className="sr-only">Produk pilihan. </span>}
+    <span className={`catalog-product-art${category === "PPOB" ? " catalog-product-art-ppob" : category === "Aplikasi premium" ? " catalog-product-art-apps" : social ? " catalog-product-art-social" : ""}`} aria-hidden="true">{category === "PPOB" ? <span className="ppob-thumbnail"><PpobIcon size={46} strokeWidth={1.5}/></span> : cover ? <img className="catalog-product-cover" src={cover} alt="" loading="lazy"/> : social && image ? <span className="social-thumbnail"><img src={image} alt="" loading="lazy"/></span> : image ? <img src={image} alt="" loading="lazy"/> : <Icon size={38} strokeWidth={1.5} />}{preview && video && <video ref={videoRef} className={`catalog-product-video${videoReady ? " is-ready" : ""}`} src={video} poster={cover} muted loop playsInline preload="metadata" onCanPlay={() => setVideoReady(true)} onLoadedData={() => setVideoReady(true)} onError={stopPreview}/>} {pinned && <span className="catalog-product-pin"><Star size={17} fill="currentColor" strokeWidth={1.8}/></span>}</span>{pinned && <span className="sr-only">Produk pilihan. </span>}{ratingCount > 0 && <span className="catalog-product-rating" aria-label={`Rating ${averageRating.toFixed(1)} dari 5, ${ratingCount} ulasan`}><Star size={13} fill="currentColor" aria-hidden="true"/>{averageRating.toFixed(1)} <span>({ratingCount})</span></span>}
     <span className="catalog-product-content">
       {category === "PPOB" ? <span className="catalog-product-game-heading"><span className="catalog-product-game-icon ppob-heading-icon" aria-hidden="true"><PpobIcon size={22}/></span><span className="catalog-product-game-copy"><TextGenerateEffect as="strong" words={name} className="catalog-product-title" duration={.22} revealOnView/><span className="catalog-product-developer">PPOB</span></span></span> : (cover || social) && image ? <span className="catalog-product-game-heading"><span className="catalog-product-game-icon" aria-hidden="true"><img src={image} alt="" loading="lazy"/></span><span className="catalog-product-game-copy"><TextGenerateEffect as="strong" words={name} className="catalog-product-title" duration={.22} revealOnView/>{(developer || gameDevelopers[name] || category === "Aplikasi premium" || social) && <span className="catalog-product-developer">{developer || gameDevelopers[name] || category}</span>}</span></span> : <TextGenerateEffect as="strong" words={name} className="catalog-product-title" duration={.22} revealOnView/>}
       {!cover && (!social || !image) && category !== "PPOB" && (category === "Top up game" ? (developer || gameDevelopers[name]) && <span className="catalog-product-developer">{developer || gameDevelopers[name]}</span> : <span className="catalog-product-category">{category}</span>)}

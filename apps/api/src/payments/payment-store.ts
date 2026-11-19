@@ -24,7 +24,8 @@ export class PaymentStore {
   rpc<T>(name: "consume_payment_rate" | "reserve_payment" | "reserve_task_payment" | "quote_task_order" | "claim_payment_check" |
     "voucher_offer" | "account_vouchers" | "reserve_voucher_payment" | "reserve_premium_voucher" |
     "voucher_set_account" | "voucher_admin_accounts" | "voucher_admin_usage" |
-    "voucher_admin_redemptions" | "voucher_release_premium", body: unknown) {
+    "voucher_admin_redemptions" | "voucher_release_premium" | "campaign_user_snapshot" |
+    "capture_referral_attribution" | "activate_referral_attribution" | "review_referral", body: unknown) {
     return this.request<T>(`rpc/${name}`, "POST", body);
   }
 

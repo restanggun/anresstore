@@ -78,5 +78,13 @@
     "source": "https://loklok.com/",
     "iconUrl": "https://loklok.com/assets/ios-app-icon-CZiJvfpm.png",
     "coverUrl": "https://loklok.com/assets/home_sec2_1-CSJDjEWA.png"
+  },
+  {
+    "name": "Gemini",
+    "slug": "gemini",
+    "publisher": "Google",
+    "source": "https://apps.apple.com/id/app/google-gemini/id6477489729?uo=4",
+    "iconUrl": "https://is1-ssl.mzstatic.com/image/thumb/Purple221/v4/ab/0b/96/ab0b965d-c303-140d-62ae-d9c201e41045/AppIcon-0-0-1x_U007epad-0-0-0-1-0-0-0-0-85-220.png/512x512bb.jpg",
+    "coverUrl": "https://is1-ssl.mzstatic.com/image/thumb/PurpleSource211/v4/65/b4/e8/65b4e82e-4ea9-99a5-98dc-76a27eb0bf8e/APP_IPAD_PRO_3GEN_129-0.png/1200x1200bb.jpg"
   }
 ]

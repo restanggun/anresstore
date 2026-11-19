@@ -1364,6 +1364,55 @@ export class AdminController {
     return access;
   }
 
+  @Get("campaign")
+  async getCampaign(@Req() req: Request, @Res({ passthrough: true }) res: Response) {
+    const access=await this.authorize(req,res);
+    if(!access.superAdmin)throw new HttpException("Campaign memerlukan akses super admin.",403);
+    const [settings]=await adminDb<{revision:number;enabled:boolean;config:Record<string,unknown>}>("campaign_settings","?id=eq.1&select=revision,enabled,config&limit=1");
+    const templates=await adminDb<{id:string;name:string;ends_at:string;kind:string;value:number}>("vouchers","?select=id,name,ends_at,kind,value&code=is.null&active=eq.true&account_limit=not.is.null&ends_at=gt."+encodeURIComponent(new Date().toISOString())+"&order=name&limit=200");
+    const referrals=await adminDb<{id:string;referrer_user_id:string;referred_user_id:string;status:string;created_at:string;qualified_at:string|null;qualifying_invoice_id:string|null}>("referral_attributions","?select=id,referrer_user_id,referred_user_id,status,created_at,qualified_at,qualifying_invoice_id&order=created_at.desc&limit=100");
+    const invoiceIds=referrals.flatMap(row=>row.qualifying_invoice_id??[]);
+    const invoices=invoiceIds.length?await adminDb<{id:string;invoice_number:string;product_name:string;amount:number;created_at:string}>("invoices","?id=in.("+invoiceIds.join(",")+")&select=id,invoice_number,product_name,amount,created_at&payment_mode=eq.live"):[];
+    return {settings:settings??null,templates,referrals:referrals.map(row=>({...row,qualifyingInvoice:invoices.find(invoice=>invoice.id===row.qualifying_invoice_id)??null}))};
+  }
+
+  @Post("campaign")
+  async saveCampaign(@Body() body:unknown,@Req() req:Request,@Res({passthrough:true}) res:Response) {
+    const access=await this.authorize(req,res,true);
+    if(!access.superAdmin)throw new HttpException("Campaign memerlukan akses super admin.",403);
+    const input=body&&typeof body==="object"?body as Record<string,unknown>:{};
+    if(Object.keys(input).some(key=>!['revision','enabled','config'].includes(key))||!Number.isSafeInteger(input.revision)||typeof input.enabled!=="boolean"||!input.config||typeof input.config!=="object"||Array.isArray(input.config))throw new HttpException("Pengaturan campaign tidak valid.",400);
+    const config=input.config as Record<string,unknown>;
+    const allowed=['title','description','startsAt','endsAt','minReferralAmount','referrerVoucherTemplate','friendVoucherTemplate','missions'];
+    if(Object.keys(config).some(key=>!allowed.includes(key))||typeof config.title!=="string"||config.title.trim().length<3||config.title.length>90||typeof config.description!=="string"||config.description.length>400||!Number.isSafeInteger(config.minReferralAmount)||Number(config.minReferralAmount)<0||Number(config.minReferralAmount)>100000000)throw new HttpException("Judul, deskripsi, dan nominal minimum referral tidak valid.",400);
+    const dateOk=(value:unknown)=>value===null||typeof value==="string"&&Number.isFinite(Date.parse(value));
+    if(!dateOk(config.startsAt)||!dateOk(config.endsAt)||config.startsAt&&config.endsAt&&Date.parse(String(config.endsAt))<=Date.parse(String(config.startsAt)))throw new HttpException("Jadwal campaign tidak valid.",400);
+    const missionIds=['verified_email','first_completed_order','referral_rewarded'];
+    if(!Array.isArray(config.missions)||config.missions.length!==3||config.missions.some((mission,index)=>!mission||typeof mission!=="object"||(mission as any).id!==missionIds[index]||typeof (mission as any).title!=="string"||!(mission as any).title.trim()||(mission as any).title.length>80||typeof (mission as any).description!=="string"||(mission as any).description.length>180))throw new HttpException("Susunan misi tidak valid.",400);
+    for(const key of ['referrerVoucherTemplate','friendVoucherTemplate']) {
+      const id=config[key];
+      if(typeof id!=="string"||!uuid(id))throw new HttpException("Pilih voucher akun yang masih aktif untuk kedua reward referral.",400);
+      const [template]=await adminDb<{id:string}>("vouchers",`?id=eq.${encodeURIComponent(id)}&code=is.null&active=eq.true&account_limit=not.is.null&ends_at=gt.${encodeURIComponent(new Date().toISOString())}&select=id&limit=1`);
+      if(!template)throw new HttpException("Template reward harus berupa voucher akun aktif dan belum kedaluwarsa.",400);
+    }
+    const [saved]=await adminDb<{revision:number}>("campaign_settings",`?id=eq.1&revision=eq.${Number(input.revision)}&select=revision`,"PATCH",{enabled:input.enabled,config,revision:Number(input.revision)+1,updated_at:new Date().toISOString()});
+    if(!saved)throw new HttpException("Pengaturan campaign berubah di sesi lain. Muat ulang sebelum menyimpan.",409);
+    await this.audit(access.id,"campaign.settings.update","grand-opening");
+    return {revision:saved.revision};
+  }
+
+  @Patch("referrals/:id")
+  async reviewReferral(@Param("id") id:string,@Body() body:unknown,@Req() req:Request,@Res({passthrough:true}) res:Response) {
+    const access=await this.authorize(req,res,true);
+    if(!access.superAdmin)throw new HttpException("Pemeriksaan referral memerlukan akses super admin.",403);
+    if(!uuid(id))throw new HttpException("Referral tidak ditemukan.",404);
+    const input=body&&typeof body==="object"?body as Record<string,unknown>:{};
+    if(typeof input.approve!=="boolean"||input.note!==undefined&&(typeof input.note!=="string"||input.note.length>500))throw new HttpException("Keputusan referral tidak valid.",400);
+    await this.audit(access.id,"campaign.referral.review",id);
+    const result=await this.voucherStore.rpc<unknown>("review_referral",{p_referral:id,p_approve:input.approve,p_actor:access.id,p_note:input.note??null});
+    return {result};
+  }
+
   @Get("reviews")
   async productReviews(@Query("page") page: string, @Query("status") status: string,
     @Query("category") category: string, @Req() req: Request, @Res({ passthrough: true }) res: Response) {
@@ -1377,7 +1426,7 @@ export class AdminController {
     const filter = `${selectedStatus !== "all" ? `&status=eq.${encodeURIComponent(selectedStatus)}` : ""}`+
       `${category ? `&category=eq.${encodeURIComponent(category)}` : ""}`;
     const rows = await adminDb("product_reviews",
-      `?select=id,category,product_slug,rating,comment,reviewer_email,reviewer_user_id,status,created_at,updated_at&order=created_at.desc,id&limit=51&offset=${index * 50}${filter}`);
+      `?select=id,category,product_slug,invoice_id,purchase_verified,rating,comment,reviewer_email,reviewer_user_id,status,created_at,updated_at&order=created_at.desc,id&limit=51&offset=${index * 50}${filter}`);
     return { rows: rows.slice(0, 50), hasMore: rows.length > 50 };
   }
 
@@ -1391,6 +1440,12 @@ export class AdminController {
     if (input.status !== undefined) {
       if (!["pending", "published", "hidden", "rejected"].includes(String(input.status)))
         throw new HttpException("Status ulasan tidak valid.", 400);
+      if (input.status === "published") {
+        const [proof] = await adminDb<{ purchase_verified: boolean; invoice_id: string | null }>("product_reviews",
+          `?id=eq.${encodeURIComponent(id)}&select=purchase_verified,invoice_id&limit=1`);
+        if (!proof?.purchase_verified || !proof.invoice_id)
+          throw new HttpException("Ulasan tanpa bukti invoice transaksi selesai tidak dapat dipublikasikan.", 409);
+      }
       patch.status = input.status;
     }
     if (input.rating !== undefined) {

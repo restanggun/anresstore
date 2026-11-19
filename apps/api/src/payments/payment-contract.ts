@@ -13,6 +13,7 @@ export type PaymentRow = {
   payment_mode?: "live" | "sandbox";
   voucher_applied?: boolean;
   target_zone?: string | null; provider_cost?: number | null;
+  product_slug?: string | null;
   id: string; access_hash: string; request_hash: string; created_at: string;
   source: string; product_name: string; provider_code: string; target: string;
   amount: number; method: string; reference: string | null; status: PaymentStatus; details: TripayTransaction | null;

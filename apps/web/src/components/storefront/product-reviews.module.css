@@ -78,6 +78,10 @@
 .error:focus { outline: 2px solid #a52845; outline-offset: 3px; }
 .error button { margin-inline-start: 8px; border: 0; background: none; color: inherit; font: inherit; font-weight: 750; text-decoration: underline; cursor: pointer; }
 .notice { color: #24658a; }
+.invoiceReview { display:grid; gap:12px; margin-top:18px; padding:18px; border:1px solid var(--border); border-radius:18px; background:var(--surface); }
+.invoiceReview h3 { margin:0; font-size:16px; }
+.invoiceReview>p { margin:0; color:var(--muted); font-size:13px; }
+.invoiceReview .form { grid-template-columns:minmax(0,1fr); }
 
 .reviewList { display: grid; gap: 12px; }
 .review { padding: 16px 18px; border: 1px solid var(--border); border-radius: 16px; background: var(--surface); }

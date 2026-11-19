@@ -1,0 +1,26 @@
+.workspace { display:grid; gap:20px; }
+.grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:16px; margin-top:18px; }
+.field { display:grid; gap:7px; min-width:0; color:var(--text-secondary,#46515e); font-size:13px; font-weight:650; }
+.field select { width:100%; min-height:44px; padding:9px 11px; border:1px solid var(--border,#dce2e8); border-radius:10px; background:var(--surface,#fff); color:inherit; font:inherit; }
+.field small { color:var(--text-muted,#687586); font-size:11px; font-weight:450; line-height:1.5; }
+.switch { display:flex; align-items:center; flex-wrap:wrap; gap:9px; padding-bottom:16px; border-bottom:1px solid var(--border,#e5e9ed); }
+.switch label { font-weight:700; }
+.switch span { flex-basis:100%; padding-inline-start:30px; color:var(--text-muted,#687586); font-size:12px; }
+.sectionTitle { margin:22px 0 12px; font-size:16px; }
+.missions { display:grid; gap:12px; }
+.mission { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; padding:15px; border:1px solid var(--border,#e5e9ed); border-radius:12px; }
+.mission strong { grid-column:1/-1; }
+.actions { display:flex; align-items:center; flex-wrap:wrap; gap:10px; margin-top:18px; }
+.actions span { color:var(--text-muted,#687586); font-size:12px; }
+.queueHead h2 { margin:0 0 5px; font-size:17px; }
+.queueHead p { margin:0; color:var(--text-muted,#687586); font-size:13px; }
+.referrals { display:grid; gap:10px; margin-top:15px; }
+.referral { display:flex; justify-content:space-between; align-items:center; gap:14px; padding:14px; border:1px solid var(--border,#e5e9ed); border-radius:12px; }
+.referral>div:first-child { display:grid; gap:4px; min-width:0; overflow-wrap:anywhere; }
+.referral span,.referral small,.empty { color:var(--text-muted,#687586); font-size:12px; }
+.referral .actions { margin:0; }
+.error,.notice { margin:0; padding:12px 14px; border-radius:10px; font-size:13px; }
+.error { color:#a12d45; background:#fff0f3; }
+.notice { color:#1d6750; background:#eaf8f1; }
+.empty { margin:14px 0 0; }
+@media(max-width:700px) { .grid,.mission { grid-template-columns:minmax(0,1fr); } .mission strong { grid-column:auto; } .referral { align-items:flex-start; flex-direction:column; } }

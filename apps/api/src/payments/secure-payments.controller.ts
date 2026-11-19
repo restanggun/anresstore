@@ -268,6 +268,7 @@ export class PaymentsController implements OnModuleInit, OnModuleDestroy {
     const paymentSnapshot = {
       catalog_revision: catalog.catalogRevision ?? null,
       payment_mode: mode,
+      product_slug: product.productSlug,
       invoice_product_code: product.productSlug || product.product,
       invoice_subproduct_code: product.providerServiceCode || body.code,
       id: body.id, source: body.source, provider_code: body.code, product_name: `${product.product} - ${product.name}`, target: body.target,
@@ -387,7 +388,18 @@ export class PaymentsController implements OnModuleInit, OnModuleDestroy {
     const [fulfillment] = await this.store.request<{ fulfillment_status: string; provider_note: string | null; payment_mode: string }[]>("live_transactions?id=eq." + refreshed.row.id + "&select=fulfillment_status,provider_note,payment_mode");
     const [refund] = await this.store.request<{id:string;refund_status:string;refund_requires_admin:boolean;refund_resolution:string|null;refund_reference:string|null}[]>(`support_conversations?payment_id=eq.${refreshed.row.id}&kind=eq.refund&select=id,refund_status,refund_requires_admin,refund_resolution,refund_reference&limit=1`);
     const voucher = refreshed.row.voucher_applied ? await this.store.voucherReceipt("payment_id", refreshed.row.id) : null;
-    return { ...this.publicPayment(refreshed.row, refreshed.delayed), voucher, refund: refund ?? null, fulfillment: fulfillment ? { status: fulfillment.fulfillment_status, note: fulfillment.provider_note, mode: fulfillment.payment_mode } : null };
+    const [review] = await this.store.request<{id:string;status:string}[]>(`product_reviews?invoice_id=eq.${refreshed.row.id}&select=id,status&limit=1`);
+    let taskCompleted = true;
+    if (refreshed.row.source === "tasks") {
+      const [task] = await this.store.request<{workflow_status:string}[]>(`task_order_specs?payment_id=eq.${refreshed.row.id}&select=workflow_status&limit=1`);
+      taskCompleted = task?.workflow_status === "completed";
+    }
+    const reviewEligible = refreshed.row.payment_mode === "live" && refreshed.row.status === "paid" && Number(refreshed.row.amount)>0 &&
+      fulfillment?.fulfillment_status === "completed" && taskCompleted && Boolean(refreshed.row.product_slug);
+    return { ...this.publicPayment(refreshed.row, refreshed.delayed), voucher, refund: refund ?? null,
+      fulfillment: fulfillment ? { status: fulfillment.fulfillment_status, note: fulfillment.provider_note, mode: fulfillment.payment_mode } : null,
+      review: { eligible: reviewEligible, submitted: Boolean(review), status: review?.status ?? null,
+        category: refreshed.row.source, productSlug: refreshed.row.product_slug ?? null } };
   }
   @Post("transactions/:id/refund") @HttpCode(200)
   async requestRefund(@Param("id") id:string,@Body() input:unknown,@Req() req:Request,@Res({passthrough:true}) res:Response) {
