@@ -1951,6 +1951,33 @@ export class AdminController {
     return { rows: rows.slice(0, 50), hasMore: rows.length > 50, page: index };
   }
 
+  @Get("invoices/:invoice")
+  async invoiceCheck(@Param("invoice") invoice: string, @Req() req: Request, @Res({ passthrough: true }) res: Response) {
+    const access = await this.authorize(req, res);
+    this.permit(access, "orders.read"); this.permit(access, "payments.read"); this.allServices(access);
+    if (!/^ANRS-(?:[0-9]{6}-[A-F0-9]{14}|[A-Z0-9]{1,12}-[A-Z0-9]{1,12}-[0-9]{8}-[A-F0-9]{16})$/i.test(invoice))
+      throw new HttpException("Nomor invoice tidak valid.", 400);
+    const [row] = await adminDb<{
+      id: string; invoice_number: string; created_at: string; updated_at: string | null; category: string;
+      product_name: string; target: string | null; target_zone: string | null; amount: number;
+      payment_method: string | null; payment_reference: string | null; payment_status: string;
+      fulfillment_status: string; provider_note: string | null; payment_mode: string;
+      review_required: boolean; fulfillment_mode: string | null; manual_kind: string | null;
+    }>("admin_transaction_records", `?invoice_number=eq.${encodeURIComponent(invoice.toUpperCase())}&select=id,invoice_number,created_at,updated_at,category,product_name,target,target_zone,amount,payment_method,payment_reference,payment_status,fulfillment_status,provider_note,payment_mode,review_required,fulfillment_mode,manual_kind&limit=1`);
+    if (!row) throw new HttpException("Invoice tidak ditemukan.", 404);
+    return {
+      id: row.id, invoiceNumber: row.invoice_number, source: row.manual_kind === "task" ? "tasks" : row.category,
+      mode: row.payment_mode, sandboxRealFulfillment: false, createdAt: row.created_at,
+      product: row.product_name, amount: Number(row.amount), total: Number(row.amount), fee: 0,
+      status: row.payment_status, target: row.target, targetZone: row.target_zone,
+      method: row.payment_method ?? "Tidak tersedia", reference: row.payment_reference,
+      payCode: null, checkoutUrl: null, expiresAt: null, lastVerifiedAt: row.updated_at,
+      needsReview: row.review_required, refreshDelayed: false, ownership: "account",
+      fulfillment: { status: row.fulfillment_status, note: row.provider_note, mode: row.fulfillment_mode },
+      review: { eligible: false, submitted: false, status: null, category: row.category, productSlug: null },
+    };
+  }
+
   @Get("analytics")
   async analytics(@Query("days") days:string,@Req() req:Request,@Res({passthrough:true}) res:Response) {
     const access=await this.authorize(req,res); this.permit(access,"orders.read"); this.permit(access,"payments.read"); this.allServices(access);
