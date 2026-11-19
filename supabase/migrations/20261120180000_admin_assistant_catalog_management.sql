@@ -23,7 +23,7 @@ begin
       and (coalesce(input.patch,jsonb_build_object('price',input.after_price)) - array['name','price','description','active']::text[]) = '{}'::jsonb
       and (not (coalesce(input.patch,jsonb_build_object('price',input.after_price)) ? 'price')
         or (coalesce(input.patch,jsonb_build_object('price',input.after_price)->>'price') ~ '^[0-9]+$'
-          and (coalesce(input.patch,jsonb_build_object('price',input.after_price)->>'price')::numeric between 1 and 100000000))
+          and (coalesce(input.patch,jsonb_build_object('price',input.after_price)->>'price')::numeric between 1 and 100000000)))
       and (not (coalesce(input.patch,jsonb_build_object('price',input.after_price)) ? 'active')
         or coalesce(input.patch,jsonb_build_object('price',input.after_price)->'active') in ('true'::jsonb,'false'::jsonb))
       and (not (coalesce(input.patch,jsonb_build_object('price',input.after_price)) ? 'name')
