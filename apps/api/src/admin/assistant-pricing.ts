@@ -15,8 +15,8 @@ export function targetPrice(cost: number, target: number, mode: "margin" | "mark
 
 export function parseAssistantPriceCsv(text: string) {
   const lines = text.replace(/^\ufeff/, "").trim().split(/\r?\n/);
-  if (lines.shift()?.trim().toLowerCase() !== "sku,harga" || !lines.length || lines.length > 20) {
-    throw new HttpException("CSV harus berheader sku,harga dan berisi 1 sampai 20 varian.", 422);
+  if (lines.shift()?.trim().toLowerCase() !== "sku,harga" || !lines.length || lines.length > 50) {
+    throw new HttpException("CSV harus berheader sku,harga dan berisi 1 sampai 50 varian.", 422);
   }
   const rows = lines.map(line => {
     const match = /^\s*([a-z0-9._-]{1,120})\s*,\s*(\d{1,9})\s*$/i.exec(line);

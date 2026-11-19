@@ -871,8 +871,8 @@ export class AdminController {
     }
     const changes = staged.filter(({ row, price }) => Number(row.price) !== price);
     if (!changes.length) return { text: "Tidak ada harga yang perlu diubah pada filter ini.", section: "catalog" };
-    if (changes.length > 20 || changes.some(({ row, price }) => !row.updated_at || price < 1 || price > 100000000)) {
-      throw new HttpException("Batasi draf ke 20 varian dengan harga valid. Persempit filter atau periksa modal.", 422);
+    if (changes.length > 50 || changes.some(({ row, price }) => !row.updated_at || price < 1 || price > 100000000)) {
+      throw new HttpException("Batasi draf ke 50 varian dengan harga valid. Persempit filter atau periksa modal.", 422);
     }
     const id = randomUUID();
     const [entry] = await adminDb<{ expires_at: string }>("rpc/stage_admin_assistant_batch", "", "POST", {
@@ -939,7 +939,7 @@ export class AdminController {
     const body = assistantObject(raw);
     if (!uuid(id) || body.confirm !== true || Object.keys(body).length !== 1) throw new HttpException("Konfirmasi tidak valid.", 400);
     const [batch] = await adminDb<{ proposal_ids: string[] }>("admin_assistant_batches", `?id=eq.${id}&actor_id=eq.${access.id}&select=proposal_ids`);
-    if (!batch?.proposal_ids.length || batch.proposal_ids.length > 20 || !batch.proposal_ids.every(uuid)) throw new HttpException("Draf massal tidak ditemukan.", 404);
+    if (!batch?.proposal_ids.length || batch.proposal_ids.length > 50 || !batch.proposal_ids.every(uuid)) throw new HttpException("Draf massal tidak ditemukan.", 404);
     const entries = await adminDb<{ category: string; product_slug: string }>("admin_assistant_proposals",
       `?id=in.(${batch.proposal_ids.join(",")})&actor_id=eq.${access.id}&select=category,product_slug`);
     if (entries.length !== batch.proposal_ids.length) throw new HttpException("Draf massal tidak lengkap.", 409);
@@ -971,7 +971,7 @@ export class AdminController {
     let published = process.env.ADMIN_CATALOG_ENABLED === "true";
     if (draft.action_type === "product_create" || draft.action_type === "product_batch") {
       const products = draft.action_type === "product_create" ? [payload] : payload.items;
-      if (!Array.isArray(products) || !products.length || products.length > 20) throw new HttpException("Draf produk tidak valid.", 409);
+      if (!Array.isArray(products) || !products.length || products.length > 50) throw new HttpException("Draf produk tidak valid.", 409);
       this.permit(access, "products.read"); this.permit(access, "products.write");
       for (const value of products) {
         const productDraft = assistantObject(value);
@@ -1224,14 +1224,14 @@ export class AdminController {
       }
       return true;
     });
-    const choices = matches.slice(0, 20).map(row => this.assistantCatalogChoice(row));
+    const choices = matches.slice(0, 50).map(row => this.assistantCatalogChoice(row));
     const sourceIncomplete = data.some(result => !result.providerAvailable);
     if (!patch || matches.length !== 1) {
       const message = matches.length === 0 ? "Varian tidak ditemukan. Coba nama, SKU, produk induk, atau rentang nominal yang lebih spesifik."
-        : matches.length > 20 ? `Ditemukan ${matches.length} varian. Draf AI dibatasi 20 item; persempit produk atau rentang sebelum mengubah apa pun.`
+        : matches.length > 50 ? `Ditemukan ${matches.length} varian. Draf AI dibatasi 50 item; persempit produk atau rentang sebelum mengubah apa pun.`
         : patch && matches.length > 1 && !selector.batch ? `Ditemukan ${matches.length} varian. Tinjau hasil di bawah, lalu minta perubahan untuk semua varian yang cocok atau sebutkan SKU tertentu.`
         : `Ditemukan ${matches.length} varian dalam cakupan akses kamu.`;
-      if (patch && selector.batch && matches.length > 1 && matches.length <= 20) {
+      if (patch && selector.batch && matches.length > 1 && matches.length <= 50) {
         this.permit(access, "products.write");
         const targets = matches.filter(row => Object.keys(patch).some(key => {
           const old = ({ name: row.name, price: Number(row.price), description: row.description, active: row.active } as Record<string, unknown>)[key];
