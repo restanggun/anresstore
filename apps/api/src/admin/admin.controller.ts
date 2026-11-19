@@ -1541,12 +1541,14 @@ export class AdminController {
     const productTerms = parent.split(/[^\p{L}\p{N}]+/u).filter(Boolean);
     const parentSet = new Set(productTerms);
     const queryTerms = term.split(/[^\p{L}\p{N}]+/u).filter(word => word && (!parent || !parentSet.has(word)));
+    const matchesWord = (candidate: string, word: string) => candidate === word ||
+      (candidate.length >= 4 && word.length >= 4 && (candidate.startsWith(word) || word.startsWith(candidate)));
     const matches = (exactSku.length ? exactSku : candidates).filter(row => {
       const productWords = `${row.product} ${row.product_slug}`.toLowerCase().split(/[^\p{L}\p{N}]+/u).filter(Boolean);
       const variantWords = `${row.name} ${row.provider_code}`.toLowerCase().split(/[^\p{L}\p{N}]+/u).filter(Boolean);
-      if (productTerms.length && !productTerms.every(word => productWords.some(candidate => candidate.includes(word) || word.includes(candidate)))) return false;
+      if (productTerms.length && !productTerms.every(word => productWords.some(candidate => matchesWord(candidate, word)))) return false;
       if (queryTerms.length && !queryTerms.every(word => (parent ? variantWords : [...variantWords, ...productWords]).some(candidate =>
-        /\d/.test(word) ? candidate === word : candidate.includes(word)))) return false;
+        /\d/.test(word) ? candidate === word : matchesWord(candidate, word)))) return false;
       const quantities = (row.name.match(/\d+/g) ?? []).map(Number);
       if (minAmount !== undefined || maxAmount !== undefined) {
         if (!quantities.length || quantities.every(value => value < (minAmount ?? 0) || value > (maxAmount ?? Number.MAX_SAFE_INTEGER))) return false;
