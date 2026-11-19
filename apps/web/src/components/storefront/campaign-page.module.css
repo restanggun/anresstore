@@ -36,4 +36,3 @@
 .joinActions a:focus-visible,.shareCard button:focus-visible,.shareCard input:focus-visible { outline:3px solid var(--focus); outline-offset:3px; }
 .shareCard>p { margin:0; color:var(--muted); font-size:12px; }.info { display:flex; align-items:center; gap:12px; color:var(--muted); }.info p { margin:0; font-size:13px; line-height:1.6; }.error { padding:13px; border-radius:12px; background:#fff0f3; color:#a12d45; }
 @media(max-width:700px) { .page { width:min(100% - 24px,1080px); margin-top:18px; }.section>header { align-items:flex-start; flex-direction:column; }.mission { grid-template-columns:34px 1fr; }.missionState { grid-column:2; }.join { align-items:flex-start; flex-wrap:wrap; }.joinActions { width:100%; }.joinActions a { flex:1; text-align:center; }.referral { grid-template-columns:1fr; gap:15px; } }
-@media(prefers-reduced-motion:reduce) { *,*::before,*::after { scroll-behavior:auto!important; } }
