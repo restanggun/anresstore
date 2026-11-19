@@ -932,8 +932,11 @@ export class AdminController {
     const items = changes.map(({ row, before, patch }) => {
       this.category(access, row.category); this.product(access, row.product_slug);
       const beforeValues = Object.fromEntries(Object.keys(patch).map(key => [key, before[key as keyof typeof before]]));
-      return { id: randomUUID(), product_id: row.id, category: row.category, product_slug: row.product_slug,
-        product_version: row.updated_at, before_values: beforeValues, patch };
+      const base = { id: randomUUID(), product_id: row.id, category: row.category, product_slug: row.product_slug,
+        product_version: row.updated_at };
+      return Object.keys(patch).length === 1 && patch.price !== undefined
+        ? { ...base, before_price: before.price, after_price: patch.price }
+        : { ...base, before_values: beforeValues, patch };
     });
     const [entry] = await adminDb<{ expires_at: string }>("rpc/stage_admin_assistant_batch", "", "POST", { p_id: id, p_actor: access.id, p_items: items });
     if (!entry?.expires_at) throw new HttpException("Draf impor katalog belum dapat disimpan.", 503);
