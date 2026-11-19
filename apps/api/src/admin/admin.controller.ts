@@ -622,7 +622,7 @@ export class AdminController {
     const csv = selection.includes("pricing_batch") && input.attachments.length > 0;
     if (csv && (scopedProduct || !tools.includes("pricing_batch") || profile && !profile.tools.includes("pricing_batch"))) throw new HttpException("Draf CSV di luar cakupan agent.", 403);
     if (input.attachments.length && !csv && !tools.includes("file_review")) throw new HttpException("Analisis lampiran tidak diizinkan.", 403);
-    const catalogListingIntent = !scopedProduct && /\b(tampilkan|lihatkan|daftar|list|urutkan|lihat)\b/i.test(input.text) &&
+    const catalogListingIntent = !scopedProduct && /\b(tampilkan|tampilin|lihatkan|liatin|tunjukkan|tunjukin|perlihatkan|daftar|list|urutkan|lihat|show)\b/i.test(input.text) &&
       /\b(produk|product|varian|item|katalog|diamond|pulsa|voucher|token|paket|aplikasi|premium|game|skin|membership|top\s?up)\b/i.test(input.text);
     const mobileLegendsListing = catalogListingIntent && /mobile\s*legends|mobile\s*legend|\bmlbb\b/i.test(input.text) && /\bdiamond\b/i.test(input.text);
     const requestedRange = input.text.match(/\b(\d{1,6})\s*(?:diamond\s*)?(?:-|sampai|hingga)\s*(?:diamond\s*)?(\d{1,6})\b/i);
@@ -633,10 +633,10 @@ export class AdminController {
       : /\b(game|games|diamond|top\s?up|skin|membership)\b/i.test(input.text) ? "game" : undefined;
     const searchText = input.text.replace(/\b\d{1,6}\s*(?:diamond\s*)?(?:-|sampai|hingga)\s*(?:diamond\s*)?\d{1,6}\b/ig, " ");
     const searchTerms = searchText.toLocaleLowerCase("id-ID").match(/[\p{L}\p{N}]+/gu) ?? [];
-    const ignoredSearchTerms = new Set(["tolong", "mohon", "tampilkan", "lihatkan", "daftar", "list", "urutkan", "lihat", "cari", "carikan", "temukan", "produk", "product", "varian", "item", "katalog", "kategori", "category", "yang", "ada", "untuk", "saya", "dong", "ya", "di", "dalam", "pada", "dari", "sampai", "hingga", "antara", "sebutkan", "urut", "berdasarkan", "harga", "termurah", "termahal", "game", "games", "prepaid", "prabayar", "apps", "aplikasi", "social", "sosmed", "tasks", "joki", "top", "up"]);
+    const ignoredSearchTerms = new Set(["tolong", "mohon", "tampilkan", "tampilin", "lihatkan", "liatin", "tunjukkan", "tunjukin", "perlihatkan", "show", "khusus", "saja", "aja", "only", "daftar", "list", "urutkan", "lihat", "cari", "carikan", "temukan", "produk", "product", "varian", "item", "katalog", "kategori", "category", "yang", "ada", "untuk", "saya", "dong", "ya", "di", "dalam", "pada", "dari", "sampai", "hingga", "antara", "sebutkan", "urut", "berdasarkan", "harga", "termurah", "termahal", "game", "games", "prepaid", "prabayar", "apps", "aplikasi", "social", "sosmed", "tasks", "joki", "top", "up"]);
     const searchQuery = [...new Set(searchTerms.filter(word => !ignoredSearchTerms.has(word) && !/^\d+$/.test(word)))].join(" ");
     const plan: AssistantStep[] = csv ? [{ tool: "pricing_batch", csv: true }]
-      : catalogListingIntent && available.includes("catalog_search") ? [{ tool: "catalog_search",
+      : catalogListingIntent && available.includes("catalog_search") && (searchQuery || mobileLegendsListing) ? [{ tool: "catalog_search",
         query: mobileLegendsListing ? "diamond" : searchQuery, ...(mobileLegendsListing && { product: "Mobile Legends" }),
         ...(category && { category }), ...(requestedRange && { minAmount: requestedRange[1], maxAmount: requestedRange[2] }) }]
       : await assistantPlan({ ...input, skills: selection.filter((skill): skill is AssistantTool => !!skill) }, available, profile, registry.skills, modelOptions);
@@ -1558,13 +1558,17 @@ export class AdminController {
       const amount = (row: ManagedProduct) => (row.name.match(/\d+/g) ?? []).map(Number).sort((a, b) => a - b)[0] ?? Number.MAX_SAFE_INTEGER;
       return amount(left) - amount(right) || left.name.localeCompare(right.name, "id", { numeric: true, sensitivity: "base" });
     });
-    const choices = matches.slice(0, 50).map(row => this.assistantCatalogChoice(row));
+    const resultLimit = patch || minAmount !== undefined || maxAmount !== undefined ? 50 : 10;
+    const choices = matches.slice(0, resultLimit).map(row => this.assistantCatalogChoice(row));
     const sourceIncomplete = data.some(result => !result.providerAvailable);
     if (!patch || matches.length !== 1) {
       const message = matches.length === 0 ? "Varian tidak ditemukan. Coba nama, SKU, produk induk, atau rentang nominal yang lebih spesifik."
-        : matches.length > 50 ? `Ditemukan ${matches.length} varian. Draf AI dibatasi 50 item; persempit produk atau rentang sebelum mengubah apa pun.`
+        : matches.length > 50 ? patch ? `Ditemukan ${matches.length} varian. Draf AI dibatasi 50 item; persempit produk atau rentang sebelum mengubah apa pun.`
+          : `Ditemukan ${matches.length} varian. Menampilkan ${resultLimit} hasil pertama; sebutkan produk atau rentang yang lebih spesifik untuk mempersempit daftar.`
         : patch && matches.length > 1 && !selector.batch ? `Ditemukan ${matches.length} varian. Tinjau hasil di bawah, lalu minta perubahan untuk semua varian yang cocok atau sebutkan SKU tertentu.`
-        : `Ditemukan ${matches.length} varian dalam cakupan akses kamu.`;
+        : matches.length > resultLimit
+          ? `Ditemukan ${matches.length} varian yang cocok. Menampilkan ${resultLimit} hasil pertama secara berurutan; sebutkan produk atau rentang yang lebih spesifik untuk mempersempit daftar.`
+          : `Ditemukan ${matches.length} varian dalam cakupan akses kamu.`;
       if (patch && selector.batch && matches.length > 1 && matches.length <= 50) {
         this.permit(access, "products.write");
         const targets = matches.filter(row => Object.keys(patch).some(key => {
