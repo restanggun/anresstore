@@ -9,7 +9,7 @@ import styles from "./assistant-workspace.module.css";
 type SessionSummary = { id: string; title: string; touched_at: string };
 export type SavedSession = SessionSummary & {
   turns: { id: string; user: { text: string; sentAt: string }; reply: {
-    text: string; sentAt: string; section?: string; sources?: { title: string; url: string; checkedAt: string }[];
+    text: string; sentAt: string; section?: string; model?: string; sources?: { title: string; url: string; checkedAt: string }[];
   } }[];
 };
 

@@ -51,6 +51,7 @@ type Message = {
   batch?: AssistantBatchData;
   sources?: { title: string; url: string; checkedAt: string }[];
   trace?: { tool: string; label: string; status: string }[];
+  model?: string;
 };
 
 const sentTime = new Intl.DateTimeFormat("id-ID", { hour: "2-digit", minute: "2-digit" });
@@ -59,20 +60,21 @@ const destinations = {
   reports: "Buka laporan", system: "Buka status sistem", conversations: "Buka room chat CS",
   vouchers: "Buka voucher", overview: "Buka ringkasan", tasks: "Buka joki tugas", apps: "Buka aplikasi premium",
 };
-export type AssistantStatus = { configured: boolean; attachments: boolean; tools: string[]; canManage?: boolean; canManageLanding?: boolean; skills?: AssistantOptions["skills"]; agents?: AssistantOptions["agents"] };
-type AssistantReply = Pick<Message, "text" | "section" | "choices" | "proposal" | "batch" | "sources" | "trace"> & { sentAt?: string };
+export type AssistantStatus = { configured: boolean; attachments: boolean; tools: string[]; canManage?: boolean; canManageLanding?: boolean; skills?: AssistantOptions["skills"]; agents?: AssistantOptions["agents"]; models?: string[]; defaultModel?: string };
+type AssistantReply = Pick<Message, "text" | "section" | "choices" | "proposal" | "batch" | "sources" | "trace" | "model"> & { sentAt?: string };
 
 export function AssistantWorkspace({ onNavigate }: { onNavigate: (section: string) => void }) {
   const queryClient = useQueryClient();
   const [text, setText] = useState("");
   const [messages, setMessages] = useState<Message[]>([]);
   const [sessionId, setSessionId] = useState<string | null>(null);
+  const [selectedModel, setSelectedModel] = useState("");
   const [draftKey, setDraftKey] = useState(0);
   const [responding, setResponding] = useState(false);
   const [error, setError] = useState("");
   const timer = useRef<number | undefined>(undefined);
   const request = useRef<AbortController | null>(null);
-  const retry = useRef<{ sessionId: string; text: string; turnId: string } | null>(null);
+  const retry = useRef<{ sessionId: string; text: string; model?: string; turnId: string } | null>(null);
   const conversation = useRef<HTMLDivElement>(null);
   const messageInput = useRef<HTMLTextAreaElement>(null);
   const connection = useQuery({
@@ -82,6 +84,8 @@ export function AssistantWorkspace({ onNavigate }: { onNavigate: (section: strin
   });
   const demo = process.env.NODE_ENV !== "production" && connection.data?.configured === false;
   const canChat = demo || connection.data?.configured === true;
+  const models = connection.data?.models;
+  const model = models?.includes(selectedModel) ? selectedModel : connection.data?.defaultModel;
 
   useEffect(() => () => {
     window.clearTimeout(timer.current);
@@ -107,7 +111,7 @@ export function AssistantWorkspace({ onNavigate }: { onNavigate: (section: strin
       { id: turn.id, role: "user" as const, text: turn.user.text, sentAt: new Date(turn.user.sentAt) },
       {
         id: `${turn.id}-reply`, role: "assistant" as const, text: turn.reply.text, sentAt: new Date(turn.reply.sentAt),
-        sources: turn.reply.sources,
+        sources: turn.reply.sources, model: turn.reply.model,
         section: turn.reply.section && Object.hasOwn(destinations, turn.reply.section) ? turn.reply.section as keyof typeof destinations : undefined,
       },
     ]) ?? []);
@@ -123,7 +127,7 @@ export function AssistantWorkspace({ onNavigate }: { onNavigate: (section: strin
     ];
 
     const retryTurn = retry.current;
-    const turnId = retryTurn && sessionId === retryTurn.sessionId && retryTurn.text === prompt ? retryTurn.turnId : crypto.randomUUID();
+    const turnId = retryTurn && sessionId === retryTurn.sessionId && retryTurn.text === prompt && retryTurn.model === model ? retryTurn.turnId : crypto.randomUUID();
     const outgoing: Message = { id: turnId, role: "user", text: prompt, sentAt: new Date(), context: labels };
     setError("");
     setText("");
@@ -137,10 +141,10 @@ export function AssistantWorkspace({ onNavigate }: { onNavigate: (section: strin
           if (files.reduce((total, file) => total + file.text.length, 0) > 8000) throw new Error("Total isi lampiran maksimal 8.000 karakter.");
           const activeSession = sessionId ?? (await adminRequest("assistant/sessions", "POST", {}, controller.signal) as { id: string }).id;
           setSessionId(activeSession);
-          retry.current = { sessionId: activeSession, text: prompt, turnId };
+          retry.current = { sessionId: activeSession, text: prompt, model, turnId };
           setMessages(current => [...current, outgoing]);
           const response: AssistantReply = await adminRequest("assistant/chat", "POST", {
-            text: prompt, sessionId: activeSession, turnId, files, skills: context.skills, agent: context.agent,
+            text: prompt, sessionId: activeSession, turnId, model, files, skills: context.skills, agent: context.agent,
           }, controller.signal);
           retry.current = null;
           appendReply(response);
@@ -235,6 +239,7 @@ export function AssistantWorkspace({ onNavigate }: { onNavigate: (section: strin
               <div className={styles.messageMeta}>
                 <span>{message.role === "user" ? "Kamu" : message.demo ? "Asisten Anres · Demo" : "Asisten Anres"}</span>
                 <time dateTime={message.sentAt.toISOString()}>{sentTime.format(message.sentAt)}</time>
+              {message.model && <span className={styles.messageModel}>{message.model}</span>}
               </div>
             </article>
           ))}
@@ -252,6 +257,7 @@ export function AssistantWorkspace({ onNavigate }: { onNavigate: (section: strin
       {error && <p className={styles.connectionError} role="alert">{error}</p>}
       <AssistantComposer key={draftKey} text={text} onTextChange={setText} onSend={send} responding={responding} messageInput={messageInput}
         demo={demo} attachments={demo || !!connection.data?.attachments} tools={connection.data?.tools ?? []} disabled={!canChat}
+        models={models} model={model} onModelChange={setSelectedModel}
         options={connection.data?.skills && connection.data.agents ? { skills: connection.data.skills, agents: connection.data.agents } : undefined} />
     </section>
   );

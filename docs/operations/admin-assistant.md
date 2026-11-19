@@ -12,6 +12,7 @@ Asisten menggunakan sesi admin yang sudah ada. Setiap endpoint asisten memerluka
 ADMIN_AI_ENABLED=true
 ADMIN_AI_OPENROUTER_API_KEY=isi_dengan_key_openrouter_admin
 ADMIN_AI_OPENROUTER_MODEL=inclusionai/ling-3.2-flash:free
+ADMIN_AI_OPENROUTER_MODELS=openai/gpt-oss-120b
 ADMIN_AI_REGISTRY_ENABLED=true
 ADMIN_AI_TAVILY_ENABLED=true
 TAVILY_API_KEY=isi_dengan_key_tavily
@@ -33,6 +34,8 @@ docker compose -p anres-production \
 Chat dibatasi enam permintaan per menit per admin dan 24 per jendela harian bersama. Satu chat memakai paling banyak dua request model. Endpoint gagal tertutup saat provider tidak mendukung routing privat, hasil JSON tidak valid, atau database pembatas kuota tidak tersedia. Tidak ada fallback ke model lain.
 
 Tavily menerima maksimal 20 pencarian basic per hari untuk seluruh dashboard. Asisten memakai satu frasa publik dari pesan terbaru. Contoh **Cari di web dokumentasi VIPayment**. Riset publik dan draf perubahan katalog dijalankan di pesan terpisah.
+
+Pilih model untuk pesan berikutnya lewat **Model AI** di kolom chat. Model default selalu ada. Tambahkan ID lain yang sudah diperiksa ke `ADMIN_AI_OPENROUTER_MODELS`, pisahkan dengan koma, lalu buat ulang container API. Model tambahan pada contoh di atas memakai kredit OpenRouter. Semua pilihan memakai key, kuota aplikasi, dan aturan Zero Data Retention yang sama. Riwayat menampilkan model yang dipakai pada setiap balasan baru.
 
 ## Riwayat dan memori
 

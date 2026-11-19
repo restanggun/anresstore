@@ -12,7 +12,7 @@ export type AssistantSessionAccess = {
 type AssistantTurn = {
   id: string;
   user: { text: string; sentAt: string };
-  reply: { text: string; sentAt: string; section?: string; sources?: { title: string; url: string; checkedAt: string }[] };
+  reply: { text: string; sentAt: string; section?: string; model?: string; sources?: { title: string; url: string; checkedAt: string }[] };
 };
 type SessionSummary = { id: string; title: string; touched_at: string };
 type Session = SessionSummary & { revision: number; turns: AssistantTurn[] };

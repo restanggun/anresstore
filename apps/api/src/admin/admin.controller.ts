@@ -16,7 +16,7 @@ import { parseVoucherSettings, voucherUuid } from "../payments/vouchers";
 import nodemailer from "nodemailer";
 import {
   assistantAnswer, assistantCategories, assistantConfig, assistantInput, assistantObject,
-  assistantPatch, assistantPlan, assistantQuota, redactAssistantText, type AssistantStep, type AssistantTool,
+  assistantPatch, assistantPlan, assistantQuota, redactAssistantText, type AssistantModelOptions, type AssistantStep, type AssistantTool,
 } from "./assistant-model";
 import {
   assistantLegacyAgents, assistantLegacySkills, assistantPolicyAllows, assistantRegistryEnabled,
@@ -417,9 +417,9 @@ export class AdminController {
   @Get("assistant")
   async assistantStatus(@Req() req: Request, @Res({ passthrough: true }) res: Response) {
     const access = await this.authorize(req, res, false, true, true);
-    const { configured, attachments } = assistantConfig();
+    const { configured, attachments, model, models } = assistantConfig();
     const { tools, agents, registry } = await this.assistantCapabilities(access);
-    return { configured, attachments: attachments && (tools.includes("file_review") || tools.includes("pricing_batch")), tools, canManage: access.superAdmin && assistantRegistryEnabled(),
+    return { configured, models, defaultModel: configured ? model : undefined, attachments: attachments && (tools.includes("file_review") || tools.includes("pricing_batch")), tools, canManage: access.superAdmin && assistantRegistryEnabled(),
       canManageLanding: access.superAdmin,
       skills: [...tools.filter(tool => tool !== "reply").map(id => ({ id: id as string, label: definitions[id][0] as string, description: definitions[id][1] as string, example: registry.skills[id]?.example })),
         ...(tools.includes("catalog_edit") ? [{ id: "Edit harga", label: "Edit harga", description: "Siapkan draf harga satu SKU." }] : [])],
@@ -574,7 +574,10 @@ export class AdminController {
     const config = assistantConfig();
     if (!config.configured) throw new HttpException("Asisten Anres belum diaktifkan.", 503);
     const input = assistantInput(body, config.attachments);
-    const { variantId, sessionId, turnId } = assistantObject(body);
+    const { variantId, sessionId, turnId, model } = assistantObject(body);
+    if (model !== undefined && (typeof model !== "string" || !config.models.includes(model))) {
+      throw new HttpException("Model AI tidak tersedia untuk Asisten Anres.", 422);
+    }
     if (variantId !== undefined && !uuid(variantId)) throw new HttpException("Varian editor tidak valid.", 422);
     if (sessionId !== undefined && (!uuid(sessionId) || !uuid(turnId) || variantId !== undefined)) {
       throw new HttpException("Sesi atau pesan chat tidak valid.", 422);
@@ -585,6 +588,7 @@ export class AdminController {
     if (session?.revision === 100) throw new HttpException("Sesi sudah berisi 100 giliran. Mulai chat baru untuk melanjutkan.", 409);
     const sentAt = new Date().toISOString();
     const memory = session ? (await getAssistantMemory(access.id)).note : "";
+    const modelOptions = { memory, model: typeof model === "string" ? model : config.model };
     if (session) input.history = session.turns.slice(-3).flatMap(turn => [
       `Admin: ${turn.user.text}`.slice(0, 1500),
       `Asisten: ${turn.reply.text}`.slice(0, 1500),
@@ -609,13 +613,13 @@ export class AdminController {
     if (csv && (scopedProduct || !tools.includes("pricing_batch") || profile && !profile.tools.includes("pricing_batch"))) throw new HttpException("Draf CSV di luar cakupan agent.", 403);
     if (input.attachments.length && !csv && !tools.includes("file_review")) throw new HttpException("Analisis lampiran tidak diizinkan.", 403);
     const plan: AssistantStep[] = csv ? [{ tool: "pricing_batch", csv: true }]
-      : await assistantPlan({ ...input, skills: selection.filter((skill): skill is AssistantTool => !!skill) }, available, profile, registry.skills, memory);
+      : await assistantPlan({ ...input, skills: selection.filter((skill): skill is AssistantTool => !!skill) }, available, profile, registry.skills, modelOptions);
     const trace: { tool: AssistantTool; label: string; status: string; section?: string }[] = [];
     const evidence: AssistantEvidence = {};
     const outputs: Awaited<ReturnType<AdminController["assistantStep"]>>[] = [];
     for (const step of plan) {
       try {
-        const result = await this.assistantStep(step, input, access, req, res, scopedProduct, registry.sops, evidence, memory);
+        const result = await this.assistantStep(step, input, access, req, res, scopedProduct, registry.sops, evidence, modelOptions);
         outputs.push(result);
         trace.push({ tool: step.tool, label: definitions[step.tool][0], status: result.proposal || result.batch ? "review" : "done", section: result.section });
       } catch (error) {
@@ -631,6 +635,7 @@ export class AdminController {
     await this.logAssistantRun(access.id, trace);
     const last = outputs.at(-1)!;
     const reply = { ...last, text: outputs.map(result => result.text).join("\n\n"),
+      model: csv ? undefined : modelOptions.model,
       section: [...outputs].reverse().find(result => result.section)?.section,
       choices: [...outputs].reverse().find(result => result.choices?.length)?.choices,
       sources: outputs.flatMap(result => result.sources ?? []),
@@ -640,7 +645,7 @@ export class AdminController {
       const answeredAt = new Date().toISOString();
       await saveAssistantTurn(access, session, {
         id: turnId, user: { text: input.text, sentAt },
-        reply: { text: redactAssistantText(reply.text), sentAt: answeredAt, section: reply.section, sources: reply.sources },
+        reply: { text: redactAssistantText(reply.text), sentAt: answeredAt, section: reply.section, sources: reply.sources, model: reply.model },
       });
       return { ...reply, sentAt: answeredAt };
     }
@@ -654,7 +659,7 @@ export class AdminController {
   private async assistantStep(
     plan: AssistantStep, input: ReturnType<typeof assistantInput>, access: Awaited<ReturnType<AdminController["authorize"]>>,
     req: Request, res: Response, scopedProduct: ManagedProduct | null, sops: ReturnType<typeof resolvedRegistry>["sops"],
-    evidence: AssistantEvidence, memory: string,
+    evidence: AssistantEvidence, modelOptions: AssistantModelOptions,
   ): Promise<AssistantOutput> {
     const arg = (key: string) => (plan as Record<string, unknown>)[key];
 
@@ -662,7 +667,7 @@ export class AdminController {
       case "reply": {
         const text = arg("text");
         if (typeof text !== "string" || !text.trim() || text.length > 1500) {
-          return { text: await assistantAnswer(input.text, "reply", { history: input.history }, memory) };
+          return { text: await assistantAnswer(input.text, "reply", { history: input.history }, modelOptions) };
         }
         return { text: redactAssistantText(text.trim()) };
       }
@@ -740,10 +745,10 @@ export class AdminController {
       }
       case "support_draft":
       case "support_handoff":
-        return { text: await assistantAnswer(input.text, plan.tool, { context: "Situasi anonim yang dijelaskan admin", attachments: input.attachments, verified: evidence.invoice }, memory), section: "conversations" };
+        return { text: await assistantAnswer(input.text, plan.tool, { context: "Situasi anonim yang dijelaskan admin", attachments: input.attachments, verified: evidence.invoice }, modelOptions), section: "conversations" };
       case "content_draft":
         if (!evidence.choices?.length) return { text: "Tentukan varian yang ingin dijadikan sumber draf konten.", section: "catalog" };
-        return { text: await assistantAnswer(input.text, plan.tool, { variants: evidence.choices }, memory), section: "catalog" };
+        return { text: await assistantAnswer(input.text, plan.tool, { variants: evidence.choices }, modelOptions), section: "catalog" };
       case "pricing":
       case "duplicates":
       case "promo_preview":
@@ -766,7 +771,7 @@ export class AdminController {
         const sourceExcerpts = results.slice(0, 3).map(({ title, excerpt }) => ({ title, excerpt: excerpt.slice(0, 350) }));
         let text: string;
         try {
-          text = await assistantAnswer(query, plan.tool, sourceExcerpts, memory);
+          text = await assistantAnswer(query, plan.tool, sourceExcerpts, modelOptions);
         } catch (error) {
           if (!(error instanceof HttpException)) throw error;
           text = "Tavily menemukan sumber berikut. Ringkasan AI sedang tidak tersedia.";
@@ -775,7 +780,7 @@ export class AdminController {
       }
       case "file_review":
         if (!input.attachments.length) return { text: "Lampirkan file teks untuk dianalisis." };
-        return { text: await assistantAnswer(input.text, plan.tool, { attachments: input.attachments }, memory) };
+        return { text: await assistantAnswer(input.text, plan.tool, { attachments: input.attachments }, modelOptions) };
       case "vouchers": {
         const { rows, hasMore } = await this.vouchers("0", req, res);
         return { text: `${rows.length} voucher pada halaman pertama${hasMore ? ", masih ada halaman berikutnya" : ""}. Buka Voucher untuk melihat kode dan pengaturannya.`, section: "vouchers" };

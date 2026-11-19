@@ -23,6 +23,7 @@ async function isolated(run) {
     ADMIN_USER_IDS: owner, ADMIN_ALLOWED_ORIGINS: origin, ADMIN_REQUIRE_MFA: "false",
     SUPABASE_URL: "https://db.example", SUPABASE_PUBLISHABLE_KEY: "anon-key", SUPABASE_SECRET_KEY: "db-key",
     ADMIN_AI_ENABLED: "true", ADMIN_AI_OPENROUTER_API_KEY: "ai-test-key", ADMIN_AI_OPENROUTER_MODEL: "test/model",
+    ADMIN_AI_OPENROUTER_MODELS: "",
     ADMIN_AI_ATTACHMENTS_ENABLED: "false", ADMIN_AI_REGISTRY_ENABLED: "false", ADMIN_AI_TAVILY_ENABLED: "false",
   });
   const calls = [];
@@ -45,6 +46,26 @@ test("admin assistant forces verified AAL2, validates origin, and refuses disabl
   assert.equal((await controller.assistantStatus(request(), res)).configured, false);
   await assert.rejects(controller.assistantChat({ text: "halo" }, request(), res), error => error.getStatus() === 503);
   assert.ok(calls.every(call => call.url.pathname === "/auth/v1/user"));
+}));
+
+test("assistant picks an approved model for both planning and drafting and rejects unapproved IDs", () => isolated(async ({ calls, intercept, controller }) => {
+  process.env.ADMIN_AI_OPENROUTER_MODELS = "test/alt:free,openrouter/free,test/model";
+  intercept(call => {
+    assert.equal(call.url.hostname, "openrouter.ai");
+    assert.equal(call.body.model, "test/alt:free");
+    assert.equal(call.body.provider.zdr, true);
+    assert.equal(call.body.provider.data_collection, "deny");
+    return call.body.response_format ? modelResult({ steps: [{ tool: "support_draft" }] })
+      : Response.json({ choices: [{ finish_reason: "stop", message: { content: "Halo, kami akan mengecek pesanan." } }] });
+  });
+  const status = await controller.assistantStatus(request(), res);
+  assert.deepEqual(status.models, ["test/model", "test/alt:free"]);
+  assert.equal(status.defaultModel, "test/model");
+  await assert.rejects(controller.assistantChat({ text: "Buat draf", model: "openrouter/free" }, request(), res), e => e.getStatus() === 422);
+  assert.ok(calls.every(call => call.url.pathname === "/auth/v1/user"));
+  const answer = await controller.assistantChat({ text: "Buat draf balasan", model: "test/alt:free" }, request(), res);
+  assert.equal(answer.model, "test/alt:free");
+  assert.equal(calls.filter(call => call.url.hostname === "openrouter.ai").length, 2);
 }));
 
 test("session chat uses owner history and explicit memory, saves redacted turns, and replays a completed request", () => isolated(async ({ calls, intercept, controller }) => {

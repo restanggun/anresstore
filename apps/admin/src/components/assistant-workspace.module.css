@@ -183,7 +183,8 @@
 }
 .userMessage .messageBubble { background: var(--primary); border-radius: 19px 5px 19px 19px; }
 .messageBubble p { margin: 0; white-space: pre-wrap; font-size: 14px; line-height: 1.65; overflow-wrap: anywhere; }
-.messageMeta { display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: 11px; font-weight: 700; }
+.messageMeta { display: flex; flex-wrap: wrap; align-items: center; gap: 3px 8px; color: var(--muted); font-size: 11px; font-weight: 700; }
+.messageModel { overflow-wrap: anywhere; }
 .userMessage .messageMeta { justify-content: flex-end; }
 .messageMeta time { font-variant-numeric: tabular-nums; }
 .messageContext { display: flex; flex-wrap: wrap; gap: 5px; padding: 0; margin: 0; list-style: none; }
@@ -243,6 +244,31 @@
 .messageInput:focus { outline: none; }
 .messageInput::placeholder { color: var(--muted); }
 .composerRow { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.modelSelect {
+  min-width: 0;
+  max-width: min(15rem, calc(100% - 104px));
+  min-height: 44px;
+  margin-inline-end: auto;
+  padding: 6px 10px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--primary-soft);
+  color: var(--foreground);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 750;
+}
+.modelSelect:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+@supports (appearance: base-select) {
+  .modelSelect, .modelSelect::picker(select) { appearance: base-select; }
+  .modelSelect::picker(select) {
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    background: var(--surface);
+  }
+  .modelSelect option { padding: 9px 10px; }
+  .modelSelect option:checked, .modelSelect option:hover { background: var(--primary-soft); }
+}
 .composerNote { margin: 8px 0 0; color: var(--muted); font-size: 11px; line-height: 1.5; text-align: center; }
 .chatError { margin: 7px 0 0; color: #9f263f; font-size: 13px; line-height: 1.5; }
 .connectionError { padding: 0 var(--chat-gutter) 9px; margin: 0; color: #9f263f; font-size: 13px; }

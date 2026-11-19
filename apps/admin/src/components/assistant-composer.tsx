@@ -23,7 +23,7 @@ export type AssistantOptions = { skills: AssistantOption[]; agents: AssistantAge
 const emptyContext: ComposerContext = { skills: [], agent: "", files: [] };
 
 export function AssistantComposer({
-  text, onTextChange, onSend, responding, messageInput, attachments, demo, tools, disabled, options,
+  text, onTextChange, onSend, responding, messageInput, attachments, demo, tools, disabled, options, models, model, onModelChange,
 }: {
   text: string;
   onTextChange: (text: string) => void;
@@ -34,6 +34,9 @@ export function AssistantComposer({
   disabled: boolean;
   tools: string[];
   options?: AssistantOptions;
+  models?: string[];
+  model?: string;
+  onModelChange: (model: string) => void;
   messageInput: RefObject<HTMLTextAreaElement | null>;
 }) {
   const menuId = useId();
@@ -164,6 +167,10 @@ export function AssistantComposer({
               setContext(current => ({ ...current, files }));
             }} />
           </div>
+          {!!models?.length && <select className={styles.modelSelect} name="model" aria-label="Model AI"
+            value={model} disabled={disabled || responding} onChange={event => onModelChange(event.target.value)}>
+            {models.map(id => <option key={id} value={id}>{id.replace(/:free$/, "")} · {id.endsWith(":free") ? "Gratis" : "Tarif standar"}</option>)}
+          </select>}
           <button className={styles.sendButton} type="submit" aria-label="Kirim pesan" title="Kirim pesan" disabled={!text.trim() || responding || disabled}>
             <ArrowUp size={22} strokeWidth={2.4} aria-hidden="true" />
           </button>
