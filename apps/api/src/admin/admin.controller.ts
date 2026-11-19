@@ -32,6 +32,31 @@ import {
 } from "./assistant-sessions";
 
 const assistantRupiah = new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 });
+const assistantTokens = (value: string) => value.toLocaleLowerCase("id-ID").split(/[^\p{L}\p{N}]+/u).filter(Boolean);
+const assistantWordMatches = (candidate: string, word: string) => candidate === word ||
+  (candidate.length >= 4 && word.length >= 4 && (candidate.startsWith(word) || word.startsWith(candidate)));
+const assistantAllWordsMatch = (words: string[], candidates: string[]) => words.every(word =>
+  candidates.some(candidate => /\d/.test(word) ? candidate === word : assistantWordMatches(candidate, word)));
+const assistantTargetGrounded = (target: unknown, prompt: string) => {
+  if (typeof target !== "string" || !target.trim()) return false;
+  if (/\bmlbb\b/i.test(prompt) && /mobile\s*legends?/i.test(target)) return true;
+  return assistantAllWordsMatch(assistantTokens(target), assistantTokens(prompt));
+};
+const assistantCatalogStopWords = new Set(["tolong", "mohon", "tampilkan", "tampilin", "lihatkan", "liatin", "tunjukkan", "tunjukin", "perlihatkan", "show", "khusus", "saja", "aja", "only", "daftar", "list", "urutkan", "lihat", "cari", "carikan", "temukan", "produk", "product", "varian", "item", "katalog", "kategori", "category", "yang", "ada", "untuk", "saya", "dong", "ya", "di", "dalam", "pada", "dari", "sampai", "hingga", "antara", "sebutkan", "urut", "berdasarkan", "harga", "harganya", "ubah", "edit", "ganti", "set", "menjadi", "jadikan", "semua", "seluruh", "tiap", "setiap", "massal", "batch", "range", "rentang", "game", "games", "prepaid", "prabayar", "apps", "aplikasi", "social", "sosmed", "tasks", "joki", "top", "up"]);
+const assistantCatalogQuery = (prompt: string) => {
+  const normalized = prompt.toLocaleLowerCase("id-ID").replace(/\b\d{1,6}\s*(?:diamond\s*)?(?:-|sampai|hingga|s\/d|dan)\s*(?:diamond\s*)?\d{1,6}\b/ig, " ");
+  return [...new Set(assistantTokens(normalized).filter(word => !assistantCatalogStopWords.has(word)))].join(" ");
+};
+const assistantCatalogRange = (prompt: string) => {
+  const found = prompt.match(/\b(?:dari\s+|antara\s+)?(\d{1,6})\s*(?:diamond\s*)?(?:-|sampai|hingga|s\/d|dan)\s*(?:diamond\s*)?(\d{1,6})\b/i);
+  return found ? { minAmount: found[1], maxAmount: found[2] } : {};
+};
+const assistantPromptCategory = (prompt: string) => /\b(pulsa|paket data|token listrik|prabayar|prepaid)\b/i.test(prompt) ? "prepaid"
+  : /\b(aplikasi|app|premium|streaming)\b/i.test(prompt) ? "apps"
+  : /\b(sosmed|social media|followers|likes)\b/i.test(prompt) ? "social"
+  : /\b(joki|tugas|task)\b/i.test(prompt) ? "tasks"
+  : /\b(game|games|diamond|top\s?up|skin|membership|mlbb|mobile\s*legends?)\b/i.test(prompt) ? "game" : undefined;
+const assistantPromptProduct = (prompt: string) => /mobile\s*legends|mobile\s*legend|\bmlbb\b/i.test(prompt) ? "Mobile Legends" : undefined;
 const showCatalogValue = (key: string, value: unknown) => key === "price" || key === "cost_price"
   ? value == null ? "Belum diisi" : assistantRupiah.format(Number(value))
   : key === "active" ? value ? "Tampil" : "Disembunyikan"
@@ -623,22 +648,15 @@ export class AdminController {
     if (csv && (scopedProduct || !tools.includes("pricing_batch") || profile && !profile.tools.includes("pricing_batch"))) throw new HttpException("Draf CSV di luar cakupan agent.", 403);
     if (input.attachments.length && !csv && !tools.includes("file_review")) throw new HttpException("Analisis lampiran tidak diizinkan.", 403);
     const catalogListingIntent = !scopedProduct && /\b(tampilkan|tampilin|lihatkan|liatin|tunjukkan|tunjukin|perlihatkan|daftar|list|urutkan|lihat|show)\b/i.test(input.text) &&
-      /\b(produk|product|varian|item|katalog|diamond|pulsa|voucher|token|paket|aplikasi|premium|game|skin|membership|top\s?up)\b/i.test(input.text);
-    const mobileLegendsListing = catalogListingIntent && /mobile\s*legends|mobile\s*legend|\bmlbb\b/i.test(input.text) && /\bdiamond\b/i.test(input.text);
-    const requestedRange = input.text.match(/\b(\d{1,6})\s*(?:diamond\s*)?(?:-|sampai|hingga)\s*(?:diamond\s*)?(\d{1,6})\b/i);
-    const category = /\b(pulsa|paket data|token listrik|prabayar|prepaid)\b/i.test(input.text) ? "prepaid"
-      : /\b(aplikasi|app|premium|streaming)\b/i.test(input.text) ? "apps"
-      : /\b(sosmed|social media|followers|likes)\b/i.test(input.text) ? "social"
-      : /\b(joki|tugas|task)\b/i.test(input.text) ? "tasks"
-      : /\b(game|games|diamond|top\s?up|skin|membership)\b/i.test(input.text) ? "game" : undefined;
-    const searchText = input.text.replace(/\b\d{1,6}\s*(?:diamond\s*)?(?:-|sampai|hingga)\s*(?:diamond\s*)?\d{1,6}\b/ig, " ");
-    const searchTerms = searchText.toLocaleLowerCase("id-ID").match(/[\p{L}\p{N}]+/gu) ?? [];
-    const ignoredSearchTerms = new Set(["tolong", "mohon", "tampilkan", "tampilin", "lihatkan", "liatin", "tunjukkan", "tunjukin", "perlihatkan", "show", "khusus", "saja", "aja", "only", "daftar", "list", "urutkan", "lihat", "cari", "carikan", "temukan", "produk", "product", "varian", "item", "katalog", "kategori", "category", "yang", "ada", "untuk", "saya", "dong", "ya", "di", "dalam", "pada", "dari", "sampai", "hingga", "antara", "sebutkan", "urut", "berdasarkan", "harga", "termurah", "termahal", "game", "games", "prepaid", "prabayar", "apps", "aplikasi", "social", "sosmed", "tasks", "joki", "top", "up"]);
-    const searchQuery = [...new Set(searchTerms.filter(word => !ignoredSearchTerms.has(word) && !/^\d+$/.test(word)))].join(" ");
+      /\b(produk|product|varian|item|katalog|diamond|pulsa|token|paket|aplikasi|premium|game|skin|membership|top\s?up)\b/i.test(input.text);
+    const mobileLegendsListing = catalogListingIntent && !!assistantPromptProduct(input.text) && /\bdiamond\b/i.test(input.text);
+    const requestedRange = assistantCatalogRange(input.text);
+    const category = assistantPromptCategory(input.text);
+    const searchQuery = assistantCatalogQuery(input.text);
     const plan: AssistantStep[] = csv ? [{ tool: "pricing_batch", csv: true }]
       : catalogListingIntent && available.includes("catalog_search") && (searchQuery || mobileLegendsListing) ? [{ tool: "catalog_search",
         query: mobileLegendsListing ? "diamond" : searchQuery, ...(mobileLegendsListing && { product: "Mobile Legends" }),
-        ...(category && { category }), ...(requestedRange && { minAmount: requestedRange[1], maxAmount: requestedRange[2] }) }]
+        ...(category && { category }), ...requestedRange }]
       : await assistantPlan({ ...input, skills: selection.filter((skill): skill is AssistantTool => !!skill) }, available, profile, registry.skills, modelOptions);
     const trace: { tool: AssistantTool; label: string; status: string; section?: string }[] = [];
     const evidence: AssistantEvidence = {};
@@ -698,25 +716,31 @@ export class AdminController {
         return { text: redactAssistantText(text.trim()) };
       }
       case "catalog_search": {
-        const mobileLegends = /mobile\s*legends|mobile\s*legend|\bmlbb\b/i.test(input.text);
+        const mobileLegends = !!assistantPromptProduct(input.text);
         const diamond = /\bdiamond\b/i.test(input.text);
-        const range = input.text.match(/\b(\d{1,6})\s*(?:diamond\s*)?(?:-|sampai|hingga)\s*(?:diamond\s*)?(\d{1,6})\b/i);
-        const result = await this.assistantCatalog(access,
-          arg("query") ?? (mobileLegends && diamond ? "diamond" : ""),
-          arg("category") ?? (mobileLegends && diamond ? "game" : undefined), null, {
-          product: arg("product") ?? (mobileLegends && diamond ? "Mobile Legends" : undefined),
-          minAmount: arg("minAmount") ?? range?.[1], maxAmount: arg("maxAmount") ?? range?.[2],
-        });
+        const query = mobileLegends && diamond ? "diamond" : assistantCatalogQuery(input.text);
+        const product = mobileLegends ? "Mobile Legends" : undefined;
+        const category = assistantPromptCategory(input.text);
+        const range = assistantCatalogRange(input.text);
+        if (!query && !product) return { text: "Sebutkan nama produk, varian, atau SKU yang ingin dicari agar hasilnya tidak melebar.", section: "catalog" };
+        const result = await this.assistantCatalog(access, query, category, null, { product, ...range });
         if ("choices" in result) evidence.choices = result.choices;
         return result;
       }
-      case "catalog_edit":
-        return scopedProduct ? this.draftAssistantProduct(access, scopedProduct, assistantPatch(arg("patch")))
-          : this.assistantCatalog(access, arg("query"), arg("category"), assistantPatch(arg("patch")), {
-            product: arg("product"), minAmount: arg("minAmount") ?? input.text.match(/\b(\d{1,6})\s*(?:-|–|sampai|hingga)\s*(\d{1,6})\b/i)?.[1],
-            maxAmount: arg("maxAmount") ?? input.text.match(/\b(\d{1,6})\s*(?:-|–|sampai|hingga)\s*(\d{1,6})\b/i)?.[2],
-            batch: arg("batch") === true || /\b(semua|seluruh|tiap|setiap|massal|batch|rentang|range|antara)\b|\b\d{1,6}\s*(?:-|–|sampai|hingga)\s*\d{1,6}\b/i.test(input.text),
-          });
+      case "catalog_edit": {
+        const patch = assistantPatch(arg("patch"));
+        if (scopedProduct) return this.draftAssistantProduct(access, scopedProduct, patch);
+        const query = arg("query");
+        const product = arg("product");
+        if ((query && !assistantTargetGrounded(query, input.text)) || (product && !assistantTargetGrounded(product, input.text)) || (!query && !product)) {
+          return { text: "Saya belum bisa memastikan produk/varian yang kamu maksud dari pesan terbaru. Sebutkan nama produk atau SKU yang tepat; saya tidak akan membuat draf untuk target tebakan.", section: "catalog" };
+        }
+        const range = assistantCatalogRange(input.text);
+        const batch = /\b(semua|seluruh|tiap|setiap|massal|batch|rentang|range|antara)\b/i.test(input.text) || !!range.minAmount;
+        return this.assistantCatalog(access, query ?? "", assistantPromptCategory(input.text) ?? arg("category"), patch, {
+          product, ...range, batch,
+        });
+      }
       case "catalog_add":
         return this.assistantCatalogAdd(access, plan);
       case "catalog_manage":
@@ -1196,7 +1220,7 @@ export class AdminController {
   }
 
   private async assistantCatalogManage(access: Awaited<ReturnType<AdminController["authorize"]>>, plan: AssistantStep, prompt: string): Promise<AssistantOutput> {
-    const category = plan.category;
+    const category = assistantPromptCategory(prompt) ?? plan.category;
     const action = String(plan.action ?? "edit").toLowerCase();
     const settings = plan.settings === undefined ? {} : assistantObject(plan.settings);
     const allowed = new Set(["provider", "provider_code", "product", "product_slug", "section", "name", "price", "cost_price", "description", "active", "fulfillment_mode", "supplier_code", "service_quantity"]);
@@ -1255,8 +1279,11 @@ export class AdminController {
 
     const query = typeof plan.query === "string" ? plan.query.trim() : "";
     const parent = typeof plan.product === "string" ? plan.product.trim().toLowerCase() : "";
-    const batch = plan.batch === true || /\b(semua|seluruh|tiap|setiap|massal|batch|rentang|range|antara)\b|\b\d{1,6}\s*(?:-|–|sampai|hingga)\s*\d{1,6}\b/i.test(prompt);
-    if (!query && !parent) throw new HttpException("Sebutkan SKU/nama varian atau produk induk untuk dicari.", 422);
+    const range = assistantCatalogRange(prompt);
+    const batch = /\b(semua|seluruh|tiap|setiap|massal|batch|rentang|range|antara)\b/i.test(prompt) || !!range.minAmount;
+    if ((query && !assistantTargetGrounded(query, prompt)) || (parent && !assistantTargetGrounded(parent, prompt)) || (!query && !parent)) {
+      return { text: "Saya belum bisa memastikan SKU/produk dari pesan terbaru. Sebutkan target yang tepat; tidak ada perubahan yang disiapkan.", section: "catalog" };
+    }
     const data = await this.readProductManagement(access, category);
     let sourceItems: CatalogItem[] = [];
     try { sourceItems = (await this.catalogReader.list(category, true)).items; } catch { /* saved manual products can still be edited */ }
@@ -1274,15 +1301,14 @@ export class AdminController {
       } as ManagedProduct)),
     ];
     const exact = candidates.filter(row => row.provider_code.toLowerCase() === query.toLowerCase());
-    const range = prompt.match(/\b(\d{1,6})\s*(?:-|–|sampai|hingga)\s*(\d{1,6})\b/i);
-    const min = plan.minAmount === undefined ? Number(range?.[1]) : Number(plan.minAmount);
-    const max = plan.maxAmount === undefined ? Number(range?.[2]) : Number(plan.maxAmount);
+    const min = Number(range.minAmount);
+    const max = Number(range.maxAmount);
     const words = query.toLowerCase().split(/[^\p{L}\p{N}]+/u).filter(word => word && (!parent || !parent.split(/[^\p{L}\p{N}]+/u).includes(word)));
     const matches = (exact.length ? exact : candidates).filter(row => {
-      if (parent && !`${row.product} ${row.product_slug}`.toLowerCase().includes(parent)) return false;
-      const variant = `${row.name} ${row.provider_code}`.toLowerCase();
-      const variantWords = variant.split(/[^\p{L}\p{N}]+/u).filter(Boolean);
-      if (words.length && !words.every(word => /\d/.test(word) ? variantWords.includes(word) : variantWords.some(candidate => candidate.includes(word)))) return false;
+      const productWords = assistantTokens(`${row.product} ${row.product_slug}`);
+      if (parent && !assistantAllWordsMatch(assistantTokens(parent), productWords)) return false;
+      const variantWords = assistantTokens(`${row.name} ${row.provider_code}`);
+      if (words.length && !assistantAllWordsMatch(words, variantWords)) return false;
       const quantities = (row.name.match(/\d+/g) ?? []).map(Number);
       if (Number.isFinite(min) && (!quantities.length || quantities.every(value => value < min))) return false;
       if (Number.isFinite(max) && (!quantities.length || quantities.every(value => value > max))) return false;
@@ -1292,11 +1318,13 @@ export class AdminController {
       return true;
     });
     if (!matches.length) return { text: "Varian yang cocok tidak ditemukan dalam kategori atau cakupan akun ini.", section: "catalog" };
+    const orderedMatches = matches.sort((left, right) => left.name.localeCompare(right.name, "id", { numeric: true, sensitivity: "base" }));
+    const selectionChoices = orderedMatches.slice(0, batch ? 50 : 10).map(row => this.assistantCatalogChoice(row));
     if (action === "delete" && (batch || matches.length !== 1)) {
-      return { text: "Penghapusan AI hanya menyiapkan satu SKU persis per draf. Sebutkan SKU yang tepat; gunakan hide untuk menonaktifkan banyak varian.", choices: matches.slice(0, 50).map(row => this.assistantCatalogChoice(row)), section: "catalog" };
+      return { text: "Penghapusan AI hanya menyiapkan satu SKU persis per draf. Sebutkan SKU yang tepat; gunakan hide untuk menonaktifkan banyak varian.", choices: selectionChoices, section: "catalog" };
     }
-    if (matches.length > 50) return { text: `Ditemukan ${matches.length} varian. Draf pengelolaan dibatasi 50; persempit produk atau rentang.`, choices: matches.slice(0, 50).map(row => this.assistantCatalogChoice(row)), section: "catalog" };
-    if (matches.length > 1 && !batch) return { text: `Ditemukan ${matches.length} varian. Sebutkan SKU tertentu atau minta tindakan untuk semua hasil ini secara eksplisit.`, choices: matches.slice(0, 50).map(row => this.assistantCatalogChoice(row)), section: "catalog" };
+    if (matches.length > 50) return { text: `Ditemukan ${matches.length} varian. Draf pengelolaan dibatasi 50; persempit produk atau rentang.`, choices: selectionChoices, section: "catalog" };
+    if (matches.length > 1 && !batch) return { text: `Ditemukan ${matches.length} varian cocok. Tampilkan 10 pilihan pertama; sebutkan SKU tertentu atau minta tindakan untuk semua hasil ini secara eksplisit.`, choices: selectionChoices, section: "catalog" };
     if (action === "move") {
       if (typeof settings.product !== "string" || typeof settings.product_slug !== "string" || !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(settings.product_slug)) throw new HttpException("Untuk memindahkan varian, berikan nama dan slug produk induk tujuan.", 422);
       this.product(access, settings.product_slug);
@@ -1541,14 +1569,11 @@ export class AdminController {
     const productTerms = parent.split(/[^\p{L}\p{N}]+/u).filter(Boolean);
     const parentSet = new Set(productTerms);
     const queryTerms = term.split(/[^\p{L}\p{N}]+/u).filter(word => word && (!parent || !parentSet.has(word)));
-    const matchesWord = (candidate: string, word: string) => candidate === word ||
-      (candidate.length >= 4 && word.length >= 4 && (candidate.startsWith(word) || word.startsWith(candidate)));
     const matches = (exactSku.length ? exactSku : candidates).filter(row => {
       const productWords = `${row.product} ${row.product_slug}`.toLowerCase().split(/[^\p{L}\p{N}]+/u).filter(Boolean);
       const variantWords = `${row.name} ${row.provider_code}`.toLowerCase().split(/[^\p{L}\p{N}]+/u).filter(Boolean);
-      if (productTerms.length && !productTerms.every(word => productWords.some(candidate => matchesWord(candidate, word)))) return false;
-      if (queryTerms.length && !queryTerms.every(word => (parent ? variantWords : [...variantWords, ...productWords]).some(candidate =>
-        /\d/.test(word) ? candidate === word : matchesWord(candidate, word)))) return false;
+      if (productTerms.length && !assistantAllWordsMatch(productTerms, productWords)) return false;
+      if (queryTerms.length && !assistantAllWordsMatch(queryTerms, parent ? variantWords : [...variantWords, ...productWords])) return false;
       const quantities = (row.name.match(/\d+/g) ?? []).map(Number);
       if (minAmount !== undefined || maxAmount !== undefined) {
         if (!quantities.length || quantities.every(value => value < (minAmount ?? 0) || value > (maxAmount ?? Number.MAX_SAFE_INTEGER))) return false;
@@ -1558,7 +1583,7 @@ export class AdminController {
       const amount = (row: ManagedProduct) => (row.name.match(/\d+/g) ?? []).map(Number).sort((a, b) => a - b)[0] ?? Number.MAX_SAFE_INTEGER;
       return amount(left) - amount(right) || left.name.localeCompare(right.name, "id", { numeric: true, sensitivity: "base" });
     });
-    const resultLimit = patch || minAmount !== undefined || maxAmount !== undefined ? 50 : 10;
+    const resultLimit = selector.batch && patch || minAmount !== undefined || maxAmount !== undefined ? 50 : 10;
     const choices = matches.slice(0, resultLimit).map(row => this.assistantCatalogChoice(row));
     const sourceIncomplete = data.some(result => !result.providerAvailable);
     if (!patch || matches.length !== 1) {

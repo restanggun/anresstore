@@ -59,6 +59,14 @@ Versi pengaturan tersimpan di database. Super admin dapat memilih skill backend 
 
 Asisten dapat merencanakan maksimal empat langkah berurutan dalam satu pesan. Langkah berikutnya dapat memakai hasil katalog atau status invoice yang sudah diambil. Respons menampilkan riwayat langkah dan tautan hasil pencarian. Rancangan perubahan tetap berada di langkah terakhir dan memerlukan klik konfirmasi.
 
+## Flow pencarian dan edit produk
+
+1. **Tafsirkan target dari pesan terbaru.** Pisahkan kategori, nama produk induk, nama varian/SKU, serta nominal/rentang. Riwayat hanya membantu memahami rujukan konteks seperti produk yang sedang dibahas; riwayat tidak boleh mengganti target eksplisit yang baru disebut.
+2. **Cari hanya dalam cakupan target.** Filter kategori/izin terlebih dahulu, lalu cocokkan semua token produk dan varian. Tidak ada fallback ke kategori penuh ketika target tidak cocok. Hasil biasa diurutkan dan dibatasi 10; rentang eksplisit dapat menampilkan hingga 50. Jika lebih banyak yang cocok, minta admin mempersempit.
+3. **Tinjau hasil sebelum edit.** Satu kecocokan tepat dapat menjadi draf untuk SKU tersebut. Beberapa kecocokan tanpa instruksi massal hanya menampilkan pilihan dan meminta SKU/cakupan yang benar.
+4. **Draf perubahan yang aman.** Edit massal hanya dibuat jika admin meminta semua/rentang dengan jelas, maksimal 50 varian. Draf menampilkan target serta nilai sebelum/sesudah; server memvalidasi izin, versi data, kategori, supplier, dan batas field. Perubahan baru berjalan setelah admin menekan **Terapkan**.
+5. **Jika target tidak ditemukan atau ambigu, berhenti dan tanya.** AI tidak memilih produk yang mirip, mengganti SKU, atau mengarang data.
+
 ## Kemampuan
 
 | Tindakan | Sumber Anres | Izin |
