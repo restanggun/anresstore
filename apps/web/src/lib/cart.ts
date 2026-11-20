@@ -1,4 +1,4 @@
-import { apiUrl } from "./auth-api";
+import { apiUrl, authRequest } from "./auth-api";
 export type CartItem = { source?: "game" | "prepaid" | "apps" | "social" | "tasks"; code?: string; targetZone?: string; serviceQuantity?: number; id: string; product: string; category: string; details: string; target: string; contact: string; price: number; quantity: number };
 type AccountCart = { items: CartItem[]; version: number; userId: string; conflict: boolean };
 const key = "anres-cart";
@@ -24,8 +24,9 @@ export function initCart(): Promise<void> {
  if (mode) return Promise.resolve();
  if (loading) return loading;
  loading = (async () => {
-  const response = await fetch(`${apiUrl}/auth/cart`, {credentials:"include"});
-  if (response.status === 401) { mode = "guest"; items = guestCart(); }
+  const { user } = await authRequest<{ user: { id: string } | null }>("session");
+  const response = user ? await fetch(`${apiUrl}/auth/cart`, {credentials:"include", cache:"no-store"}) : null;
+  if (!response || response.status === 401) { mode = "guest"; items = guestCart(); }
   else {
    if (!response.ok) throw new Error("Keranjang tidak dapat dimuat. Coba muat ulang halaman.");
    const account = await response.json() as AccountCart;
