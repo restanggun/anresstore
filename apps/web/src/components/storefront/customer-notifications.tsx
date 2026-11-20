@@ -106,16 +106,15 @@ export function CustomerNotificationsProvider({ children }: { children: ReactNod
       if (running || document.hidden) return;
       running = true;
       try {
-        const results = await Promise.allSettled([
-          paymentRequest<History>("transactions?page=0"),
+        const history = await paymentRequest<History>("transactions?page=0").catch(() => null);
+        if (!active || !history) return;
+        const [summaryResult, ticketsResult] = await Promise.allSettled(history.userId ? [
           supportRequest<TicketSummary>("/notifications"),
           supportRequest<{ rows: Ticket[] }>("?page=0"),
-        ] as const);
+        ] as const : [Promise.resolve(null), Promise.resolve(null)] as const);
         if (!active) return;
 
-        const history = results[0].status === "fulfilled" ? results[0].value : null;
-        if (!history) return;
-        const owner = history?.userId || "guest";
+        const owner = history.userId || "guest";
         const current = owner === scopeRef.current ? savedRef.current : readSaved(owner);
         const incoming: Notice[] = [];
         const submittedReviews = new Set<string>();
@@ -134,7 +133,7 @@ export function CustomerNotificationsProvider({ children }: { children: ReactNod
           }
         }
 
-        const summary = results[1].status === "fulfilled" ? results[1].value : null;
+        const summary = summaryResult.status === "fulfilled" ? summaryResult.value : null;
         for (const message of summary?.recent ?? []) incoming.push({
           id: `support-message:${message.id}:${message.created_at}`,
           kind: "support-message",
@@ -146,7 +145,7 @@ export function CustomerNotificationsProvider({ children }: { children: ReactNod
         });
 
         let ticketStates = current.ticketStates;
-        const tickets = results[2].status === "fulfilled" ? results[2].value.rows : [];
+        const tickets = ticketsResult.status === "fulfilled" ? ticketsResult.value?.rows ?? [] : [];
         if (tickets.length) {
           ticketStates = { ...current.ticketStates };
           for (const ticket of tickets) {
