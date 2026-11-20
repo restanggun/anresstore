@@ -1,7 +1,8 @@
 "use client";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { ArrowUp, MessageCircle, Sparkles } from "lucide-react";
-import { apiUrl } from "@/lib/auth-api";
+import { apiUrl, authRequest } from "@/lib/auth-api";
+import Link from "./domain-link";
 import dynamic from "next/dynamic";
 const ChatMarkdown = dynamic(() => import("./chat-markdown").then(module => module.ChatMarkdown), {
  loading: () => <p role="status">Memuat pesan...</p>,
@@ -19,6 +20,7 @@ async function sessionCall<T>(path:string,method="GET",body?:unknown):Promise<T>
  return data as T;
 }
 export function HelpChat({ query, request }: { query: string; request: { id: number; text: string } | null }) {
+ const [needsLogin,setNeedsLogin]=useState(false);
  const [session,setSession]=useState<Session|null>(null),[sessions,setSessions]=useState<SessionSummary[]>([]);
  const [input,setInput]=useState(""),[outgoing,setOutgoing]=useState(""),[busy,setBusy]=useState(false),[loading,setLoading]=useState(true),[error,setError]=useState("");
  const [page,setPage]=useState(0),[hasMore,setHasMore]=useState(false);
@@ -63,6 +65,9 @@ export function HelpChat({ query, request }: { query: string; request: { id: num
  }
  function openTicket(id:string) {window.dispatchEvent(new CustomEvent("support-ticket-created",{detail:id}));}
  async function convert(room:Session) {
+  const {user}=await authRequest<{user:{id:string}|null}>("session");
+  setNeedsLogin(!user);
+  if(!user)return;
   const saved=await sessionCall<Session>(`/${room.id}/convert`,"POST");
   setSession(saved);if(saved.ticket_id)openTicket(saved.ticket_id);
  }
@@ -110,6 +115,7 @@ export function HelpChat({ query, request }: { query: string; request: { id: num
    <form className="help-chat-form" onSubmit={submit}><label htmlFor="help-chat-input" className="sr-only">Pertanyaan untuk asisten</label><input id="help-chat-input" value={input} onChange={event=>setInput(event.target.value)} placeholder="Tulis pertanyaanmu..." maxLength={1500} disabled={loading || busy || support}/><button type="submit" disabled={loading || busy || support || !input.trim()} aria-label="Kirim pertanyaan"><ArrowUp size={19} aria-hidden="true"/></button></form>
    <p className="help-chat-note">Riwayat disimpan per sesi. Sesi tamu tersedia di browser ini; sesi akun tersimpan di akunmu. AI menggunakan konteks pesan terbaru dalam sesi yang sama. Pesan dikirim ke layanan AI pihak ketiga. Jangan kirim password, kode OTP, atau data sensitif.</p>
    <button className="help-contact-button" type="button" disabled={loading || busy} onClick={()=>void switchToCS()}>{support?"Buka tiket dan chat CS":"Alihkan sesi ke CS / Buat tiket"}</button>
+   {needsLogin&&<p role="status"><Link href="/login">Masuk untuk mengalihkan percakapan ke CS</Link>. Riwayat AI tetap tersimpan.</p>}
    {support&&<p role="status">Sesi sudah menjadi tiket CS. Seluruh riwayat tersimpan. Balasan CS dilanjutkan melalui tiket.</p>}
   </div>
  </section>;

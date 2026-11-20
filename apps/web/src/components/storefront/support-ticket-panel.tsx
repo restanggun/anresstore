@@ -1,7 +1,7 @@
 "use client";
 import {useEffect,useRef,useState,type FormEvent} from "react";
 import Link from "./domain-link";
-import {apiUrl} from "@/lib/auth-api";
+import {apiUrl, AuthRequestError, authRequest} from "@/lib/auth-api";
 import {SupportChatDialog} from "@anres/ui";
 import {Dialog,DialogContent,DialogTitle,DialogDescription} from "@/components/ui/dialog";
 import "./support-ticket-panel.css";
@@ -10,7 +10,7 @@ type Message={id:string;body:string;author_role:string;created_at:string};
 const labels:Record<string,string>={new:"Menunggu koneksi CS",in_progress:"Terhubung dengan CS",rejected:"Tiket ditolak",closed:"Selesai"};
 export async function supportCall(path:string,method="GET",body?:unknown){
  const res=await fetch(`${apiUrl}/help/conversations${path}`,{method,credentials:"include",cache:"no-store",signal:AbortSignal.timeout(20000),headers:{"Content-Type":"application/json"},...(body===undefined?{}:{body:JSON.stringify(body)})});
- const data=await res.json().catch(()=>null);if(!res.ok)throw new Error(data?.message||"Permintaan gagal. Coba lagi.");return data;
+ const data=await res.json().catch(()=>null);if(!res.ok)throw new AuthRequestError(data?.message||"Permintaan gagal. Coba lagi.",res.status);return data;
 }
 export function SupportInbox(){
  const [open,setOpen]=useState(false);
@@ -21,8 +21,62 @@ export function SupportInbox(){
  const [subject,setSubject]=useState(""),[details,setDetails]=useState(""),[draft,setDraft]=useState(""),[notice,setNotice]=useState(""),[busy,setBusy]=useState(false),[loggedIn,setLoggedIn]=useState(false),[loading,setLoading]=useState(true);
  const [page,setPage]=useState(0),[hasMore,setHasMore]=useState(false),[refresh,setRefresh]=useState(0);
  const pendingCreate=useRef<{id:string;subject:string;body:string}|null>(null),pendingSend=useRef<{id:string;body:string}|null>(null);
- useEffect(()=>{let active=true,version=0;const show=async(event:Event)=>{const id=(event as CustomEvent<string>).detail;if(!id||!/^[a-f0-9-]{36}$/i.test(id))return;const current=++version;try{const data=await supportCall(`/${id}/messages?page=0`);if(active&&current===version){setRoom(data.room);setMessages(data.rows);setOlder(data.hasMore);setHistoryPage(0);setPage(0);setRefresh(v=>v+1);setDraft("");setNotice("");setOpen(true);}}catch(e){if(active)setNotice((e as Error).message);}};window.addEventListener("support-ticket-created",show);const ticket=new URLSearchParams(window.location.search).get("ticket");if(ticket&&/^[a-f0-9-]{36}$/i.test(ticket)){void show(new CustomEvent("support-ticket-created",{detail:ticket}));const url=new URL(window.location.href);url.searchParams.delete("ticket");window.history.replaceState(window.history.state,"",url.pathname+url.search+url.hash);}return()=>{active=false;window.removeEventListener("support-ticket-created",show);};},[]);
- useEffect(()=>{let active=true;async function load(){try{const [data,summary]=await Promise.all([supportCall(`?page=${page}`),supportCall("/notifications")]);if(active){setRooms(data.rows);setHasMore(data.hasMore);setLoggedIn(true);if(typeof summary.count==="number"&&Array.isArray(summary.recent)){setNotifications(summary);const latest=summary.recent.map((t:{id:string;created_at:string})=>`${t.id}:${t.created_at}`).join("|");if(lastChat.current!==null&&latest&&latest!==lastChat.current)setChatAlert("Pesan baru dari tim CS.");lastChat.current=latest;}}}catch(e){if(active)setNotice((e as Error).message);}finally{if(active)setLoading(false);}}void load();const timer=setInterval(()=>void load(),5000);return()=>{active=false;clearInterval(timer);};},[page,refresh]);
+ useEffect(()=>{let active=true,version=0;const show=async(event:Event)=>{const id=(event as CustomEvent<string>).detail;if(!id||!/^[a-f0-9-]{36}$/i.test(id))return;const current=++version;try{const {user}=await authRequest<{user:{id:string}|null}>("session");if(!user||!active||current!==version)return;const data=await supportCall(`/${id}/messages?page=0`);if(active&&current===version){setRoom(data.room);setMessages(data.rows);setOlder(data.hasMore);setHistoryPage(0);setPage(0);setRefresh(v=>v+1);setDraft("");setNotice("");setOpen(true);}}catch(e){if(active)setNotice((e as Error).message);}};window.addEventListener("support-ticket-created",show);const ticket=new URLSearchParams(window.location.search).get("ticket");if(ticket&&/^[a-f0-9-]{36}$/i.test(ticket)){void show(new CustomEvent("support-ticket-created",{detail:ticket}));const url=new URL(window.location.href);url.searchParams.delete("ticket");window.history.replaceState(window.history.state,"",url.pathname+url.search+url.hash);}return()=>{active=false;window.removeEventListener("support-ticket-created",show);};},[]);
+ useEffect(()=>{
+  let active=true, running=false;
+  let timer: ReturnType<typeof setInterval> | undefined;
+  function endSession() {
+   clearInterval(timer);
+   setLoggedIn(false);
+   setOpen(false);
+   setRoom(null);
+   setRooms([]);
+   setMessages([]);
+   setNotifications({count:0,recent:[]});
+   setChatAlert("");
+   setNotice("");
+   lastChat.current=null;
+  }
+  async function load() {
+   if(running)return;
+   running=true;
+   try {
+    const [data,summary]=await Promise.all([supportCall(`?page=${page}`),supportCall("/notifications")]);
+    if(!active)return;
+    setRooms(data.rows);
+    setHasMore(data.hasMore);
+    setLoggedIn(true);
+    if(typeof summary.count==="number"&&Array.isArray(summary.recent)){
+     setNotifications(summary);
+     const latest=summary.recent.map((t:{id:string;created_at:string})=>`${t.id}:${t.created_at}`).join("|");
+     if(lastChat.current!==null&&latest&&latest!==lastChat.current)setChatAlert("Pesan baru dari tim CS.");
+     lastChat.current=latest;
+    }
+   } catch(error) {
+    if(!active)return;
+    if(error instanceof AuthRequestError&&error.status===401)endSession();
+    else setNotice((error as Error).message);
+   } finally {
+    running=false;
+    if(active)setLoading(false);
+   }
+  }
+  async function start() {
+   try {
+    const {user}=await authRequest<{user:{id:string}|null}>("session");
+    if(!active)return;
+    if(!user){endSession();return;}
+    timer=setInterval(()=>void load(),5000);
+    await load();
+   } catch(error) {
+    if(active)setNotice((error as Error).message);
+   } finally {
+    if(active)setLoading(false);
+   }
+  }
+  void start();
+  return()=>{active=false;clearInterval(timer);};
+ },[page,refresh]);
  useEffect(()=>{if(!room||!open)return;let active=true;const id=room.id;async function read(){try{const data=await supportCall(`/${id}/messages?page=${historyPage}`);if(active){setMessages(data.rows);setRoom(data.room);setOlder(data.hasMore);}}catch(e){if(active)setNotice((e as Error).message);}}void read();const timer=setInterval(()=>void read(),5000);return()=>{active=false;clearInterval(timer);};},[room?.id,historyPage,open]);
  async function create(e:FormEvent){e.preventDefault();if(busy)return;setBusy(true);setNotice("");const payload=pendingCreate.current?.subject===subject&&pendingCreate.current.body===details?pendingCreate.current:{id:crypto.randomUUID(),subject,body:details};pendingCreate.current=payload;try{await supportCall("","POST",payload);const next={id:payload.id,subject,status:"new",created_at:new Date().toISOString()};setSubject("");setDetails("");setMessages([]);setHistoryPage(0);setRoom(next);setRefresh(v=>v+1);pendingCreate.current=null;}catch(e){setNotice((e as Error).message);}finally{setBusy(false);}}
  async function send(e:FormEvent){e.preventDefault();if(!room||busy)return;setBusy(true);setNotice("");const payload=pendingSend.current?.body===draft?pendingSend.current:{id:crypto.randomUUID(),body:draft};pendingSend.current=payload;try{await supportCall(`/${room.id}/messages`,"POST",payload);setDraft("");pendingSend.current=null;setHistoryPage(0);const data=await supportCall(`/${room.id}/messages?page=0`);setMessages(data.rows);setRoom(data.room);}catch(e){setNotice((e as Error).message);}finally{setBusy(false);}}

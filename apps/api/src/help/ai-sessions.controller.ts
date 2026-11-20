@@ -31,7 +31,7 @@ export class AiSessionsController {
  private async owner(req:Request,res:Response,write=false):Promise<Owner> {
   res.setHeader("Cache-Control","no-store");
   if(write && !(process.env.CORS_ORIGINS || "http://localhost:3000,http://localhost:3001").split(",").map(s=>s.trim()).includes(req.headers.origin || "")) throw new HttpException("Origin tidak diizinkan.",403);
-  const identity=await this.identity.resolve(req);
+  const identity=await this.identity.resolve(req,res);
   const key=identity.userId ? digest(identity.userId) : identity.guestHash ? digest(identity.guestHash) : (await this.identity.establish(req,res)).scope;
   // A guest may sign in and convert the session they started in this browser.
   return {key,keys:[...new Set([key,...(identity.guestHash ? [digest(identity.guestHash)] : [])])],userId:identity.userId};

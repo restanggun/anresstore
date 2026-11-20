@@ -15,7 +15,7 @@ export class ConversationsController {
  private async user(req:Request,res:Response,write=false) {
   res.setHeader("Cache-Control","no-store");
   if(write && !(process.env.CORS_ORIGINS || "http://localhost:3000,http://localhost:3001").split(",").map(s=>s.trim()).includes(req.headers.origin || "")) throw new HttpException("Origin tidak diizinkan.",403);
-  const {userId}=await this.identity.resolve(req); if(!userId) throw new HttpException("Masuk untuk membuka percakapan CS.",401); return userId;
+  const {userId}=await this.identity.resolve(req,res); if(!userId) throw new HttpException("Masuk untuk membuka percakapan CS.",401); return userId;
  }
  @Get() async list(@Query("page") page:string,@Req() req:Request,@Res({passthrough:true}) res:Response) {
   const user=await this.user(req,res), index=pageIndex(page);

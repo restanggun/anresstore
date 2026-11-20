@@ -41,3 +41,28 @@ test('explicit AI handoff stays available when the AI provider is unavailable',(
  const saved=await controller.send(id,{id:customer,content:'AI kurang membantu, hubungkan saya ke CS'},req,res);
  assert.equal(saved.messages[0].content,'AI kurang membantu, hubungkan saya ke CS');
 }));
+
+test('CS requires login and accepts a refresh-only customer session',()=>isolated(async()=>{
+ const controller=new ConversationsController();
+ await assert.rejects(controller.list('0',{headers:{}},res),error=>error.getStatus()===401);
+
+ process.env.SUPABASE_PUBLISHABLE_KEY='test-key';
+ const cookies=[];
+ const response={setHeader(){},cookie(name,value){cookies.push([name,value]);}};
+ global.fetch=async(url,options)=>{
+  const path=new URL(url).pathname;
+  if(path==='/auth/v1/token'){
+   assert.equal(JSON.parse(options.body).refresh_token,'previous-refresh');
+   return Response.json({access_token:'renewed-access',refresh_token:'renewed-refresh',expires_in:3600});
+  }
+  if(path==='/auth/v1/user'){
+   assert.equal(options.headers.Authorization,'Bearer renewed-access');
+   return Response.json({id:customer});
+  }
+  assert.equal(path,'/rest/v1/support_conversations');
+  assert.equal(new URL(url).searchParams.get('user_id'),'eq.'+customer);
+  return Response.json([{id}]);
+ };
+ assert.deepEqual(await controller.list('0',{headers:{cookie:'anres_refresh=previous-refresh'}},response),{rows:[{id}],hasMore:false});
+ assert.deepEqual(cookies,[['anres_access','renewed-access'],['anres_refresh','renewed-refresh']]);
+}));
