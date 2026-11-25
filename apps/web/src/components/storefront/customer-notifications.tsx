@@ -44,6 +44,7 @@ async function supportRequest<T>(path: string, method: "GET" | "POST" = "GET"): 
 }
 
 function ticketHref(id: string) { return `/bantuan?ticket=${encodeURIComponent(id)}#support-inbox`; }
+const missionsPath = "/misi";
 function announcementHref(value: string) {
   if (value.startsWith("/") && !value.startsWith("//")) return value;
   try { const url = new URL(value); return ["https:", "http:"].includes(url.protocol) ? url.href : ""; }
@@ -232,8 +233,9 @@ export function NotificationBanner() {
 
   const title = unread?.title ?? campaign?.announcementText ?? "";
   const body = unread?.body ?? "";
-  const href = unread?.href ?? announcementHref(campaign?.announcementHref ?? "");
-  const label = unread ? "Lihat" : campaign?.announcementLabel ?? "";
+  const campaignHref = announcementHref(campaign?.announcementHref ?? "");
+  const href = unread?.href ?? (/^\/misi\/?$/.test(campaignHref) ? "" : campaignHref);
+  const label = unread ? "Lihat" : campaign?.announcementLabel;
   const visible = <><strong>{title}</strong>{body && <span> · {body}</span>}{href && <span className="customer-notice-action">{label || "Lihat"}<ArrowUpRight size={13} aria-hidden="true"/></span>}</>;
 
   return <div className="customer-notice-bar" role="region" aria-label={unread ? "Notifikasi terbaru" : "Pengumuman Anres"} onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)} onFocusCapture={() => setFocused(true)} onBlurCapture={event => { if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setFocused(false); }}>
@@ -244,6 +246,9 @@ export function NotificationBanner() {
         {href ? <Link href={href} className="customer-notice-link customer-notice-copy" aria-hidden="true" tabIndex={-1} onClick={() => unread && markRead(unread.id)}>{visible}</Link> : <span className="customer-notice-copy" aria-hidden="true">{visible}</span>}
       </div>
     </div>
+    {useCampaign && (
+      <Link href={missionsPath} className="customer-notice-link customer-notice-mission">Lihat Misi<ArrowUpRight size={13} aria-hidden="true"/></Link>
+    )}
   </div>;
 }
 
@@ -253,9 +258,10 @@ const dateLabel = new Intl.DateTimeFormat("id-ID", { day: "numeric", month: "sho
 export function NotificationBell() {
   const { items, unread, dismissed, campaign, readError, markRead, markAllRead, reopenBanner } = useNotifications();
   const [open, setOpen] = useState(false);
+  const campaignHref = announcementHref(campaign?.announcementHref ?? "");
   const announcement = campaignIsActive(campaign) ? {
     id: "campaign-announcement", kind: "campaign" as const, title: campaign!.announcementText, body: campaign!.announcementLabel,
-    href: announcementHref(campaign!.announcementHref), createdAt: campaign!.startsAt || "1970-01-01T00:00:00.000Z", read: true,
+    href: /^\/misi\/?$/.test(campaignHref) ? "" : campaignHref, createdAt: campaign!.startsAt || "1970-01-01T00:00:00.000Z", read: true,
   } : null;
   const visibleItems = [...items, ...(announcement ? [announcement] : [])].sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt));
 
@@ -279,7 +285,7 @@ export function NotificationBell() {
           {visibleItems.map(item => {
             const Icon = item.kind === "campaign" ? Info : noticeIcon(item.kind);
             const content = <><span className={`customer-notice-item-icon${item.kind === "review" ? " is-review" : item.kind === "campaign" ? " is-campaign" : ""}`}><Icon size={17} aria-hidden="true"/></span><span className="customer-notice-item-copy"><strong>{item.title}</strong><span>{item.body}</span><time dateTime={item.createdAt}>{dateLabel.format(new Date(item.createdAt))} WIB</time></span>{!item.read && <i className="customer-notice-unread-dot" aria-label="Belum dibaca"/>}</>;
-            return item.href ? <DialogClose asChild key={item.id}><Link className={`customer-notice-item${item.read ? " is-read" : ""}`} href={item.href} onClick={() => { if (item.kind === "campaign") reopenBanner(); else { markRead(item.id); if (item.kind.startsWith("support-")) openTicket(item.href); } }}>{content}<span className="sr-only">Buka notifikasi</span></Link></DialogClose> : <button className={`customer-notice-item${item.read ? " is-read" : ""}`} type="button" key={item.id} onClick={() => markRead(item.id)}>{content}<Check size={15} aria-hidden="true"/></button>;
+            return item.href ? <DialogClose asChild key={item.id}><Link className={`customer-notice-item${item.read ? " is-read" : ""}`} href={item.href} onClick={() => { if (item.kind === "campaign") reopenBanner(); else { markRead(item.id); if (item.kind.startsWith("support-")) openTicket(item.href); } }}>{content}<span className="sr-only">Buka notifikasi</span></Link></DialogClose> : <button className={`customer-notice-item${item.read ? " is-read" : ""}`} type="button" key={item.id} onClick={() => { if (item.kind === "campaign") { reopenBanner(); setOpen(false); } else markRead(item.id); }}>{content}<Check size={15} aria-hidden="true"/></button>;
           })}
         </div>}
       </DialogContent>

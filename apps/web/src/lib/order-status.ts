@@ -1,5 +1,5 @@
 type OrderPayment = {
-  status: string; needsReview: boolean;
+  status: string; needsReview: boolean; manualPayment?: boolean; manualProofSubmitted?: boolean;
   refund?: {refund_status:string} | null;
   fulfillment?: { status: string; note: string | null } | null;
 };
@@ -44,12 +44,18 @@ export function orderStatus(payment: OrderPayment): OrderStatus {
       default: return {...base,title:"Pembayaran lunas, pengiriman sedang diperiksa",description:"Pembayaran sudah diterima. Status pengiriman belum tersedia. Periksa kembali invoice atau hubungi CS jika belum ada pembaruan."};
     }
   }
+  if (payment.manualPayment && payment.status === "pending") return {
+    ...base,
+    title: payment.manualProofSubmitted ? "Bukti transfer sedang diperiksa" : "Menunggu pembayaran",
+    description: payment.manualProofSubmitted ? "Admin sedang mencocokkan bukti transfer. Tunggu pembaruan sebelum membayar lagi." :
+      "Ikuti instruksi pembayaran QRIS untuk invoice ini. Pesanan diproses setelah admin memverifikasi pembayaran.",
+  };
   const states: Record<string,[string,string]> = {
     creating:["Menyiapkan pembayaran","Invoice sudah dibuat. Rincian pembayaran sedang disiapkan. Jangan membuat pembayaran pengganti."],
     pending:["Menunggu pembayaran","Selesaikan pembayaran melalui Tripay. Produk diproses setelah pembayaran terverifikasi."],
     failed:["Pembayaran gagal","Pembayaran belum berhasil dikonfirmasi dan produk belum diproses. Jika saldo sudah terpotong, hubungi CS sebelum mencoba lagi."],
     expired:["Pembayaran kedaluwarsa","Batas waktu pembayaran sudah lewat dan produk belum diproses. Jika kamu sudah membayar, hubungi CS dengan nomor invoice ini."],
-    refunded:["Pembayaran dikembalikan","Tripay telah mengonfirmasi pengembalian pembayaran ini. Hubungi CS jika dana belum diterima."],
+    refunded:["Pembayaran dikembalikan",payment.manualPayment ? "Admin mencatat pengembalian pembayaran ini. Hubungi CS jika dana belum diterima." : "Tripay telah mengonfirmasi pengembalian pembayaran ini. Hubungi CS jika dana belum diterima."],
     unknown:["Pembayaran sedang diperiksa","Hasil pembayaran belum dapat dipastikan. Jangan bayar ulang atau membuat pesanan pengganti. Periksa status atau hubungi CS."],
   };
   const [title,description] = states[payment.status] || states.unknown!;

@@ -45,7 +45,7 @@ export function ProductReviews({ category, productSlug, productName, enabled = t
   </section>;
 }
 
-export function InvoiceReviewForm({ invoiceId, submitted: initialSubmitted = false }: { invoiceId: string; submitted?: boolean }) {
+export function InvoiceReviewForm({ invoiceId, reviewToken, submitted: initialSubmitted = false }: ({ invoiceId: string; reviewToken?: never } | { invoiceId?: never; reviewToken: string }) & { submitted?: boolean }) {
   const section = useRef<HTMLElement>(null);
   const [rating, setRating] = useState(5), [comment, setComment] = useState(""), [busy, setBusy] = useState(false), [failed, setFailed] = useState(false);
   const [submitted, setSubmitted] = useState(initialSubmitted), [message, setMessage] = useState("");
@@ -56,14 +56,15 @@ export function InvoiceReviewForm({ invoiceId, submitted: initialSubmitted = fal
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault(); if (busy || submitted) return; setBusy(true); setMessage(""); setFailed(false);
     try {
-      const response = await fetch(`${apiUrl}/catalog/reviews`, { method: "POST", credentials: "include", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ invoiceId, rating, comment }) });
+      const response = await fetch(`${apiUrl}/catalog/reviews`, { method: "POST", credentials: "include", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...(reviewToken ? { reviewToken } : { invoiceId }), rating, comment }) });
       const data = await response.json().catch(() => null);
       if (!response.ok) throw new Error(typeof data?.message === "string" ? data.message : "Ulasan belum dapat dikirim.");
       setSubmitted(true); setMessage(data?.message || "Ulasan tersimpan dan menunggu peninjauan admin.");
     } catch (error) { setFailed(true); setMessage(error instanceof Error ? error.message : "Ulasan belum dapat dikirim. Coba lagi."); }
     finally { setBusy(false); }
   }
-  return <section ref={section} id="invoice-review" className={styles.invoiceReview} aria-labelledby="invoice-review-title"><h3 id="invoice-review-title">Beri rating pesanan ini</h3>{submitted ? <p role="status">Ulasan dari invoice ini sudah dikirim. Terima kasih!</p> : <form className={styles.form} method="post" action={apiUrl+"/catalog/reviews"} aria-labelledby="invoice-review-title" onSubmit={event => void submit(event)}><input type="hidden" name="invoiceId" value={invoiceId}/>
+  const Heading = reviewToken ? "h2" : "h3";
+  return <section ref={section} id="invoice-review" className={styles.invoiceReview} aria-labelledby="invoice-review-title"><Heading id="invoice-review-title">Beri rating pesanan ini</Heading>{submitted ? <p role="status">Ulasan dari invoice ini sudah dikirim. Terima kasih!</p> : <form className={styles.form} method="post" action={apiUrl+"/catalog/reviews"} aria-labelledby="invoice-review-title" onSubmit={event => void submit(event)}>{invoiceId && <input type="hidden" name="invoiceId" value={invoiceId}/>}
     <RatingInput name="rating" value={rating} onChange={setRating} disabled={busy}/>
     <div className={styles.field}>
       <label htmlFor="invoice-review-comment">Komentar</label>

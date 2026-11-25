@@ -56,7 +56,7 @@
 .landing-page .section-heading h2, .landing-faq h2 { font-size: 32px; line-height: 1.25; letter-spacing: -1.2px; }
 .landing-page .section-heading p { font-size: 14px; }
 .landing-search { width:min(100%,350px); flex:0 0 350px; }
-.landing-guide { display: grid; grid-template-columns: 1fr 1.2fr; gap: 70px; padding: 48px 0; border-block: 1px solid var(--border); }
+.landing-guide { scroll-margin-block-start: 136px; display: grid; grid-template-columns: 1fr 1.2fr; gap: 70px; padding: 48px 0; border-block: 1px solid var(--border); }
 .guide-brand { display: grid; place-items: center; width: 65px; height: 68px; background: var(--pink); border-radius: 20px; margin-bottom: 25px; }
 .guide-brand img { width: 29px; height: 35px; }
 .guide-intro h2 { font-size: 34px; line-height: 1.25; letter-spacing: -1.2px; }

@@ -7,11 +7,34 @@ import { InvoiceRecovery } from "./invoice-recovery";
 import { PaymentHistory } from "./payment-history";
 import { invoicePath } from "@/lib/payment-navigation";
 import { PaymentInvoicePage } from "./payment-checkout";
+import { PremiumOrderPage } from "./premium-order-page";
 import { apiUrl } from "@/lib/auth-api";
 import "./orders.css";
 import "./invoice-index.css";
 
-function PremiumInvoice({id}:{id:string}){const [order,setOrder]=useState<any>(null),[checked,setChecked]=useState(false);useEffect(()=>{void fetch(`${apiUrl}/premium-orders/invoice/${encodeURIComponent(id)}`,{credentials:"include",cache:"no-store"}).then(async r=>{if(r.ok){const d=await r.json();setOrder(d.order)}setChecked(true)}).catch(()=>setChecked(true))},[id]);if(checked&&!order)return <PaymentInvoicePage id={id}/>;return <main className="container invoice-index-page"><header className="invoice-index-heading"><h1>Invoice aplikasi premium</h1><p>Ikuti pembayaran dan pengiriman pesananmu.</p></header>{!order?<p role="status">Memuat invoice…</p>:<section className="invoice-lookup"><h2>{order.product_name}</h2><p>{order.invoice_number}</p><p>Rp{Number(order.amount).toLocaleString("id-ID")}</p><strong>{order.status}</strong><p>Data akses dikirim setelah pembayaran diverifikasi. <a href={`/premium-order/${order.id}`}>Buka detail pesanan</a>.</p></section>}</main>;}
+function InvoiceDetail({ id }: { id: string }) {
+ const [premiumId, setPremiumId] = useState<string | null>();
+ useEffect(() => {
+  const controller = new AbortController();
+  const code = encodeURIComponent(id);
+  const path = id.startsWith("ANRS-") ? `invoice/${code}` : code;
+  void fetch(`${apiUrl}/premium-orders/${path}`, {
+   credentials: "include",
+   cache: "no-store",
+   signal: controller.signal,
+  }).then(async response => {
+   const data: { order?: { id: string } } | null = response.ok ? await response.json() : null;
+   if (!controller.signal.aborted) setPremiumId(data?.order?.id ?? null);
+  }).catch(() => {
+   if (!controller.signal.aborted) setPremiumId(null);
+  });
+  return () => controller.abort();
+ }, [id]);
+
+ if (premiumId === undefined) return <main id="main" className="container invoice-index-page"><p>Memuat invoice…</p></main>;
+ if (premiumId) return <PremiumOrderPage id={premiumId}/>;
+ return <PaymentInvoicePage id={id}/>;
+}
 
 export function OrdersPage({ orderId }: { orderId?: string }) {
  const router = useRouter();
@@ -33,7 +56,7 @@ export function OrdersPage({ orderId }: { orderId?: string }) {
    input.current?.focus();
   }
  }
- if (orderId) return /^[a-f0-9-]{36}$/i.test(orderId)||orderId.startsWith("ANRS-") ? <PremiumInvoice id={orderId}/> : <PaymentInvoicePage id={orderId}/>;
+ if (orderId) return /^[a-f0-9-]{36}$/i.test(orderId)||orderId.startsWith("ANRS-") ? <InvoiceDetail key={orderId} id={orderId}/> : <PaymentInvoicePage id={orderId}/>;
  return <main id="main" className="container invoice-index-page">
   <header className="invoice-index-heading"><h1>Invoice</h1><p>Temukan pesananmu dan ikuti setiap perkembangannya.</p></header>
   <section className="invoice-lookup" aria-labelledby="invoice-lookup-title">

@@ -67,6 +67,10 @@ export function PaymentInvoice({ id }: { id: string }) {
   const completed = status?.step === 4;
   const step = status?.step ?? 1;
   const checkoutUrl = payment ? tripayCheckoutUrl(payment) : null;
+  const canStartNewOrder = !!payment && !adminView && !payment.needsReview &&
+    !["requested", "in_review"].includes(payment.refund?.refund_status ?? "") &&
+    (["failed", "expired", "refunded"].includes(payment.status) ||
+      payment.status === "paid" && ["completed", "failed"].includes(payment.fulfillment?.status ?? ""));
 
   async function copyNumber() {
     if (!payment?.invoiceNumber) return;
@@ -75,7 +79,7 @@ export function PaymentInvoice({ id }: { id: string }) {
   }
 
   return <main id="main" className="container payment-invoice-page">
-    <div className="invoice-toolbar"><Link href="/invoice"><ArrowLeft size={16} aria-hidden="true"/>Semua invoice</Link><span><ShieldCheck size={16} aria-hidden="true"/>{adminView ? "Pemeriksaan admin · hanya-baca" : "Pembayaran melalui Tripay"}</span></div>
+    <div className="invoice-toolbar"><Link href="/invoice"><ArrowLeft size={16} aria-hidden="true"/>Semua invoice</Link><span><ShieldCheck size={16} aria-hidden="true"/>{adminView ? "Pemeriksaan admin · hanya-baca" : payment?.manualPayment ? "Pembayaran QRIS manual" : "Pembayaran melalui Tripay"}</span></div>
     <header className="invoice-page-heading"><h1>Invoice pesanan</h1><p>Pantau pembayaran, pengiriman produk, dan bantuan untuk pesananmu di sini.</p></header>
     <ol className="invoice-steps" aria-label="Progres pesanan">
       {["Pesanan dibuat", "Pembayaran", "Diproses", "Selesai"].map((label, index) => <li key={label} data-state={index + 1 === step && status?.needsHelp ? "problem" : index + 1 < step || completed ? "done" : index + 1 === step ? "current" : "next"} aria-current={index + 1 === step ? "step" : undefined}><span className="invoice-step-number" aria-hidden="true">{index + 1}</span><span>{index === 3 && payment?.refund?.refund_status === "completed" ? "Penanganan selesai" : index === 2 && payment?.status === "paid" && status?.needsHelp ? "Perlu penanganan" : label}</span></li>)}
@@ -92,21 +96,28 @@ export function PaymentInvoice({ id }: { id: string }) {
           <section className="ticket-order"><h3>Rincian pesanan</h3><h4>{payment.product}</h4><dl className="ticket-detail-grid"><div><dt>{payment.targetZone ? "ID pemain" : "Tujuan / ID pelanggan"}</dt><dd>{payment.target || "-"}</dd></div>{payment.targetZone && <div><dt>Server / zone</dt><dd>{payment.targetZone}</dd></div>}<div><dt>Dibuat pada</dt><dd>{date(payment.createdAt)}</dd></div><div><dt>Metode pembayaran</dt><dd>{payment.method}</dd></div>{payment.reference && <div><dt>Referensi Tripay</dt><dd>{payment.reference}</dd></div>}</dl></section>
           {status!.needsHelp && <section className="ticket-resolution" aria-label="Bantuan pesanan"><h3>{status!.reason ? "Alasan pengiriman gagal" : "Langkah berikutnya"}</h3>{status!.reason && <p>{status!.reason}</p>}<p>Sertakan nomor invoice saat menghubungi CS. Tim akan memeriksa pesanan sebelum menentukan penyelesaiannya.</p><Button asChild variant="outline"><Link href="/bantuan">Hubungi CS</Link></Button></section>}
           {payment.fulfillment?.status === "completed" && payment.fulfillment.note && <section className="ticket-fulfillment"><h3>Informasi produk</h3><p>{payment.fulfillment.note}</p></section>}
-          {!adminView && payment.source === "tasks" && payment.status === "paid" && <TaskOrderPanel id={payment.id}/>}
+          {!adminView && payment.source === "tasks" && !payment.manualPayment && payment.status === "paid" && <TaskOrderPanel id={payment.id}/>}
           {!adminView && payment.review?.eligible && <InvoiceReviewForm key={payment.id} invoiceId={payment.id} submitted={payment.review.submitted}/>}
           {!adminView && (payment.refund || payment.amount > 0 && payment.status === "paid" && status!.needsHelp) && <RefundRequest payment={payment} onUpdated={()=>void refresh()}/>}
           {!adminView && payment.ownership === "guest" && <div className="invoice-guest-notice"><span>Invoice ini masih mengikuti browser pemesan. Simpan ke akun untuk akses dari perangkat lain.</span><InvoiceRecovery invoiceNumber={payment.invoiceNumber||payment.id} label="Simpan ke akun"/></div>}
           <footer className="ticket-footer"><span>Status diperiksa otomatis{payment.lastVerifiedAt ? ` · ${date(payment.lastVerifiedAt)}` : ""}</span><Link href="/bantuan">Butuh bantuan?</Link></footer>
         </div>
-        <aside className="ticket-stub" aria-label="Ringkasan pembayaran"><div><h3>Ringkasan pembayaran</h3><dl className="ticket-totals"><div><dt>Harga produk</dt><dd>{money(payment.voucher?.baseAmount ?? payment.amount)}</dd></div>{payment.voucher && <div><dt>Voucher {payment.voucher.name}</dt><dd>−{money(payment.voucher.discount)}</dd></div>}<div><dt>Biaya admin</dt><dd>{payment.reference || payment.amount === 0 ? money(payment.fee) : "Menunggu Tripay"}</dd></div><div className="ticket-total"><dt>Total pembayaran</dt><dd>{payment.reference || payment.amount === 0 ? money(payment.total) : "Belum tersedia"}</dd></div></dl>
+        <aside className="ticket-stub" aria-label="Ringkasan pembayaran"><div><h3>Ringkasan pembayaran</h3><dl className="ticket-totals"><div><dt>Harga produk</dt><dd>{money(payment.voucher?.baseAmount ?? payment.amount)}</dd></div>{payment.voucher && <div><dt>Voucher {payment.voucher.name}</dt><dd>−{money(payment.voucher.discount)}</dd></div>}<div><dt>Biaya admin</dt><dd>{payment.manualPayment || payment.reference || payment.amount === 0 ? money(payment.fee) : "Menunggu Tripay"}</dd></div><div className="ticket-total"><dt>Total pembayaran</dt><dd>{payment.manualPayment || payment.reference || payment.amount === 0 ? money(payment.total) : "Belum tersedia"}</dd></div></dl>
           {payment.status === "pending" && payment.expiresAt && <div className="ticket-expiry"><Clock3 size={17} aria-hidden="true"/><p>Bayar sebelum<strong>{date(payment.expiresAt * 1000)}</strong></p></div>}
+          {payment.manualPayment && payment.status === "pending" && <div className="ticket-manual-payment">
+            {payment.manualProofSubmitted ? <p role="status">Bukti transfer sedang diperiksa admin.</p> : <>
+              {payment.manualQr && <img src={payment.manualQr} alt="Kode QRIS untuk membayar invoice ini" width={220} height={220} />}
+              <p>{payment.manualQr ? "Pindai QRIS sesuai nominal dan kirim bukti transfer ke admin." : "Hubungi admin untuk instruksi pembayaran dan pengiriman bukti transfer."}</p>
+              <Button asChild variant="outline"><Link href="/bantuan">Hubungi admin</Link></Button>
+            </>}
+          </div>}
           {checkoutUrl && payment.payCode && <div className="ticket-pay-code"><span>Kode bayar / virtual account</span><strong>{payment.payCode}</strong></div>}
           {checkoutUrl && <Button asChild className="ticket-pay-button"><a href={checkoutUrl} rel="noreferrer">Bayar di Tripay<ArrowUpRight size={17} aria-hidden="true"/></a></Button>}
           {payment.refreshDelayed && <p className="ticket-hint" role="status">Verifikasi Tripay sedang tertunda. Status terakhir tetap tersimpan.</p>}
           {["creating", "unknown"].includes(payment.status) && <p className="ticket-hint">Jangan buat pesanan baru. Periksa kembali status atau hubungi bantuan dengan nomor invoice ini.</p>}
           <Button variant="outline" className="ticket-refresh" disabled={busy} onClick={() => void refresh()}><RefreshCw size={16} aria-hidden="true"/>{busy ? "Memeriksa..." : "Periksa status"}</Button>
           <p className="ticket-verification"><ShieldCheck size={15} aria-hidden="true"/>Status pembayaran diverifikasi oleh server.</p>
-        </div><div className="ticket-stub-bottom"><Button variant="outline" onClick={() => window.print()}><Printer size={16} aria-hidden="true"/>Simpan PDF / cetak</Button><small className="ticket-pdf-hint">Pilih Simpan sebagai PDF pada jendela cetak untuk mengunduh salinan invoice.</small>{["paid", "failed", "expired", "refunded"].includes(payment.status) && <Link href="/katalog" onClick={() => { try { forgetPaymentIntent(payment.id); } catch { /* Next checkout remains guarded by the database. */ } }}>Kembali ke katalog</Link>}</div></aside>
+        </div><div className="ticket-stub-bottom"><Button variant="outline" onClick={() => window.print()}><Printer size={16} aria-hidden="true"/>Simpan PDF / cetak</Button><small className="ticket-pdf-hint">Pilih Simpan sebagai PDF pada jendela cetak untuk mengunduh salinan invoice.</small>{["paid", "failed", "expired", "refunded"].includes(payment.status) && <Link href="/katalog" onClick={() => { if (!canStartNewOrder) return; try { forgetPaymentIntent(payment.id); } catch { /* Next checkout remains guarded by the database. */ } }}>Kembali ke katalog</Link>}</div></aside>
       </article>
     </>}
   </main>;

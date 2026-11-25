@@ -9,6 +9,7 @@ export const paymentId = /^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3
 export const invoiceNumber = /^ANRS-(?:[0-9]{6}-[A-F0-9]{14}|[A-Z0-9]{1,12}-[A-Z0-9]{1,12}-[0-9]{8}-[A-F0-9]{16})$/;
 export const paymentHash = (value: string) => createHash("sha256").update(value).digest("hex");
 export type PaymentRow = {
+  archived_at?: string | null;
   invoice_number?: string; merchant_ref?: string; claimed_user_id?: string | null; claimed_at?: string | null;
   payment_mode?: "live" | "sandbox";
   voucher_applied?: boolean;

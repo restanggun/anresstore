@@ -1,3 +1,4 @@
+import { manualQrisImage } from "./manual-qris";
 import { Body, Controller, Get, HttpCode, HttpException, Param, Post, Query, Req, Res } from "@nestjs/common";
 import type { OnModuleInit, OnModuleDestroy, RawBodyRequest } from "@nestjs/common";
 import { randomBytes } from "node:crypto";
@@ -66,12 +67,13 @@ export class PaymentsController implements OnModuleInit, OnModuleDestroy {
     return row;
   }
   private authorize(row: PaymentRow, identity: PaymentIdentity) {
-    if (!ownsPayment(row, identity)) throw new HttpException("Pembayaran tidak ditemukan.", 404);
+    if (row.archived_at || !ownsPayment(row, identity)) throw new HttpException("Pembayaran tidak ditemukan.", 404);
   }
   private publicPayment(row: PaymentRow, refreshDelayed = false) {
     const detail = row.details;
     return { ownership: row.owner_user_id || row.claimed_user_id ? "account" : "guest", id: row.id, invoiceNumber: row.invoice_number ?? null, source: row.source, mode: row.payment_mode, sandboxRealFulfillment: process.env.VIPAYMENT_SANDBOX_FULFILLMENT_ENABLED === "true" && process.env.VIPAYMENT_FULFILLMENT_ENABLED === "true", createdAt: row.created_at, product: row.product_name, amount: row.amount, status: row.status, target: row.target, targetZone: row.target_zone ?? null,
-      method: detail?.payment_name ?? (row.method === "VOUCHER" ? "Voucher" : row.method), reference: row.reference,
+      manualPayment: row.method === "MANUAL_QRIS",
+      method: detail?.payment_name ?? (row.method === "VOUCHER" ? "Voucher" : row.method === "MANUAL_QRIS" ? "QRIS manual" : row.method), reference: row.reference,
       total: detail?.amount ?? row.amount, fee: detail?.fee_customer ?? 0,
       payCode: detail?.pay_code ?? null, checkoutUrl: detail?.checkout_url ?? null, expiresAt: detail?.expired_time ?? null,
       lastVerifiedAt: row.provider_checked_at, needsReview: row.review_required, refreshDelayed };
@@ -115,7 +117,7 @@ export class PaymentsController implements OnModuleInit, OnModuleDestroy {
     throw new HttpException("Status sedang diperbarui. Coba kembali.", 503);
   }
   private async refresh(row: PaymentRow): Promise<{ row: PaymentRow; delayed: boolean }> {
-    if (row.method === "VOUCHER") return { row, delayed: false };
+    if (["VOUCHER", "MANUAL_QRIS"].includes(row.method)) return { row, delayed: false };
     // Credentials belong to one environment. Old invoices remain readable after cutover.
     if ((row.payment_mode) !== tripayConfig().mode) return { row, delayed: true };
     if (!["pending", "unknown", "paid"].includes(row.status)) return { row, delayed: false };
@@ -314,7 +316,7 @@ export class PaymentsController implements OnModuleInit, OnModuleDestroy {
     const attachedCount = scope === "guest" ? 0 : await this.accounts.attach(identity);
     if(scope === "guest" && !identity.guestHash) return {payments:[],hasMore:false,userId:identity.userId,attachedCount};
     const owner = identity.userId && scope !== "guest" ? `or=(owner_user_id.eq.${identity.userId},claimed_user_id.eq.${identity.userId})` : "owner_user_id=is.null&claimed_user_id=is.null&guest_session_hash=eq." + identity.guestHash + "&created_at=gte." + encodeURIComponent(new Date(Date.now()-30*86400000).toISOString());
-    const rows = await this.db("?" + owner + "&order=created_at.desc&limit=51&offset=" + index*50);
+    const rows = await this.db("?" + owner + "&archived_at=is.null&order=created_at.desc&limit=51&offset=" + index*50);
     const visible = rows.slice(0,50).filter(row => ownsPayment(row,identity) && (identity.userId && scope !== "guest" ? row.owner_user_id===identity.userId || row.claimed_user_id===identity.userId : !row.owner_user_id && !row.claimed_user_id));
     const ids = visible.map(row=>row.id).join(",");
     const [deliveries,refunds,tasks,reviews] = visible.length ? await Promise.all([
@@ -326,12 +328,12 @@ export class PaymentsController implements OnModuleInit, OnModuleDestroy {
     const payments=visible.map(row=>{
       const delivery=deliveries.find(item=>item.id===row.id),refund=refunds.find(item=>item.payment_id===row.id);
       const task=tasks.find(item=>item.payment_id===row.id),submitted=reviews.some(item=>item.invoice_id===row.id);
-      const eligible=row.payment_mode==="live"&&row.status==="paid"&&Number(row.amount)>0&&Boolean(row.product_slug)&&delivery?.fulfillment_status==="completed"&&(row.source!=="tasks"||task?.workflow_status==="completed");
+      const eligible=row.payment_mode==="live"&&row.status==="paid"&&Number(row.amount)>0&&Boolean(row.product_slug)&&delivery?.fulfillment_status==="completed"&&(row.source!=="tasks"||row.method==="MANUAL_QRIS"||task?.workflow_status==="completed");
       return {...this.publicPayment(row),refund:refund??null,fulfillment:delivery?{status:delivery.fulfillment_status,note:delivery.provider_note,mode:delivery.payment_mode}:null,review:{eligible,submitted,category:row.source,productSlug:row.product_slug??null}};
     });
     if(scope!=="guest"){
       const premiumOwner=identity.userId?`user_id=eq.${identity.userId}`:`guest_session_hash=eq.${identity.guestHash}`;
-      const premiums=await this.store.request<any[]>(`premium_orders?${premiumOwner}&payment_mode=eq.live&select=id,invoice_number,product_name,amount,status,created_at,customer_email&order=created_at.desc&limit=50`);
+      const premiums=await this.store.request<any[]>(`premium_orders?${premiumOwner}&payment_mode=eq.live&archived_at=is.null&select=id,invoice_number,product_name,amount,status,created_at,customer_email&order=created_at.desc&limit=50`);
       const premiumIds=premiums.map(row=>row.id).filter((id:string)=>paymentId.test(id));
       const [premiumInvoices,premiumReviews]=premiumIds.length?await Promise.all([
         this.store.request<{id:string;payment_mode:string;payment_status:string;fulfillment_status:string;product_slug:string|null}[]>(`invoices?id=in.(${premiumIds.join(",")})&select=id,payment_mode,payment_status,fulfillment_status,product_slug&limit=50`),
@@ -382,7 +384,7 @@ export class PaymentsController implements OnModuleInit, OnModuleDestroy {
     await this.accounts.attach(identity);
     const rows:PaymentRow[]=[];
     for(let offset=0;offset<=5000;offset+=1000){
-      const page=await this.db(`?or=(owner_user_id.eq.${identity.userId},claimed_user_id.eq.${identity.userId})&order=created_at.desc,id.desc&limit=1000&offset=${offset}`);
+      const page=await this.db(`?or=(owner_user_id.eq.${identity.userId},claimed_user_id.eq.${identity.userId})&archived_at=is.null&order=created_at.desc,id.desc&limit=1000&offset=${offset}`);
       rows.push(...page.filter(row=>ownsPayment(row,identity)&&(row.owner_user_id===identity.userId||row.claimed_user_id===identity.userId)));
       if(rows.length>5000)throw new HttpException("Ekspor dibatasi 5.000 invoice per permintaan. Hubungi CS untuk riwayat lebih besar.",413);
       if(page.length<1000)break;
@@ -407,11 +409,19 @@ export class PaymentsController implements OnModuleInit, OnModuleDestroy {
     let taskCompleted = true;
     if (refreshed.row.source === "tasks") {
       const [task] = await this.store.request<{workflow_status:string}[]>(`task_order_specs?payment_id=eq.${refreshed.row.id}&select=workflow_status&limit=1`);
-      taskCompleted = task?.workflow_status === "completed";
+      taskCompleted = refreshed.row.method === "MANUAL_QRIS" || task?.workflow_status === "completed";
     }
     const reviewEligible = refreshed.row.payment_mode === "live" && refreshed.row.status === "paid" && Number(refreshed.row.amount)>0 &&
       fulfillment?.fulfillment_status === "completed" && taskCompleted && Boolean(refreshed.row.product_slug);
+    let manualQr: string | null = null;
+    let manualProofSubmitted = false;
+    if (refreshed.row.method === "MANUAL_QRIS" && refreshed.row.status === "pending") {
+      const evidence = await this.store.request<unknown[]>(`invoice_admin_evidence?invoice_id=eq.${refreshed.row.id}&select=invoice_id`);
+      manualProofSubmitted = evidence.length > 0;
+      if (!manualProofSubmitted) manualQr = await manualQrisImage(Number(refreshed.row.amount));
+    }
     return { ...this.publicPayment(refreshed.row, refreshed.delayed), voucher, refund: refund ?? null,
+      manualQr, manualProofSubmitted,
       fulfillment: fulfillment ? { status: fulfillment.fulfillment_status, note: fulfillment.provider_note, mode: fulfillment.payment_mode } : null,
       review: { eligible: reviewEligible, submitted: Boolean(review), status: review?.status ?? null,
         category: refreshed.row.source, productSlug: refreshed.row.product_slug ?? null } };
@@ -461,7 +471,7 @@ export class PaymentsController implements OnModuleInit, OnModuleDestroy {
       const mode = tripayConfig().mode;
       const stale = await this.db(`?payment_mode=eq.${mode}&status=eq.creating&created_at=lt.${encodeURIComponent(new Date(Date.now() - 120000).toISOString())}&limit=25`);
       for (const row of stale) await this.markUnknown(row);
-      const candidates = await this.db(`?payment_mode=eq.${mode}&method=neq.VOUCHER&status=in.(pending,unknown,paid)&or=(provider_check_until.is.null,provider_check_until.lt.${encodeURIComponent(new Date().toISOString())})&order=provider_checked_at.asc.nullsfirst&limit=10`);
+      const candidates = await this.db(`?payment_mode=eq.${mode}&method=not.in.(VOUCHER,MANUAL_QRIS)&status=in.(pending,unknown,paid)&or=(provider_check_until.is.null,provider_check_until.lt.${encodeURIComponent(new Date().toISOString())})&order=provider_checked_at.asc.nullsfirst&limit=10`);
       for (const row of candidates) await this.refresh(row);
     } finally { this.reconciling = false; }
   }

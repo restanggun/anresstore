@@ -4,14 +4,13 @@ import { Button } from "@anres/ui";
 import { Input } from "@/components/ui/input";
 import { useCheckoutEmail } from "./use-checkout-email";
 import { apiUrl } from "@/lib/auth-api";
-import { forgetPaymentIntent, submitPayment } from "@/lib/payment-api";
-import { orderStatus } from "@/lib/order-status";
+import { submitPayment } from "@/lib/payment-api";
 import { invoicePath, tripayCheckoutUrl } from "@/lib/payment-navigation";
 
 import type { PaymentChannel as Channel } from "@/lib/payment-channels";
 import { PaymentMethods } from "./payment-methods";
 import { CheckoutVoucher, voucherScope, type AppliedVoucher, type VoucherProduct } from "./checkout-voucher";
-export type PaymentRecord = { review?: { eligible: boolean; submitted: boolean; status: string | null; category: string; productSlug: string | null }; voucher?: { name: string; baseAmount: number; discount: number } | null; ownership?: "account" | "guest"; source?: string; refund?: {id:string;refund_status:string;refund_requires_admin:boolean;refund_resolution:string|null;refund_reference:string|null} | null; invoiceNumber: string | null; target?: string; targetZone?: string | null; fulfillment?: {status: string; note: string | null; mode: string} | null; id: string; mode?: "live" | "sandbox"; sandboxRealFulfillment?: boolean; createdAt: string; product: string; amount: number; total: number; fee: number; status: string; method: string; reference: string | null; payCode: string | null; checkoutUrl: string | null; expiresAt: number | null; lastVerifiedAt: string | null; needsReview: boolean; refreshDelayed: boolean };
+export type PaymentRecord = { manualPayment?: boolean; manualQr?: string | null; manualProofSubmitted?: boolean; review?: { eligible: boolean; submitted: boolean; status: string | null; category: string; productSlug: string | null }; voucher?: { name: string; baseAmount: number; discount: number } | null; ownership?: "account" | "guest"; source?: string; refund?: {id:string;refund_status:string;refund_requires_admin:boolean;refund_resolution:string|null;refund_reference:string|null} | null; invoiceNumber: string | null; target?: string; targetZone?: string | null; fulfillment?: {status: string; note: string | null; mode: string} | null; id: string; mode?: "live" | "sandbox"; sandboxRealFulfillment?: boolean; createdAt: string; product: string; amount: number; total: number; fee: number; status: string; method: string; reference: string | null; payCode: string | null; checkoutUrl: string | null; expiresAt: number | null; lastVerifiedAt: string | null; needsReview: boolean; refreshDelayed: boolean };
 const money = (value: number) => `Rp${value.toLocaleString("id-ID")}`;
 async function jsonResponse<T>(response: Response): Promise<T> {
   const data = await response.json();
@@ -26,7 +25,6 @@ export function PaymentCheckout({ source, code, target, serviceQuantity, targetZ
   const [loading, setLoading] = useState(true), [busy, setBusy] = useState(false), [error, setError] = useState(""), [reload, setReload] = useState(0);
   const [mode, setMode] = useState<"live" | "sandbox">("live");
   const [sandboxRealFulfillment, setSandboxRealFulfillment] = useState(false);
-  const [previousPayment, setPreviousPayment] = useState<PaymentRecord | null>(null);
   const [providerPhoneRequired, setProviderPhoneRequired] = useState(false);
   const [voucher, setVoucher] = useState<AppliedVoucher | null>(null);
   const [checkingVoucher, setCheckingVoucher] = useState<string | null>(null);
@@ -68,9 +66,7 @@ export function PaymentCheckout({ source, code, target, serviceQuantity, targetZ
       }
       const checkoutUrl = tripayCheckoutUrl(payment);
       if (!checkoutUrl) {
-        // Stay on checkout when the gateway has not supplied a verified payable URL.
-        // Opening an invoice is a separate user action, not a substitute for paying.
-        setPreviousPayment(payment);
+        window.location.assign(invoicePath(payment.id, payment.invoiceNumber));
         return;
       }
       try { if (payment.mode !== "sandbox" || payment.sandboxRealFulfillment) await onCreated?.(); } catch { /* The reserved invoice remains authoritative. */ }
@@ -82,7 +78,7 @@ export function PaymentCheckout({ source, code, target, serviceQuantity, targetZ
     finally { submitting.current = false; setBusy(false); }
   }
   return <form onSubmit={checkout}>
-    <CheckoutVoucher key={scope} product={voucherProduct} applied={applied} disabled={busy || !!previousPayment}
+    <CheckoutVoucher key={scope} product={voucherProduct} applied={applied} disabled={busy}
       onChecking={(key, active) => setCheckingVoucher(current => active ? key : current === key ? null : current)}
       onApply={offer => { setVoucher(offer); setMethod(""); setError(""); }}/>
     {mode === "sandbox" && !sandboxRealFulfillment && <p role="status">Mode sandbox: pembayaran uji coba, tanpa pengiriman produk.</p>}
@@ -99,9 +95,8 @@ export function PaymentCheckout({ source, code, target, serviceQuantity, targetZ
     {!gift && ovoPhoneRequired && <p>Masukkan nomor HP yang terdaftar di akun OVO untuk melanjutkan pembayaran.</p>}
     {!gift && <p>Biaya admin dan total akhir ditampilkan setelah kode bayar dibuat.</p>}
     {error && <p role="alert">{error}{pending.current && <> <a className="shop-text-button" href={invoicePath(pending.current)}>Periksa status permintaan</a></>}</p>}
-    {previousPayment && <section className="checkout-existing-invoice" role="status"><h3>{orderStatus(previousPayment).title}</h3><p>Data checkout ini terhubung dengan invoice {previousPayment.invoiceNumber || previousPayment.id}. {previousPayment.status === "paid" ? "Pembayaran invoice ini sudah lunas, sehingga tidak dibuka lagi di Tripay." : ["failed","expired","refunded"].includes(previousPayment.status) ? "Invoice ini sudah berakhir." : "Tautan pembayaran dari Tripay belum tersedia atau masih perlu diverifikasi. Kamu tetap di halaman checkout; jangan membuat pembayaran pengganti."}</p><p>{orderStatus(previousPayment).description}</p><a className="shop-text-button" href={invoicePath(previousPayment.id, previousPayment.invoiceNumber)}>Lihat invoice dan status pesanan</a>{!previousPayment.needsReview && !["requested","in_review"].includes(previousPayment.refund?.refund_status || "") && (["failed","expired","refunded"].includes(previousPayment.status) || previousPayment.status === "paid" && ["completed","failed"].includes(previousPayment.fulfillment?.status || "")) && <Button type="button" variant="outline" onClick={()=>{forgetPaymentIntent(previousPayment.id);pending.current=null;setPreviousPayment(null);setError("");}}>Mulai pesanan baru</Button>}</section>}
-    <Button type="submit" className="order-primary" disabled={!!previousPayment || busy || checkingVoucher === scope || emailLoading || !checkoutEmail.trim() || (!gift && (loading || !method)) || paymentPhoneRequired && !/^\+?[0-9]{8,15}$/.test(phone.trim())}>{busy ? "Menyiapkan pesanan..." : gift ? "Klaim produk Rp0" : "Lanjut ke pembayaran"}</Button>
-    {!gift && <p className="checkout-payment-note">Kamu akan diarahkan ke Tripay untuk membayar, lalu kembali ke invoice untuk melihat status pesanan.</p>}
+    <Button type="submit" className="order-primary" disabled={busy || checkingVoucher === scope || emailLoading || !checkoutEmail.trim() || (!gift && (loading || !method)) || paymentPhoneRequired && !/^\+?[0-9]{8,15}$/.test(phone.trim())}>{busy ? "Menyiapkan pesanan..." : gift ? "Klaim produk Rp0" : "Lanjut ke pembayaran"}</Button>
+    {!gift && <p className="checkout-payment-note">Gunakan Tripay untuk membayar. Status transaksi dan instruksi selanjutnya tersedia di invoice.</p>}
   </form>;
 }
 

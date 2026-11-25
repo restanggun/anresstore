@@ -63,7 +63,7 @@
 .error button { margin-inline-start: 8px; border: 0; background: none; color: inherit; font: inherit; font-weight: 750; text-decoration: underline; cursor: pointer; }
 .notice { color: #24658a; }
 .invoiceReview { display:grid; gap:16px; margin-top:18px; padding:clamp(14px, 3vw, 24px); border:0; border-radius:18px; background:var(--primary-soft); scroll-margin-top:140px; }
-.invoiceReview h3 { margin:0; font-size:16px; }
+.invoiceReview :is(h2,h3) { margin:0; font-size:16px; }
 .invoiceReview>p { margin:0; color:var(--muted); font-size:13px; }
 .invoiceReview .submit { box-shadow: none; }
 
@@ -88,3 +88,23 @@
 @media (prefers-reduced-motion: reduce) {
   .shareButton,.submit { transition-duration: 0.01ms; }
 }
+
+.ratingPage {
+  max-width: 42rem;
+  padding-block: clamp(2rem, 7vw, 5rem);
+  overflow-wrap: anywhere;
+}
+.ratingPage header {
+  background: var(--primary-soft);
+  border-radius: 24px;
+  padding: clamp(1.25rem, 5vw, 2rem);
+  margin-bottom: 1rem;
+}
+.ratingPage h1 {
+  font-size: clamp(1.8rem, 5vw, 2.5rem);
+  font-weight: 800;
+  margin: 0 0 0.5rem;
+}
+.ratingPage header p { margin: 0 0 0.25rem; font-weight: 700; }
+.ratingPage header small, .ratingPageFeedback { color: var(--muted); }
+.ratingPageFeedback > p { margin-bottom: 1rem; }

@@ -29,5 +29,3 @@
 .payment-method[data-selected="true"] .payment-method-check { background:var(--pink-ink); color:white; border-color:var(--pink-ink); }
 @media(max-width:380px) { .payment-method-grid { grid-template-columns:1fr; } .payment-method-grid > .payment-method { flex-direction:row; align-items:center; padding-right:36px; } .payment-method-logo { width:76px; flex-shrink:0; } .payment-method-check { top:50%; transform:translateY(-50%); } }
 @media(prefers-reduced-motion:reduce) { .payment-method { transition:none; } }
-
-.checkout-existing-invoice{padding:18px;margin:18px 0;border-radius:16px;background:var(--primary-soft)}.checkout-existing-invoice h3{font-size:16px;font-weight:800;margin:0 0 10px}.checkout-existing-invoice p{font-size:12px;line-height:1.8;overflow-wrap:anywhere}.checkout-existing-invoice a{display:block;margin:12px 0}.checkout-existing-invoice button{margin-top:12px}

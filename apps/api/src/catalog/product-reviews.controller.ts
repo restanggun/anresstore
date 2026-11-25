@@ -53,15 +53,40 @@ export class ProductReviewsController {
     };
   }
 
+  private async linkedInvoiceId(token: unknown) {
+    if (typeof token !== "string" || !/^[A-Za-z0-9_-]{43}$/.test(token))
+      throw new HttpException("Tautan rating tidak valid atau sudah kedaluwarsa.", 404);
+    const [link] = await adminDb<{ invoice_id: string }>("invoice_review_links",
+      `?token_hash=eq.${paymentHash(token)}&expires_at=gt.${encodeURIComponent(new Date().toISOString())}&select=invoice_id`);
+    if (!link) throw new HttpException("Tautan rating tidak valid atau sudah kedaluwarsa.", 404);
+    return link.invoice_id;
+  }
+
+  @Post("reviews/link")
+  async linkedReview(@Body() body: { token?: unknown }, @Req() req: Request, @Res({ passthrough: true }) res: Response) {
+    this.origin(req);
+    res.setHeader("Cache-Control", "no-store");
+    await this.limit(`product-review-link-ip:${paymentHash(req.ip || req.socket.remoteAddress || "unknown")}`, 60, 3600);
+    const id = await this.linkedInvoiceId(body?.token);
+    const [invoice, reviews] = await Promise.all([
+      adminDb<{ invoice_number: string; product_name: string }>("invoices",
+        `?id=eq.${id}&archived_at=is.null&payment_mode=eq.live&payment_status=eq.paid&fulfillment_status=eq.completed&select=invoice_number,product_name`),
+      adminDb("product_reviews", `?invoice_id=eq.${id}&select=id`),
+    ]);
+    if (!invoice[0]) throw new HttpException("Invoice sudah tidak tersedia untuk rating.", 404);
+    return { invoiceNumber: invoice[0].invoice_number, productName: invoice[0].product_name, submitted: reviews.length > 0 };
+  }
+
+
   @Post("reviews")
   async submit(@Body() body: unknown, @Req() req: Request, @Res({ passthrough: true }) res: Response) {
     this.origin(req);
     res.setHeader("Cache-Control", "no-store");
     const input = body && typeof body === "object" ? body as Record<string, unknown> : {};
-    if (Object.keys(input).some(key => !["invoiceId", "rating", "comment", "website"].includes(key)))
+    if (Object.keys(input).some(key => !["invoiceId", "reviewToken", "rating", "comment", "website"].includes(key)))
       throw new HttpException("Permintaan ulasan tidak valid.", 400);
     const invoiceId = typeof input.invoiceId === "string" && /^[a-f0-9-]{36}$/i.test(input.invoiceId) ? input.invoiceId.toLowerCase() : "";
-    if (!invoiceId) throw new HttpException("Pilih invoice yang sudah selesai untuk mengirim ulasan.", 400);
+    if (!invoiceId && input.reviewToken === undefined) throw new HttpException("Pilih invoice yang sudah selesai untuk mengirim ulasan.", 400);
     if (!isReviewRating(input.rating))
       throw new HttpException("Pilih rating 0,5 sampai 5 bintang dengan kelipatan 0,5.", 400);
     if (typeof input.comment !== "string" || input.comment.trim().length < 5 || input.comment.trim().length > 1000 ||
@@ -70,22 +95,26 @@ export class ProductReviewsController {
     if (typeof input.website === "string" && input.website.trim())
       throw new HttpException("Ulasan tidak dapat dikirim.", 400);
 
-    const identity = await this.identities.resolve(req, res);
+    const linked = input.reviewToken !== undefined;
+    const ip = req.ip || req.socket?.remoteAddress || "unknown";
+    await this.limit(`product-review-ip:${paymentHash(ip)}`, 20, 3600);
+    const id = linked ? await this.linkedInvoiceId(input.reviewToken) : invoiceId;
+    const identity = linked ? null : await this.identities.resolve(req, res);
     const [invoice] = await this.store.request<{id:string;invoice_number:string;owner_user_id:string|null;claimed_user_id:string|null;guest_session_hash:string|null;created_at:string;category:string;product_slug:string|null;product_name:string;source_method:string;amount:number;payment_mode:string;payment_status:string;fulfillment_status:string;customer_email:string|null}[]>(
-      `invoices?id=eq.${invoiceId}&select=*&limit=1`);
+      `invoices?id=eq.${id}&archived_at=is.null&select=*&limit=1`);
     if (!invoice) throw new HttpException("Invoice tidak ditemukan atau bukan milik sesi ini.", 404);
     const accountOwner=invoice.owner_user_id??invoice.claimed_user_id;
     const age=Date.now()-Date.parse(invoice.created_at);
-    const owns=accountOwner?identity.userId===accountOwner:
-      Boolean(invoice.guest_session_hash&&identity.guestHash&&Number.isFinite(age)&&age>=-60000&&age<=30*86400000&&
+    const owns=accountOwner?identity?.userId===accountOwner:
+      Boolean(invoice.guest_session_hash&&identity?.guestHash&&Number.isFinite(age)&&age>=-60000&&age<=30*86400000&&
         /^[a-f0-9]{64}$/.test(invoice.guest_session_hash)&&/^[a-f0-9]{64}$/.test(identity.guestHash)&&
         timingSafeEqual(Buffer.from(invoice.guest_session_hash,"hex"),Buffer.from(identity.guestHash,"hex")));
-    if(!owns)throw new HttpException("Invoice tidak ditemukan atau bukan milik sesi ini.",404);
+    if(!linked && !owns)throw new HttpException("Invoice tidak ditemukan atau bukan milik sesi ini.",404);
     if (invoice.payment_mode !== "live" || invoice.payment_status !== "paid" || invoice.fulfillment_status !== "completed" || invoice.amount <= 0 || !invoice.product_slug)
       throw new HttpException("Ulasan hanya tersedia untuk transaksi live yang sudah selesai.", 409);
     if (invoice.category === "tasks") {
-      const [task] = await this.store.request<{ workflow_status: string }[]>(`task_order_specs?payment_id=eq.${invoiceId}&select=workflow_status&limit=1`);
-      if (task?.workflow_status !== "completed") throw new HttpException("Pesanan tugas belum diselesaikan pelanggan.", 409);
+      const [task] = await this.store.request<{ workflow_status: string }[]>(`task_order_specs?payment_id=eq.${id}&select=workflow_status&limit=1`);
+      if (task ? task.workflow_status !== "completed" : invoice.source_method !== "MANUAL_QRIS") throw new HttpException("Pesanan tugas belum diselesaikan pelanggan.", 409);
     }
     const category = invoice.category;
     const slug = invoice.product_slug;
@@ -93,17 +122,19 @@ export class ProductReviewsController {
     const userId = accountOwner;
     const email = typeof invoice.customer_email === "string" ? invoice.customer_email.trim().toLowerCase() : "";
     if (!email || email.length > 254) throw new HttpException("Email invoice tidak valid untuk ulasan.", 409);
-    if (userId && (!identity.emailVerified || identity.userId !== userId)) throw new HttpException("Masuk dengan akun pembeli yang sudah memverifikasi email.", 403);
+    if (!linked && userId && (!identity?.emailVerified || identity.userId !== userId)) throw new HttpException("Masuk dengan akun pembeli yang sudah memverifikasi email.", 403);
 
-    const ip = req.ip || req.socket?.remoteAddress || "unknown";
     const owner = userId ? `user:${userId}` : `guest:${invoice.guest_session_hash}`;
-    await this.limit(`product-review-ip:${paymentHash(ip)}`, 20, 3600);
     await this.limit(`product-review-owner:${paymentHash(owner)}`, 6, 86400);
 
     try {
-      const [review] = await this.store.request<{ id: string }[]>("product_reviews?select=id", "POST", {
+      const [review] = linked
+        ? await this.store.request<{ id: string }[]>("rpc/submit_linked_invoice_review", "POST", {
+          p_token_hash: paymentHash(input.reviewToken as string), p_rating: input.rating, p_comment: input.comment.trim(),
+        })
+        : await this.store.request<{ id: string }[]>("product_reviews?select=id", "POST", {
         category, product_slug: slug, rating: input.rating, comment: input.comment.trim(),
-        reviewer_email: email, reviewer_user_id: userId, invoice_id: invoiceId, purchase_verified: true, status: "pending",
+        reviewer_email: email, reviewer_user_id: userId, invoice_id: id, purchase_verified: true, status: "pending",
       });
       if (!review?.id) throw new Error("Review insert returned no row");
     } catch (error) {

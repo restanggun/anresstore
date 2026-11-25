@@ -39,7 +39,7 @@ export class PremiumOrdersController {
  private async order(id:string,identity:{userId:string|null;guestHash:string|null}){
   if(!uuid(id)) throw new HttpException("Pesanan tidak ditemukan.",404);
   const ownership=identity.userId?`user_id=eq.${identity.userId}`:`guest_session_hash=eq.${identity.guestHash}`;
-  const [row]=await adminDb<Record<string,unknown>>("premium_orders",`?id=eq.${id}&${ownership}&payment_mode=eq.live&select=*`);
+  const [row]=await adminDb<Record<string,unknown>>("premium_orders",`?id=eq.${id}&${ownership}&payment_mode=eq.live&archived_at=is.null&select=*`);
   if(!row) throw new HttpException("Pesanan tidak ditemukan.",404);
   return row;
  }
@@ -83,12 +83,12 @@ export class PremiumOrdersController {
  }
  @Get() async list(@Req() req:Request,@Res({passthrough:true}) res:Response){
   const identity=await this.owner(req,res),ownership=identity.userId?`user_id=eq.${identity.userId}`:`guest_session_hash=eq.${identity.guestHash}`;
-  const rows=await adminDb("premium_orders",`?${ownership}&payment_mode=eq.live&select=id,product_name,amount,status,created_at&order=created_at.desc&limit=100`);
+  const rows=await adminDb("premium_orders",`?${ownership}&payment_mode=eq.live&archived_at=is.null&select=id,product_name,amount,status,created_at&order=created_at.desc&limit=100`);
   return {rows};
  }
  @Get("invoice/:invoice") async byInvoice(@Param("invoice") invoice:string,@Req() req:Request,@Res({passthrough:true}) res:Response){
   const identity=await this.owner(req,res); if(!/^ANRS-[A-Z0-9-]{6,60}$/.test(invoice))throw new HttpException("Invoice tidak ditemukan.",404);
-  const [canonical]=await adminDb<{id:string}> ("invoices",`?invoice_number=eq.${encodeURIComponent(invoice)}&order_kind=eq.premium&payment_mode=eq.live&select=id&limit=1`);
+  const [canonical]=await adminDb<{id:string}> ("invoices",`?invoice_number=eq.${encodeURIComponent(invoice)}&order_kind=eq.premium&payment_mode=eq.live&archived_at=is.null&select=id&limit=1`);
   if(!canonical)throw new HttpException("Invoice tidak ditemukan.",404);
   const order=await this.order(canonical.id,identity);
   return {order};
@@ -107,7 +107,7 @@ export class PremiumOrdersController {
   if(order.status!=="awaiting_payment" || typeof order.qr_expires_at!=="string" || Date.parse(order.qr_expires_at)<=Date.now())throw new HttpException("QRIS belum tersedia atau sudah kedaluwarsa.",409);
   const image=premiumImage(input?.image,10*1024*1024),note=typeof input?.note==="string"?input.note.trim():"";
   if(note.length>500)throw new HttpException("Catatan terlalu panjang.",400);
-  const [saved]=await adminDb("premium_orders",`?id=eq.${id}&${ownership}&payment_mode=eq.live&status=eq.awaiting_payment&qr_expires_at=gt.${encodeURIComponent(new Date().toISOString())}`,"PATCH",{proof_image:image,proof_note:note,status:"proof_submitted",updated_at:new Date().toISOString()});
+  const [saved]=await adminDb("premium_orders",`?id=eq.${id}&${ownership}&payment_mode=eq.live&archived_at=is.null&status=eq.awaiting_payment&qr_expires_at=gt.${encodeURIComponent(new Date().toISOString())}`,"PATCH",{proof_image:image,proof_note:note,status:"proof_submitted",updated_at:new Date().toISOString()});
   if(!saved)throw new HttpException("Status pesanan berubah. Muat ulang.",409);
   return {order:saved};
  }

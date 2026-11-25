@@ -16,7 +16,7 @@ export class TaskOrdersController {
  }
  private async payment(id:string,user:string){
   if(!uuid(id)) throw new HttpException("Tugas tidak ditemukan.",404);
-  const [row]=await adminDb<{id:string;status:string;invoice_number:string;amount:number}>("payments",`?id=eq.${id}&owner_user_id=eq.${user}&source=eq.tasks&select=id,status,invoice_number,amount`);
+  const [row]=await adminDb<{id:string;status:string;invoice_number:string;amount:number}>("payments",`?id=eq.${id}&owner_user_id=eq.${user}&source=eq.tasks&archived_at=is.null&select=id,status,invoice_number,amount`);
   if(!row) throw new HttpException("Tugas tidak ditemukan.",404);
   return row;
  }
