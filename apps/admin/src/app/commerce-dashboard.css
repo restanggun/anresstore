@@ -405,7 +405,9 @@ html,body,.admin-shell *, .anres-select-content { scrollbar-width:thin; scrollba
 .order-dialog .primary-button { background:var(--primary); color:var(--foreground); border:0; min-height:44px; font-size:13px; border-radius:12px; }
 .order-dialog .outline-button { background:var(--pink-soft); color:var(--pink-ink); border:0; min-height:42px; font-size:12px; border-radius:12px; }
 .order-dialog .square-button { background:var(--primary-soft); color:var(--focus); border:0; border-radius:12px; }
-.provider-dialog .provider-search { margin-top:20px; }
+.provider-toolbar { display:flex; flex-wrap:wrap; align-items:center; gap:12px; margin-top:20px; }
+.provider-toolbar > .anres-search { flex:1 1 190px; min-width:0; width:auto; }
+.provider-toolbar > .anres-select-trigger { max-width:min(240px, 100%); }
 .provider-service-list { display:grid; margin:15px 0; }
 .provider-service-list article { display:flex; align-items:center; gap:15px; padding:18px 0; border-bottom:1px solid var(--primary-soft); }
 .provider-service-list article>div { flex:1; min-width:0; }
