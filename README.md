@@ -1,6 +1,8 @@
 # Anres Store
 
-**Platform storefront layanan digital dengan dashboard operasional dan API transaksi.**
+**Anres Store adalah toko online untuk kebutuhan digital sehari-hari.**
+
+Lihat [profil perusahaan](docs/business/company-profile.md), [pedoman bahasa](docs/business/brand-voice.md), dan [alur layanan dan bantuan pelanggan](docs/business/service-operations.md).
 
 Anres Store adalah proyek full-stack berbasis TypeScript untuk menjelajahi katalog produk digital, mengelola akun dan pesanan, serta menjalankan alur pembayaran dan pemenuhan produk. Arsitektur monorepo ini memisahkan aplikasi pelanggan, panel admin, dan API agar tiap bagian dapat dikembangkan dan dioperasikan dengan tanggung jawab yang jelas.
 

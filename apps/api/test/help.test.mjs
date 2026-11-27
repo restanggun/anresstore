@@ -17,8 +17,8 @@ test("chat bantuan memvalidasi permintaan dan meneruskan konteks melalui server"
   const result=await controller.chat({messages:[{role:"user",content:"Bagaimana checkout?"}]},req);
   assert.equal(result.answer,"Jawaban bantuan");
   assert.equal(sent.url,"https://openrouter.ai/api/v1/chat/completions");
-  assert.equal(sent.body.model,"test/model"); assert.equal(sent.body.messages[0].role,"system"); assert.match(sent.body.messages[0].content,/VIPayment/); assert.match(sent.body.messages[0].content,/Tripay produksi/); assert.doesNotMatch(sent.body.messages[0].content,/Harga, checkout, pesanan, dan pembayaran masih simulasi/); assert.match(sent.body.messages[0].content,/bahasa Indonesia/);
-  assert.match(sent.body.messages[0].content,/https:\/\/anresstore\.site\/katalog/); assert.match(sent.body.messages[0].content,/tautan Markdown/);
+  assert.equal(sent.body.model,"test/model"); assert.equal(sent.body.messages[0].role,"system"); assert.match(sent.body.messages[0].content,/toko online untuk kebutuhan digital sehari-hari/); assert.match(sent.body.messages[0].content,/Tiket dan chat CS/); assert.match(sent.body.messages[0].content,/aplikasi premium dapat meminta pembayaran QRIS/); assert.match(sent.body.messages[0].content,/bahasa Indonesia/);
+  assert.match(sent.body.messages[0].content,/https:\/\/app\.anresstore\.site\/katalog/); assert.match(sent.body.messages[0].content,/tautan Markdown/);
   assert.equal(sent.options.headers.Authorization,"Bearer test-key");
   process.env.OPENROUTER_MODEL="another/provider-model:free";
   await controller.chat({model:"untrusted/model",messages:[{role:"user",content:"Halo"}]},req);

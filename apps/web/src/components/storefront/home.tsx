@@ -8,7 +8,8 @@ import useEmblaCarousel from "embla-carousel-react";
 import { motion, useReducedMotion } from "motion/react";
 import { TextGenerateEffect } from "@/components/ui/text-generate-effect";
 import { useReveal } from "@/components/ui/use-reveal";
-import { categoryInfo } from "@/lib/storefront";
+import { browseFaq, orderingFaq, storeSummary } from "@/lib/store-copy";
+import { categoryInfo, serviceFaq } from "@/lib/storefront";
 import { ServiceIllustration } from "./service-illustration";
 import { ServiceCategoryGrid } from "./service-category-grid";
 import { FaqList } from "./faq-list";
@@ -17,13 +18,9 @@ import { TextLink } from "./text-link";
 const guide = [
   {icon:Search,title:"Temukan kategorinya",description:"Gunakan pencarian atau pilih salah satu dari lima kategori layanan.",href:"/katalog",action:"Cari layanan"},
   {icon:BookOpenCheck,title:"Baca ringkasan layanan",description:"Periksa keterangan produk dan ketentuan yang tersedia sebelum memilih.",href:"/katalog",action:"Lihat katalog"},
-  {icon:ShieldCheck,title:"Ketahui statusnya",description:"Periksa pilihan, harga, dan data tujuan sebelum melanjutkan ke checkout.",href:"/bantuan",action:"Baca pusat bantuan"},
+  {icon:ShieldCheck,title:"Pantau pesananmu",description:"Buka Invoice untuk memeriksa status pembayaran dan proses pesanan.",href:"/invoice",action:"Buka Invoice"},
 ];
-const faq = [
-  ["Apakah sudah bisa memesan di website ini?","Pilih produk dari katalog, lengkapi data tujuan, lalu ikuti informasi pada halaman checkout."],
-  ["Perlu akun untuk melihat katalog?","Tidak. Katalog dan informasi layanan dapat dijelajahi tanpa akun."],
-  ["Layanan apa saja yang tersedia?","Jelajahi top up game, format tugas, booster media sosial, aplikasi premium, dan PPOB."],
-] as const;
+const faq = [orderingFaq, browseFaq, serviceFaq] as const;
 const categoryUrl = (category:string) => `/katalog?kategori=${encodeURIComponent(category)}`;
 const apiUrl = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000/v1").replace(/\/$/, "");
 type LandingData = {
@@ -100,8 +97,8 @@ function LandingHero({ showAuthCta }: { showAuthCta:boolean }) {
   }, [reduce]);
   return <section ref={heroRef} className="hero landing-hero landing-hero-switch" aria-labelledby="hero-title">
       <motion.div className="landing-hero-copy" {...reveal()}>
-        <h1 id="hero-title"><TextGenerateEffect as="span" words="Satu tempat," className="landing-headline-line" duration={.34}/><TextGenerateEffect as="span" words="banyak kebutuhan." className="landing-headline-line" duration={.34} delay={.12}/></h1>
-        <p>Temukan pilihan untuk bermain, berkarya, terhubung, dan memenuhi kebutuhan digital harian.</p>
+        <h1 id="hero-title"><TextGenerateEffect as="span" words="Kebutuhan digital" className="landing-headline-line" duration={.34}/><TextGenerateEffect as="span" words="dalam satu tempat." className="landing-headline-line" duration={.34} delay={.12}/></h1>
+        <p>{storeSummary}</p>
         <div className="landing-hero-actions"><Button asChild><Link href={categoryUrl(current.name)}>Jelajahi {current.name}<ArrowRight size={18}/></Link></Button><Link href="#tentang-anres" className="landing-secondary">Kenali Anres</Link></div>
         {showAuthCta && <div className="landing-auth-actions"><Button asChild><Link href="/daftar"><UserRoundPlus size={17}/>Buat akun</Link></Button><Link href="/login" className="landing-auth-login"><LogIn size={16}/>Sudah punya akun? Login</Link></div>}
       </motion.div>
@@ -137,7 +134,7 @@ export function HomeContent() {
         <LandingReviews reviews={landing.stats.recentReviews} />
       </div>
     </motion.section>}
-    <section id="tentang-anres" className="landing-guide" aria-labelledby="guide-title"><motion.div className="guide-intro" {...reveal()}><div className="guide-brand" aria-hidden="true"><img src="/logo.svg" alt="" width="37" height="44"/></div><h2 id="guide-title">Tentang Anres Store</h2><p>Anres Store menyediakan kebutuhan digital sehari-hari, mulai dari top up game dan paket data hingga aplikasi premium dan layanan untuk tugas.</p><TextLink href="/about">Baca selengkapnya tentang Anres</TextLink></motion.div><ol className="guide-steps">{guide.map(({icon:Icon,title,description,href,action},index)=><motion.li key={title} {...reveal(index*.08)}><span className="guide-step-icon"><Icon size={22}/></span><div><h3>{title}</h3><p>{description}</p><Link href={href}>{action}<ArrowUpRight size={15}/></Link></div></motion.li>)}</ol></section>
+    <section id="tentang-anres" className="landing-guide" aria-labelledby="guide-title"><motion.div className="guide-intro" {...reveal()}><div className="guide-brand" aria-hidden="true"><img src="/logo.svg" alt="" width="37" height="44"/></div><h2 id="guide-title">Tentang Anres Store</h2><p>Lihat pilihan, harga, dan ketentuan layanan sebelum memesan. Setelah checkout, pantau pesanan melalui Invoice.</p><TextLink href="/about">Baca tentang Anres Store</TextLink></motion.div><ol className="guide-steps">{guide.map(({icon:Icon,title,description,href,action},index)=><motion.li key={title} {...reveal(index*.08)}><span className="guide-step-icon"><Icon size={22}/></span><div><h3>{title}</h3><p>{description}</p><Link href={href}>{action}<ArrowUpRight size={15}/></Link></div></motion.li>)}</ol></section>
     <motion.section className="landing-faq" aria-labelledby="faq-title" {...reveal()}><div><h2 id="faq-title">Sebelum kamu mulai.</h2><p>Informasi singkat tentang katalog dan layanan kami.</p><TextLink href="/bantuan">Lihat semua pertanyaan</TextLink></div><FaqList items={faq}/></motion.section>
     <motion.section className="landing-closing" aria-labelledby="closing-title" {...reveal()}><div><h2 id="closing-title"><TextGenerateEffect as="span" words={landing?.config.closingTitle ?? "Mulai dari kebutuhanmu."} duration={.3}/></h2><p>{landing?.config.closingBody ?? "Temukan layanan digital yang kamu butuhkan."}</p></div><div><Button asChild><Link href="/katalog">Buka katalog<ArrowRight size={18}/></Link></Button><Link href="/bantuan" className="landing-closing-help">Ada pertanyaan? Kunjungi bantuan</Link></div></motion.section>
   </main>;

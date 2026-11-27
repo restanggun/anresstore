@@ -2,6 +2,12 @@
 
 Start with the [architecture overview](architecture/overview.md) for the system map and the [VPS runbook](operations/vps-deployment.md) for deployment.
 
+## Bisnis dan merek
+
+- [Profil perusahaan Anres Store](business/company-profile.md)
+- [Pedoman bahasa Anres Store](business/brand-voice.md)
+- [Alur layanan dan bantuan pelanggan](business/service-operations.md)
+
 ## Architecture and product systems
 
 - [Frontend design system](architecture/design-system.md)

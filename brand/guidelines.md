@@ -1,6 +1,6 @@
 # Arah UI Anres Store
 
-UI baru menggunakan biru dan pink solid. PDF brand menjadi referensi konteks bisnis, bukan aturan visual mutlak.
+UI menggunakan biru dan pink solid. Gunakan [profil perusahaan](../docs/business/company-profile.md) dan [pedoman bahasa](../docs/business/brand-voice.md) sebagai acuan konten terkini. PDF brand menyimpan materi awal.
 
 ## Token
 - Biru langit #A9DDF7, hover #8DCEF0, soft #EAF6FD. Fokus keyboard #24658A.
@@ -21,8 +21,9 @@ UI baru menggunakan biru dan pink solid. PDF brand menjadi referensi konteks bis
 - Fokus keyboard terlihat, label input wajib, tombol filter memakai aria-pressed, dialog bisa ditutup dengan Escape, dan reduced motion dihormati.
 - Jaga keterbacaan pada layar kecil. Navigasi, filter, dan tombol harus bisa dipakai tanpa hover.
 
-## Status implementasi
-Website memiliki halaman Beranda (/), Katalog (/katalog), Tentang (/about), Bantuan (/bantuan), Login (/login), dan Daftar (/daftar). Katalog menyediakan pencarian, filter, dan dialog layanan; Bantuan menyediakan pencarian FAQ. Login/Daftar adalah UI pratinjau dengan validasi lokal dan tidak mengirim kredensial. Isi katalog adalah pratinjau cakupan layanan; tidak memuat harga atau transaksi aktif. Alur pembayaran, akun, dan status pesanan belum diimplementasikan. Logo web memakai varian hitam dari brand/logo.svg tanpa mengubah geometri; aset asli tetap dipertahankan. Navbar sticky memakai menu disclosure di mobile. Admin baru mengikuti token bersama; dashboard operasional tetap menunggu implementasi.
+## Halaman storefront
+
+Beranda (/), Katalog (/katalog), Tentang (/about), Bantuan (/bantuan), Login (/login), dan Daftar (/daftar) memakai sistem UI bersama. Informasi alur pemesanan dan dukungan tersedia di [acuan layanan](../docs/business/service-operations.md).
 
 Skill frontend-design Anthropic sudah dipasang untuk panduan desain. Toolkit shadcn/Radix, Motion, Lucide, serta komponen pilihan Magic UI dan Aceternity tersedia. Kualitas tetap dijaga lewat review visual, aksesibilitas, dan konten terverifikasi. Detail: docs/architecture/frontend-toolkit.md.
 
@@ -37,4 +38,4 @@ Navbar berubah dari rounded dengan margin menjadi full-width tanpa radius dan ha
 ## Navbar reviewed implementation
 Aturan navbar terpusat di apps/web/src/app/navbar.css. Tinggi panel dalam 70px desktop / 66px mobile, jarak luar atas-bawah 16px; kontrol minimal 44px. Menu desktop memakai grid tengah; pada lebar <=900px diganti disclosure mobile. Hanya bingkai yang berubah saat scroll; posisi isi tetap. Transisi halaman menggunakan CSS agar konten tidak tersembunyi saat animasi client tidak berjalan.
 
-Landing utama memakai susunan hero lintas layanan, lima pintasan kategori, empat contoh layanan yang beragam, panduan memilih, FAQ, dan CTA katalog. Style khusus di apps/web/src/app/landing.css. Keterangan pratinjau tetap ditampilkan; jangan menambahkan statistik, testimoni, atau klaim instan tanpa data terverifikasi.
+Landing utama memuat pengantar merek, pintasan kategori, data transaksi dan ulasan, panduan pemesanan, FAQ, dan tautan ke katalog. Style khusus di apps/web/src/app/landing.css. Gunakan data terverifikasi untuk statistik transaksi, ulasan, dan klaim layanan.

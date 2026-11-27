@@ -1,11 +1,11 @@
 import { LayoutGrid, Gamepad2, AppWindow, Smartphone, Users, FileText } from "lucide-react";
 
 export const categoryInfo = [
-  { name: "Top up game", detail: "Isi waktu bermain", icon: Gamepad2, art: "game", title: "Saatnya lanjut main.", description: "Jelajahi Mobile Legends, Free Fire, dan Roblox dari satu katalog." },
-  { name: "Joki tugas", detail: "Dokumen lebih tertata", icon: FileText, art: "document", title: "Biar tugas lebih rapi.", description: "Lihat bantuan format dokumen dan presentasi sebelum menentukan kebutuhanmu." },
-  { name: "Booster media sosial", detail: "Untuk aktivitas sosial", icon: Users, art: "social", title: "Aktivitas sosial, lebih terarah.", description: "Kenali layanan untuk kebutuhan akun media sosial dan baca keterangannya di katalog." },
-  { name: "Aplikasi premium", detail: "Untuk ide dan karya", icon: AppWindow, art: "apps", title: "Buka ruang untuk berkarya.", description: "Temukan aplikasi untuk desain dan produktivitas, mulai dari Canva." },
-  { name: "PPOB", detail: "Kebutuhan sehari-hari", icon: Smartphone, art: "ppob", title: "Kebutuhan harian, satu tempat.", description: "Jelajahi pulsa, paket data, dan token listrik dalam kategori PPOB." },
+  { name: "Top up game", detail: "Isi waktu bermain", icon: Gamepad2, art: "game", title: "Saatnya lanjut main.", description: "Pilih nominal top up untuk game yang tersedia, seperti Mobile Legends, Free Fire, dan Roblox." },
+  { name: "Joki tugas", detail: "Dokumen lebih tertata", icon: FileText, art: "document", title: "Biar tugas lebih rapi.", description: "Bantuan untuk dokumen atau presentasi sesuai lingkup, tenggat, dan opsi revisi pada paket." },
+  { name: "Booster media sosial", detail: "Untuk aktivitas sosial", icon: Users, art: "social", title: "Aktivitas sosial, lebih terarah.", description: "Pilih paket booster sesuai platform dan baca persyaratannya di katalog." },
+  { name: "Aplikasi premium", detail: "Untuk ide dan karya", icon: AppWindow, art: "apps", title: "Buka ruang untuk berkarya.", description: "Bandingkan jenis akses, masa aktif, dan ketentuan setiap paket aplikasi premium." },
+  { name: "PPOB", detail: "Kebutuhan sehari-hari", icon: Smartphone, art: "ppob", title: "Kebutuhan harian, satu tempat.", description: "Lihat pilihan pulsa, paket data, token listrik, dan isi saldo e-wallet." },
 ] as const;
 export const categories = ["Semua", ...categoryInfo.map(category => category.name)];
 export const services = [
@@ -19,10 +19,7 @@ export const services = [
   { name: "Rapikan tugas", category: "Joki tugas", code: "Aa", color: "pink", description: "Format dokumen Word, PDF, dan presentasi. Lingkup pekerjaan, revisi, dan waktu pengerjaan disepakati sebelum mulai." },
 ];
 export const categoryIcons = [LayoutGrid, ...categoryInfo.map(category => category.icon)];
-export const questions: [string, string][] = [
-  ["Sudah bisa transaksi di website ini?", "Katalog sudah tersedia. Pilih produk dan ikuti informasi pesanan serta pembayaran di halaman checkout."],
-  ["Apa saja layanan Anres Store?", "Layanan mencakup top up game, format tugas, booster media sosial, aplikasi premium, dan PPOB."],
-  ["Di mana harga dan kontak bantuan?", "Lihat harga dan ketentuan pada halaman produk. Kunjungi Bantuan jika membutuhkan informasi tambahan."],
-];
+export const serviceList = "top up game, Joki tugas, booster media sosial, aplikasi premium, dan PPOB";
+export const serviceFaq = ["Apa saja layanan Anres Store?", `Katalog mencakup ${serviceList}.`] as const;
 export type Service = typeof services[number];
 
