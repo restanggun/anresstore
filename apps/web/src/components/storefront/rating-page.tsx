@@ -7,7 +7,7 @@ import { apiUrl } from "@/lib/auth-api";
 import { InvoiceReviewForm } from "./product-reviews";
 import styles from "./product-reviews.module.css";
 
-type LinkedInvoice = { invoiceNumber: string; productName: string; submitted: boolean };
+type LinkedInvoice = { invoiceNumber: string; productName: string; submitted: boolean; author?: string };
 
 export function RatingPage() {
   const [token, setToken] = useState("");
@@ -42,7 +42,7 @@ export function RatingPage() {
         <h1>Rating pesanan</h1>
         {invoice && <><p>{invoice.productName}</p><small>{invoice.invoiceNumber}</small></>}
       </header>
-      {invoice ? <InvoiceReviewForm reviewToken={token} submitted={invoice.submitted} /> :
+      {invoice ? <InvoiceReviewForm reviewToken={token} author={invoice.author} submitted={invoice.submitted} /> :
         error ? <div className={styles.ratingPageFeedback}>
           <p role="alert">{error}</p>
           {token ? <Button variant="outline" onClick={() => setAttempt(value => value + 1)}>Coba lagi</Button> :

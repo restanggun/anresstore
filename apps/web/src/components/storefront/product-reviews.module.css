@@ -66,12 +66,16 @@
 .invoiceReview :is(h2,h3) { margin:0; font-size:16px; }
 .invoiceReview>p { margin:0; color:var(--muted); font-size:13px; }
 .invoiceReview .submit { box-shadow: none; }
+.authorNote { margin: 0; color: var(--muted); font-size: 13px; line-height: 1.6; overflow-wrap: anywhere; }
+.authorNote strong { color: var(--foreground); }
 
 .reviewList { display: grid; gap: 12px; }
 .review { padding: 16px 18px; border: 0; border-radius: 16px; background: var(--surface); }
 .reviewTop,.reviewTop>div { display: flex; align-items: center; gap: 10px; }
 .reviewTop { justify-content: space-between; }
-.reviewTop strong { font-size: 13px; }
+.reviewTop > div { min-inline-size: 0; }
+.reviewTop strong { font-size: 13px; overflow-wrap: anywhere; }
+.reviewTop :global(.ui-rating-stars) { flex-shrink: 0; }
 .reviewTop time { color: var(--muted); font-size: 11px; white-space: nowrap; }
 .review>p { margin: 10px 0 0; color: var(--foreground); font-size: 13px; line-height: 1.75; overflow-wrap: anywhere; white-space: pre-wrap; }
 .empty,.reviewList>p { margin: 0; color: var(--muted); font-size: 13px; line-height: 1.7; }

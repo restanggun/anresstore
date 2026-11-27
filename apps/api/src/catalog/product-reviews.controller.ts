@@ -6,6 +6,7 @@ import { PaymentIdentityService } from "../payments/payment-identity";
 import { PaymentStore } from "../payments/payment-store";
 import { paymentHash } from "../payments/payment-contract";
 import { isReviewRating } from "./review-rating";
+import { reviewAuthorFormatter, reviewAuthorSelect, reviewInvoiceNameSelect, type ReviewAuthor, type ReviewInvoiceName } from "./review-author";
 
 const categories = new Set(["game", "prepaid", "apps", "social", "tasks"]);
 const slugPattern = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
@@ -42,13 +43,14 @@ export class ProductReviewsController {
     const filter = `category=eq.${encodeURIComponent(category)}&product_slug=eq.${encodeURIComponent(slug)}`;
     const [summary, rows] = await Promise.all([
       adminDb<{ review_count: number; average_rating: number }>("product_review_summaries", `?select=review_count,average_rating&${filter}&limit=1`),
-      adminDb<{ id: string; rating: number; comment: string; reviewer_user_id: string | null; created_at: string }>(
-        "product_reviews", `?select=id,rating,comment,reviewer_user_id,created_at&${filter}&status=eq.published&purchase_verified=eq.true&order=created_at.desc,id&limit=20`),
+      adminDb<ReviewAuthor & { id: string; rating: number; comment: string; created_at: string }>(
+        "product_reviews", `?select=id,rating,comment,created_at,${reviewAuthorSelect}&${filter}&status=eq.published&purchase_verified=eq.true&order=created_at.desc,id&limit=20`),
     ]);
+    const displayAuthor = await reviewAuthorFormatter(rows);
     return {
       summary: summary[0] ?? { review_count: 0, average_rating: 0 },
-      rows: rows.map(({ id, rating, comment, reviewer_user_id, created_at }) => ({
-        id, rating, comment, author: reviewer_user_id ? "Pelanggan" : "Pengunjung", created_at,
+      rows: rows.map(review => ({
+        id: review.id, rating: review.rating, comment: review.comment, author: displayAuthor(review), created_at: review.created_at,
       })),
     };
   }
@@ -68,13 +70,17 @@ export class ProductReviewsController {
     res.setHeader("Cache-Control", "no-store");
     await this.limit(`product-review-link-ip:${paymentHash(req.ip || req.socket.remoteAddress || "unknown")}`, 60, 3600);
     const id = await this.linkedInvoiceId(body?.token);
-    const [invoice, reviews] = await Promise.all([
-      adminDb<{ invoice_number: string; product_name: string }>("invoices",
-        `?id=eq.${id}&archived_at=is.null&payment_mode=eq.live&payment_status=eq.paid&fulfillment_status=eq.completed&select=invoice_number,product_name`),
-      adminDb("product_reviews", `?invoice_id=eq.${id}&select=id`),
+    const [invoices, reviews] = await Promise.all([
+      adminDb<ReviewInvoiceName & { invoice_number: string; product_name: string; owner_user_id: string | null; claimed_user_id: string | null; customer_email: string | null }>("invoices",
+        `?id=eq.${id}&archived_at=is.null&payment_mode=eq.live&payment_status=eq.paid&fulfillment_status=eq.completed&select=invoice_number,product_name,owner_user_id,claimed_user_id,customer_email,${reviewInvoiceNameSelect}`),
+      adminDb<Pick<ReviewAuthor, "reviewer_user_id" | "reviewer_email">>("product_reviews", `?invoice_id=eq.${id}&select=reviewer_user_id,reviewer_email`),
     ]);
-    if (!invoice[0]) throw new HttpException("Invoice sudah tidak tersedia untuk rating.", 404);
-    return { invoiceNumber: invoice[0].invoice_number, productName: invoice[0].product_name, submitted: reviews.length > 0 };
+    const [invoice] = invoices;
+    if (!invoice) throw new HttpException("Invoice sudah tidak tersedia untuk rating.", 404);
+    const identity = reviews[0] ?? { reviewer_user_id: invoice.owner_user_id ?? invoice.claimed_user_id, reviewer_email: invoice.customer_email };
+    const authorSource = { ...identity, invoice };
+    const displayAuthor = await reviewAuthorFormatter([authorSource]);
+    return { invoiceNumber: invoice.invoice_number, productName: invoice.product_name, submitted: reviews.length > 0, author: displayAuthor(authorSource) };
   }
 
 
