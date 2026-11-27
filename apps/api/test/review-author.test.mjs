@@ -17,6 +17,7 @@ test("landing, product reviews and rating link share real but masked display nam
     }
   });
   const userId = "30000000-0000-4000-8000-000000000011";
+  const guestInvoiceId = "30000000-0000-4000-8000-000000000012";
   const accountEmail = "dewi.private@staff.hidden.example.com";
   const guestEmail = "guest.private@example.com";
   const account = {
@@ -34,6 +35,7 @@ test("landing, product reviews and rating link share real but masked display nam
     ...identity, id: String(index), rating: 5, comment: "Pesanan selesai dengan baik.",
     category: "game", product_slug: "mobile-legends", created_at: "2026-11-27T09:00:00Z",
   }));
+  let linkedInvoiceId = userId;
   t.mock.method(globalThis, "fetch", async url => {
     const { pathname, searchParams } = new URL(url);
     if (pathname.endsWith("/product_reviews")) {
@@ -47,7 +49,11 @@ test("landing, product reviews and rating link share real but masked display nam
     if (pathname.endsWith("/storefront_landing_public_stats")) return Response.json([{ transaction_count: 5, average_rating: 5, review_count: 5 }]);
     if (pathname.endsWith("/product_review_summaries")) return Response.json([{ review_count: 5, average_rating: 5 }]);
     if (pathname.endsWith("/consume_payment_rate")) return Response.json(true);
-    if (pathname.endsWith("/invoice_review_links")) return Response.json([{ invoice_id: userId }]);
+    if (pathname.endsWith("/invoice_review_links")) return Response.json([{ invoice_id: linkedInvoiceId }]);
+    if (pathname.endsWith("/invoices") && searchParams.get("id") === `eq.${guestInvoiceId}`) return Response.json([{
+      ...identities[1].invoice, invoice_number: "ANRS-GUEST-QA", product_name: "Mobile Legends",
+      owner_user_id: null, claimed_user_id: null, customer_email: guestEmail,
+    }]);
     if (pathname.endsWith("/invoices")) return Response.json([{
       ...account.invoice, invoice_number: "ANRS-QA", product_name: "Mobile Legends",
       owner_user_id: userId, claimed_user_id: null, customer_email: accountEmail,
@@ -63,11 +69,18 @@ test("landing, product reviews and rating link share real but masked display nam
     { headers: { origin: "http://localhost:3000" }, ip: "127.0.0.1" },
     response,
   );
-  const expected = ["Dewi A. P. (d***@s***.com)", "Bima P.", "Sari W.", "Pembeli tamu", "Dewi A. P. (***@***.io)"];
+  linkedInvoiceId = guestInvoiceId;
+  const guestLinked = await controller.linkedReview(
+    { token: "b".repeat(43) },
+    { headers: { origin: "http://localhost:3000" }, ip: "127.0.0.1" },
+    response,
+  );
+  const expected = ["Dewi A. P. (d***@s***.com)", "Bima P. (g***@e***.com)", "Sari W. (g***@e***.com)", "Pembeli tamu (g***@e***.com)", "Dewi A. P. (***@***.io)"];
   assert.deepEqual(landing.stats.recentReviews.map(review => review.author), expected);
   assert.deepEqual(product.rows.map(review => review.author), expected);
   assert.equal(linked.author, expected[0]);
-  const publicPayload = JSON.stringify({ landing, product, linked });
+  assert.equal(guestLinked.author, expected[1]);
+  const publicPayload = JSON.stringify({ landing, product, linked, guestLinked });
   for (const privateValue of [accountEmail, guestEmail, userId, "Anggraini", "Putra", "Wulandari", "reviewer_email", "customer_name"]) {
     assert.ok(!publicPayload.includes(privateValue), "Private reviewer field exposed: " + privateValue);
   }

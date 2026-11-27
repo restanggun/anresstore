@@ -40,8 +40,10 @@ export async function reviewAuthorFormatter(reviews: readonly ReviewAuthor[]) {
   const names = new Map((await Promise.all(lookups)).flat().map(user => [user.id, publicName(user.full_name)]));
   return (review: ReviewAuthor) => {
     const invoiceName = publicName(review.invoice?.payment?.customer_name) || publicName(review.invoice?.premium?.admin_customer_name);
-    if (!review.reviewer_user_id) return invoiceName || "Pembeli tamu";
-    const name = names.get(review.reviewer_user_id) || invoiceName;
+    const name = review.reviewer_user_id
+      ? names.get(review.reviewer_user_id) || invoiceName
+      : invoiceName || "Pembeli tamu";
+    // The review stores the invoice email for both account and guest purchases.
     const email = maskedEmail(review.reviewer_email);
     return name && email ? `${name} (${email})` : name || email || "Pelanggan";
   };

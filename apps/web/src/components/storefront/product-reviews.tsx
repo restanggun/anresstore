@@ -65,7 +65,7 @@ export function InvoiceReviewForm({ invoiceId, reviewToken, author, submitted: i
   }
   const Heading = reviewToken ? "h2" : "h3";
   return <section ref={section} id="invoice-review" className={styles.invoiceReview} aria-labelledby="invoice-review-title"><Heading id="invoice-review-title">Beri rating pesanan ini</Heading>{submitted ? <p role="status">Ulasan dari invoice ini sudah dikirim. Terima kasih!</p> : <form className={styles.form} method="post" action={apiUrl+"/catalog/reviews"} aria-labelledby="invoice-review-title" onSubmit={event => void submit(event)}>{invoiceId && <input type="hidden" name="invoiceId" value={invoiceId}/>}
-    <p className={styles.authorNote}>{author ? <>Ulasanmu akan tampil atas nama <strong>{author}</strong>.</> : "Ulasan publik menampilkan nama singkat. Email untuk pesanan akun ditampilkan tersamar."}</p>
+    <p className={styles.authorNote}>{author ? <>Ulasanmu akan tampil atas nama <strong>{author}</strong>.</> : "Ulasan publik menampilkan nama singkat dan email tersamar dari pesanan."}</p>
     <RatingInput name="rating" value={rating} onChange={setRating} disabled={busy}/>
     <div className={styles.field}>
       <label htmlFor="invoice-review-comment">Komentar</label>
