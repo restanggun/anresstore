@@ -1,18 +1,21 @@
-.editor { margin-top: 0; padding: clamp(16px, 3vw, 24px); }
-.editor form { display: grid; gap: 16px; justify-items: start; }
-.editor .panel-title { padding:0 0 16px; border-bottom:1px solid #edf1f5; }
-.editor form>.primary-button { justify-self:end; min-width:150px; }
-.fields { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 235px), 1fr)); align-items: start; width: 100%; gap: 16px; border: 0; margin: 0; padding: 0; }
-.editor label { display: grid; gap: 7px; font-size: 12px; font-weight: 700; min-width: 0; color:#46515e; line-height:1.45; }
-.editor :is(input:not([type="checkbox"]), select) { box-sizing:border-box; width: 100%; min-width: 0; min-height: 46px; padding: 11px 13px; font: inherit; font-size:12px; color: #263d4c; border: 1px solid var(--field-border,#dce2e8); border-radius: 12px; background: #fff; }
+.editor:modal { overscroll-behavior: contain; scroll-padding-top: 100px; }
+.editor::backdrop { overflow: hidden; overscroll-behavior: contain; }
+.editor :global(.detail-product) h2 { overflow-wrap: anywhere; }
+.editor :global(.detail-status-grid) strong { font-size: 12px; }
+.settings:first-child { padding-top: 0; }
+.form { display: grid; gap: 16px; }
+.form > :global(.primary-button) { justify-self: end; }
+.form .fields { grid-template-columns: repeat(auto-fit, minmax(min(100%, 210px), 1fr)); align-items: start; gap: 16px; margin: 0; }
+.editor label { min-width: 0; line-height: 1.45; }
+.editor select { width: 100%; min-width: 0; min-height: 46px; padding: 11px; font: inherit; font-size: 14px; color: var(--foreground); border: 1px solid var(--field-border); border-radius: 12px; background: #fff; }
 .editor :is(input, select):focus-visible { outline: 2px solid var(--focus,#287ba2); outline-offset: 2px; }
 .editor input[type="checkbox"] { width:18px; height:18px; accent-color:#3285ad; }
 .editor small, .hint { font-weight: 400; }
 .hint { padding: 10px 12px; overflow-wrap: anywhere; border-radius:10px; background:#f3f8fb; color:#637987; font-size:12px; line-height:1.6; }
-.editor .check { display: flex; align-items: center; gap: 9px; min-height: 44px; padding:10px 12px; border:1px solid #e5ecf1; border-radius:10px; background:#f9fbfc; }
-.accounts { display: grid; gap: 12px; margin-top: 24px; padding-top: 20px; border-top: 1px solid #e5ecf1; }
-.accounts h3 { margin:0; color:#243746; font-size:14px; font-weight:750; }
-.assign { grid-template-columns: minmax(0, 1fr) auto; align-items: end; }
+.editor .check { flex-direction: row; align-items: center; gap: 9px; min-height: 44px; padding: 10px 12px; border: 1px solid var(--border); border-radius: 12px; background: #f9fbfc; }
+.accounts { display: grid; gap: 12px; }
+.accounts h2, .accounts .hint, .accounts [role="status"] { margin: 0; }
+.assign { display: grid; gap: 12px; grid-template-columns: minmax(0, 1fr) auto; align-items: end; }
 .assign label { width: 100%; }
 .accountRow { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; padding-block: 8px; }
 .accountRow span { overflow-wrap: anywhere; }
@@ -23,5 +26,14 @@
 .active,.redemption_used { background:#ecf7f0; color:#43866b; }
 .scheduled,.redemption_reserved { background:#eaf5fb; color:#287ba2; }
 .inactive,.expired,.redemption_released { background:#f2f4f6; color:#788b98; }
-.accountRow .outline-button,.assign .outline-button { white-space:nowrap; }
-@media (max-width: 520px) { .assign { grid-template-columns: minmax(0, 1fr); } }
+.accountRow :global(.outline-button), .assign :global(.outline-button) { white-space: nowrap; }
+.redemptions { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; }
+.redemptions li { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: start; gap: 8px 12px; padding: 12px; border: 1px solid var(--border); border-radius: 12px; font-size: 12px; overflow-wrap: anywhere; }
+.redemptions li > div { display: grid; gap: 5px; }
+.redemptions small { color: var(--muted); }
+.redemptionStatus { justify-items: end; text-align: right; }
+.redemptions li > button { grid-column: 1 / -1; justify-self: start; }
+@media (max-width: 520px) {
+  .assign { grid-template-columns: minmax(0, 1fr); }
+  .assign > button { justify-self: start; }
+}

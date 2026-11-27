@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent, type PointerEvent } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { Ticket, X } from "lucide-react";
 import { adminRequest, rupiah } from "./workspace-api";
 import styles from "./voucher-workspace.module.css";
 
@@ -33,6 +34,13 @@ const wib = (time: string) => new Date(Date.parse(time) + 7 * 3600000).toISOStri
 const dateLabel = new Intl.DateTimeFormat("id-ID", { dateStyle:"medium", timeStyle:"short", timeZone:"Asia/Jakarta" });
 const isoDate = (value: string) => new Date(value + ":00+07:00").toISOString();
 
+function isBackdropPress(event: PointerEvent<HTMLDialogElement>) {
+  const dialog = event.currentTarget;
+  if ("closedBy" in dialog || event.target !== dialog) return false;
+  const { left, right, top, bottom } = dialog.getBoundingClientRect();
+  return event.clientX < left || event.clientX >= right || event.clientY < top || event.clientY >= bottom;
+}
+
 function newVoucher(): Draft {
   const now = Date.now();
   return { name:"", code:"", kind:"percent", value:10, discount_cap:null, minimum_amount:0, category:null,
@@ -50,6 +58,14 @@ export function VoucherWorkspace() {
   const [busy,setBusy] = useState(false);
   const [error,setError] = useState("");
   const [notice,setNotice] = useState("");
+  const dialog = useRef<HTMLDialogElement>(null);
+  const backdropPointer = useRef<number | null>(null);
+  const editorOpen = draft !== null;
+
+  useEffect(() => {
+    if (editorOpen && dialog.current && !dialog.current.open) dialog.current.showModal();
+  }, [editorOpen]);
+
   const list = useQuery({ queryKey:["vouchers",page],
     queryFn:() => adminRequest("vouchers?page=" + page) as Promise<{ rows: Voucher[]; hasMore: boolean }> });
   const detail = useQuery({ queryKey:["voucher-details",draft?.id,accountPage], enabled:!!draft?.id,
@@ -144,12 +160,49 @@ export function VoucherWorkspace() {
       </div></div>}
     </section>}
 
-    {draft && <section className={"commerce-panel "+styles.editor} aria-labelledby="voucher-editor-title">
-      <div className="panel-title"><h2 id="voucher-editor-title">{draft.id ? "Pengaturan voucher" : "Voucher baru"}</h2>
-        <button type="button" className="outline-button" disabled={busy} onClick={()=>setDraft(null)}>Tutup</button></div>
+    <dialog
+      ref={dialog}
+      className={`order-dialog ${styles.editor}`}
+      aria-labelledby="voucher-editor-title"
+      closedby={busy ? "none" : "any"}
+      onCancel={event => { if (busy) event.preventDefault(); }}
+      onClose={() => { backdropPointer.current = null; setDraft(null); }}
+      onPointerDown={event => {
+        backdropPointer.current = !busy && isBackdropPress(event) ? event.pointerId : null;
+      }}
+      onPointerUp={event => {
+        const pressedOutside = backdropPointer.current === event.pointerId;
+        backdropPointer.current = null;
+        if (!busy && pressedOutside && isBackdropPress(event)) event.currentTarget.close();
+      }}
+      onPointerCancel={() => { backdropPointer.current = null; }}
+    >{draft && <>
+      <header className="drawer-header">
+        <div>
+          {draft.id && <span>Detail voucher</span>}
+          <h1 id="voucher-editor-title">{draft.id ? draft.code || draft.name || "Voucher" : "Voucher baru"}</h1>
+        </div>
+        <form method="dialog">
+          <button type="submit" className="square-button" aria-label="Tutup panel voucher" disabled={busy}><X size={20} aria-hidden="true"/></button>
+        </form>
+      </header>
+      <div className="drawer-content">
+      {draft.id && <>
+        <div className="detail-product">
+          <span className="detail-product-icon"><Ticket size={24} aria-hidden="true"/></span>
+          <div><h2>{draft.name || "Voucher"}</h2></div>
+          {draft.kind !== "gift" && <strong>{draft.kind === "percent" ? `${draft.value}%` : rupiah(draft.value)}</strong>}
+        </div>
+        <div className="detail-status-grid">
+          <div><span>Jenis</span><span className={`${styles.badge} ${styles["kind_" + draft.kind]}`}>{kinds[draft.kind]}</span></div>
+          <div><span>Distribusi</span><strong>{draft.code === null ? "Khusus akun" : "Kode dan akun"}</strong></div>
+        </div>
+      </>}
       {error && <p className="workspace-error" role="alert">{error}</p>}
-      {notice && <p className={styles.hint} role="status">{notice}</p>}
-      <form onSubmit={save} aria-labelledby="voucher-editor-title">
+      {notice && <p className="workspace-feedback" role="status">{notice}</p>}
+      <section className={`detail-section ${styles.settings}`} aria-labelledby="voucher-settings-title">
+      <h2 id="voucher-settings-title">Pengaturan voucher</h2>
+      <form className={`variant-form ${styles.form}`} onSubmit={save} aria-labelledby="voucher-settings-title">
         <fieldset className={styles.fields} disabled={busy}>
           <legend className="sr-only">Aturan penggunaan</legend>
           <label>Nama voucher (wajib)<input name="name" required maxLength={100} value={draft.name} onChange={e=>update({name:e.target.value})}/></label>
@@ -198,12 +251,13 @@ export function VoucherWorkspace() {
         </fieldset>
         <button className="primary-button" type="submit" disabled={busy}>{busy?"Memproses…":"Simpan voucher"}</button>
       </form>
-      {draft.id && <section className={styles.accounts} aria-labelledby="voucher-accounts-title">
-        <h3 id="voucher-accounts-title">Voucher akun</h3>
+      </section>
+      {draft.id && <section className={`detail-section ${styles.accounts}`} aria-labelledby="voucher-accounts-title">
+        <h2 id="voucher-accounts-title">Voucher akun</h2>
         {detail.isPending && <p role="status">Memuat pemakaian dan akun…</p>}
         {detail.error && <p role="alert" className="workspace-error">{detail.error.message}</p>}
         {detail.data && <p className={styles.hint}>{detail.data.usage.used} terpakai · {detail.data.usage.reserved} direservasi · {detail.data.usage.released} dibebaskan</p>}
-        <form className={styles.assign} onSubmit={event=>{event.preventDefault();void assign(email,true);}}>
+        <form className={`variant-form ${styles.assign}`} onSubmit={event=>{event.preventDefault();void assign(email,true);}}>
           <label>Email akun terverifikasi<input name="email" type="email" required maxLength={254} value={email}
             onChange={event=>setEmail(event.target.value)} disabled={busy}/></label>
           <button className="outline-button" type="submit" disabled={busy}>Berikan voucher</button>
@@ -218,24 +272,27 @@ export function VoucherWorkspace() {
           <button type="button" className="outline-button" disabled={!detail.data?.hasMore} onClick={()=>setAccountPage(accountPage+1)}>Berikutnya</button>
         </div></div>}
       </section>}
-      {draft.id && <section className={styles.accounts} aria-labelledby="voucher-usage-title">
-        <h3 id="voucher-usage-title">Riwayat pemakaian</h3>
+      {draft.id && <section className={`detail-section ${styles.accounts}`} aria-labelledby="voucher-usage-title">
+        <h2 id="voucher-usage-title">Riwayat pemakaian</h2>
         {redemptions.isPending && <p role="status">Memuat riwayat pemakaian…</p>}
         {redemptions.error && <p role="alert" className="workspace-error">{redemptions.error.message}</p>}
-        {redemptions.data?.rows.length ? <div className="commerce-table-wrap"><table className="commerce-table">
-          <thead><tr><th>Invoice</th><th>Potongan</th><th>Status</th><th>Aksi</th></tr></thead>
-          <tbody>{redemptions.data.rows.map(row=><tr key={row.id}>
-            <td><strong>{row.invoice_number}</strong><small>{dateLabel.format(new Date(row.created_at))} WIB</small></td>
-            <td>{rupiah(row.discount)}</td><td><span className={`${styles.badge} ${styles["redemption_"+row.state]}`}>{redemptionStates[row.state]}</span></td>
-            <td>{row.can_release && <button type="button" className="outline-button" disabled={busy}
-              onClick={()=>void release(row)}>Batalkan & lepas kuota</button>}</td>
-          </tr>)}</tbody>
-        </table></div> : redemptions.data && <p>Belum ada pemakaian.</p>}
+        {redemptions.data?.rows.length ? <ul className={styles.redemptions}>
+          {redemptions.data.rows.map(row => <li key={row.id}>
+            <div><strong>{row.invoice_number}</strong><small>{dateLabel.format(new Date(row.created_at))} WIB</small></div>
+            <div className={styles.redemptionStatus}>
+              <strong>{rupiah(row.discount)}</strong>
+              <span className={`${styles.badge} ${styles["redemption_" + row.state]}`}>{redemptionStates[row.state]}</span>
+            </div>
+            {row.can_release && <button type="button" className="outline-button" disabled={busy}
+              onClick={()=>void release(row)}>Batalkan & lepas kuota</button>}
+          </li>)}
+        </ul> : redemptions.data && <p className={styles.hint}>Belum ada pemakaian.</p>}
         {(redemptionPage > 0 || redemptions.data?.hasMore) && <div className="table-footer"><span>Halaman {redemptionPage+1}</span><div>
           <button type="button" className="outline-button" disabled={!redemptionPage} onClick={()=>setRedemptionPage(redemptionPage-1)}>Sebelumnya</button>
           <button type="button" className="outline-button" disabled={!redemptions.data?.hasMore} onClick={()=>setRedemptionPage(redemptionPage+1)}>Berikutnya</button>
         </div></div>}
       </section>}
-    </section>}
+      </div>
+    </>}</dialog>
   </>;
 }

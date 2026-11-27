@@ -196,19 +196,19 @@ button:disabled { cursor:default; }
 .drawer-header { display:flex; align-items:center; justify-content:space-between; position:sticky; top:0; z-index:2; background:white; border-bottom:1px solid #e8eef3; padding:23px 27px; gap:18px; }
 .drawer-header>div { min-width:0; }
 .drawer-header span { font-size:11px; color:#94a0ab; }
-.drawer-header h2 { font-size:21px; margin:7px 0 0; font-weight:750; letter-spacing:-.7px; overflow-wrap:anywhere; }
+.drawer-header :is(h1,h2) { font-size:21px; margin:7px 0 0; font-weight:750; letter-spacing:-.7px; overflow-wrap:anywhere; }
 .drawer-content { padding:27px; }
 .detail-product { display:flex; align-items:center; gap:14px; flex-wrap:wrap; margin-bottom:23px; }
 .detail-product-icon { background:#edf7fc; color:#659bb5; width:46px; height:46px; border-radius:10px; display:grid; place-items:center; }
 .detail-product>div { flex:1; min-width:150px; }
-.detail-product h3 { font-size:14px; margin:0; line-height:1.5; }
+.detail-product :is(h2,h3) { font-size:14px; margin:0; line-height:1.5; }
 .detail-product p { font-size:10px; color:#94a0ab; margin:5px 0 0; }
 .detail-product>strong { font-size:19px; letter-spacing:-.6px; }
 .detail-status-grid { display:grid; grid-template-columns:1fr 1fr; gap:15px; background:#f8fafc; padding:17px; border-radius:10px; }
 .detail-status-grid>div { display:flex; flex-direction:column; align-items:flex-start; gap:10px; }
 .detail-status-grid>div>span:first-child { font-size:10px; color:#8b9ba8; }
 .detail-section { padding:23px 0; border-bottom:1px solid #e8eef3; }
-.detail-section h3 { font-size:12px; font-weight:750; margin:0 0 16px; }
+.detail-section :is(h2,h3) { font-size:12px; font-weight:750; margin:0 0 16px; }
 .detail-section dl { margin:0; display:grid; gap:15px; }
 .detail-section dl>div { display:grid; grid-template-columns:150px 1fr; align-items:start; gap:16px; font-size:11px; line-height:1.7; }
 .detail-section dt { color:#94a0ab; }
@@ -391,13 +391,13 @@ html,body,.admin-shell *, .anres-select-content { scrollbar-width:thin; scrollba
 .admin-shell .overview-links,.admin-shell .overview-links button { font-size:11px; }
 .admin-shell .overview-links button { color:var(--focus); }
 .order-dialog { font-family:var(--font-sans); color:var(--foreground); }
-.drawer-header h2 { font-size:clamp(17px,3vw,22px); line-height:1.5; }
+.drawer-header :is(h1,h2) { font-size:clamp(17px,3vw,22px); line-height:1.5; }
 @media(max-width:400px) { .order-dialog .detail-status-grid { grid-template-columns:1fr; } }
 .drawer-header span { font-size:12px; color:var(--muted); }
-.detail-product h3 { font-size:15px; }
+.detail-product :is(h2,h3) { font-size:15px; }
 .detail-product p,.detail-section dl>div,.copy-value span,.review-box p { font-size:12px; }
 .detail-section dt { color:var(--muted); }
-.detail-section h3,.review-box h3,.variant-form legend,.variant-promotion h3 { font-size:14px; color:var(--foreground); }
+.detail-section :is(h2,h3),.review-box h3,.variant-form legend,.variant-promotion h3 { font-size:14px; color:var(--foreground); }
 .variant-form label { font-size:12px; color:var(--foreground); }
 .variant-form input:not([type="checkbox"]),.variant-form textarea { font-size:14px; min-height:46px; border-radius:12px; color:var(--foreground); }
 .variant-form small,.field-note { font-size:11px; color:var(--muted); }
