@@ -32,6 +32,7 @@ declare
   );
   snapshot timestamptz;
   observed integer;
+  mail_job record;
 begin
   perform public.reserve_payment(order_payload);
   perform public.reserve_payment(order_payload || jsonb_build_object(
@@ -77,6 +78,40 @@ begin
   if (select n.unread_count from public.admin_work_notifications(actor, array['orders'], '{}') n) <> 1 then
     raise exception 'Opening premium orders cleared checkout notifications';
   end if;
+
+  if (select count(*) from public.support_email_outbox where event = 'admin') <> 4
+    or exists (select 1 from public.claim_support_emails()) then
+    raise exception 'New orders and reviews did not queue staff alerts exclusively';
+  end if;
+
+  update public.payments set status = 'paid', reference = 'ORDER-EMAIL-GAME', revision = revision + 1 where id = game_id;
+  update public.payments set status = 'paid', reference = 'ORDER-EMAIL-TASK', revision = revision + 1 where id = task_id;
+  update public.payments set status = 'paid', revision = revision + 1 where id = game_id;
+  update public.premium_orders set status = 'proof_submitted' where id = app_id;
+  update public.premium_orders set status = 'proof_submitted' where id = app_id;
+  update public.premium_orders set status = 'awaiting_payment' where id = app_id;
+  update public.premium_orders set status = 'proof_submitted' where id = app_id;
+  update public.premium_orders set status = 'paid', paid_at = now() where id = app_id;
+
+  if (select count(*) from public.support_email_outbox where event = 'admin') <> 8
+    or (select count(*) from public.support_email_outbox where admin_title = 'Periksa bukti pembayaran aplikasi premium') <> 2 then
+    raise exception 'Admin emails missed an actionable event or duplicated the same transition';
+  end if;
+  select * into mail_job from public.claim_support_emails('resend') limit 1;
+  if mail_job.id is null or mail_job.subject not like 'ANRS-%'
+    or (select count(*) from public.claim_support_emails('resend')) <> 3
+    or exists (select 1 from public.claim_support_emails('customer')) then
+    raise exception 'Staff channel did not exclusively lease the generated alerts';
+  end if;
+  perform public.finish_support_email(mail_job.id, gen_random_uuid(), true, null, null);
+  if (select status from public.support_email_outbox where id = mail_job.id) <> 'sending' then
+    raise exception 'A stale claim acknowledged an email';
+  end if;
+  perform public.finish_support_email(mail_job.id, mail_job.claim_token, false, null, 'SMTP delivery unavailable');
+  if not exists (select 1 from public.support_email_outbox where id = mail_job.id
+      and status = 'pending' and attempts = 1 and next_attempt_at > now()) then
+    raise exception 'A failed admin email was not queued for retry';
+  end if;
 end;
 $$;
 
@@ -87,7 +122,9 @@ reset role;
 do $$ begin
   if has_function_privilege('authenticated', 'public.admin_work_notifications(uuid,text[],text[])', 'execute')
     or has_function_privilege('anon', 'public.mark_admin_work_notifications_read(uuid,text,timestamptz)', 'execute')
-    or has_table_privilege('authenticated', 'public.admin_work_notification_reads', 'select') then
+    or has_table_privilege('authenticated', 'public.admin_work_notification_reads', 'select')
+    or has_function_privilege('anon', 'public.claim_support_emails(text)', 'execute')
+    or has_table_privilege('authenticated', 'public.support_email_outbox', 'select') then
     raise exception 'Notification data is exposed outside admin API';
   end if;
 end $$;

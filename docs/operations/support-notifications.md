@@ -28,3 +28,11 @@ Email CS dibuat ketika tiket baru masuk. Email customer dibuat ketika tiket pert
 Event disimpan secara transaksional dalam `support_email_outbox`. Worker berjalan setiap 30 detik, memakai lease untuk mencegah dua worker mengerjakan event yang sama, mencoba ulang dengan jeda bertambah hingga lima percobaan, dan menyimpan status `sent`/`failed`. Satu kombinasi tiket dan status hanya membuat satu event. SMTP tidak menjamin deduplikasi penerimaan bila koneksi putus setelah server menerima email; Message-ID tetap sama saat dicoba ulang. Kegagalan SMTP tidak menghambat pembuatan tiket atau pengiriman chat.
 
 Migrasi terkait: `20261118110000_support_notifications.sql` dan `20261118120000_support_delivery.sql`. Audit log tetap hanya bisa ditambah dan dibaca oleh service role; API memakai INSERT biasa untuk audit, bukan upsert.
+
+## Email operasional untuk admin
+
+Database mengantrekan email admin untuk pesanan baru, pembayaran atau pemenuhan yang perlu diperiksa, pengerjaan manual, permintaan revisi, bukti pembayaran premium, ulasan baru, serta tiket dan pesan CS yang relevan. Email pesanan baru menandakan pesanan tercatat. Periksa status pembayaran pada invoice sebelum memprosesnya.
+
+Gunakan migrasi `20261127100000_admin_notification_email.sql`. Isi `ADMIN_NOTIFICATION_EMAILS` dengan alamat admin yang ditunjuk, lalu set `ADMIN_NOTIFICATION_EMAIL_ENABLED=true` pada konfigurasi API. Jika ada beberapa penerima, pisahkan dengan koma. Worker memakai konfigurasi SMTP yang sama dengan CS. Saat worker admin aktif, ia menangani semua email staf. `SUPPORT_EMAIL_ENABLED` tetap mengatur pengiriman email ke pelanggan.
+
+Setelah API dibuat ulang dengan konfigurasi tersebut, periksa `support_email_outbox` untuk baris dengan `recipient_role='staff'`. Worker memproses email tertunda saat API mulai dan memeriksa antrean tiap 30 detik. Status `sent` berarti SMTP menerima pesan. Periksa spam dan log provider jika pesan belum terlihat. Status `failed` setelah lima percobaan menandakan pengiriman perlu diperiksa.
