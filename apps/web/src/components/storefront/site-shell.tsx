@@ -1,6 +1,5 @@
 "use client";
 import { domains } from "@/lib/domains";
-import { storeTagline } from "@/lib/store-copy";
 import Link from "@/components/storefront/domain-link";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
@@ -10,6 +9,7 @@ import { paymentRequest } from "@/lib/payment-api";
 import { authRequest } from "@/lib/auth-api";
 import { CartPopup } from "./cart-popup";
 import { Brand } from "./brand";
+import { SiteFooter } from "./site-footer";
 import { CustomerNotificationsProvider, NotificationBanner, NotificationBell } from "./customer-notifications";
 const navigation = [["Beranda", "/"], ["Katalog", "/katalog"], ["Invoice", "/invoice"], ["Bantuan", "/bantuan"]] as const;
 const api = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000/v1").replace(/\/$/, "");
@@ -79,6 +79,6 @@ export function SiteShell({ children }: { children: React.ReactNode }) {
       <AnimatePresence initial={false}>{menuOpen && <motion.nav id="mobile-navigation" className="mobile-nav" aria-label="Navigasi mobile" initial={{opacity:0,y:reduce?0:-8}} animate={{opacity:1,y:0}} exit={{opacity:0,y:reduce?0:-5}} transition={{duration:reduce?0:.16}}>{currentNavigation.map(([label,href]) => <Link key={href} href={href} onClick={close} aria-current={pathname === href ? "page" : undefined}>{label}<ChevronRight size={17} aria-hidden="true" /></Link>)}<div className="mobile-account">{account ? <>{admin && adminUrl && <a href={adminUrl} className="login-link">Dashboard admin</a>}<Link href="/profil" className="login-link account-name" onClick={close} aria-current={profileCurrent}>{profileLabel}</Link><button className="signup-link" onClick={logout}>Keluar</button></> : <><Link href="/login" className="login-link" onClick={close} aria-current={pathname === "/login" ? "page" : undefined}>Login</Link><Link href="/daftar" className="signup-link" onClick={close} aria-current={pathname === "/daftar" ? "page" : undefined}>Daftar</Link></>}</div></motion.nav>}</AnimatePresence>
     </div></header></div>
     {children}
-    <footer className="site-footer"><div className="container footer-inner"><div><Link href="/" className="brand" aria-label="Anres Store beranda footer"><Brand /></Link><p>{storeTagline}</p></div><nav className="footer-nav" aria-label="Navigasi footer"><Link href="/about">Tentang Anres</Link><Link href="/bantuan">Pusat bantuan</Link><Link href="/katalog">Jelajahi katalog</Link><a href="https://www.instagram.com/anres_store/">Instagram</a><a href="https://www.tiktok.com/@anres_store">TikTok</a><a href="https://wa.me/6285129354014">WhatsApp</a></nav><div className="footer-meta"><span>&copy; {new Date().getFullYear()} Anres Store</span></div></div></footer>
+    <SiteFooter />
   </></CustomerNotificationsProvider>;
 }
