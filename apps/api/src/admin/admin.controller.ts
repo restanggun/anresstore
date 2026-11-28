@@ -1193,12 +1193,7 @@ export class AdminController {
       if (typeof voucherId !== "string" || !voucherUuid.test(voucherId) || !Number.isSafeInteger(version) || Number(version) < 1) {
         throw new HttpException("Draf voucher tidak valid.", 409);
       }
-      if (settings.active && settings.product_slug && settings.category) {
-        const source = await this.catalogReader.list(settings.category, true);
-        if (!source.items.some(item => item.productSlug === settings.product_slug && (!settings.variant_code || item.code === settings.variant_code))) {
-          throw new HttpException("Produk target voucher sudah tidak tersedia. Periksa katalog sebelum mencoba lagi.", 409);
-        }
-      }
+      await this.validateVoucherCatalog(settings, true);
       if (operation === "create") {
         const [existing] = await this.voucherStore.request<{ id: string }[]>(`vouchers?id=eq.${voucherId}&select=id&limit=1`);
         if (!existing) {
@@ -1597,10 +1592,11 @@ export class AdminController {
     const action = plan.action;
     if (!["create", "update", "disable"].includes(String(action))) throw new HttpException("Tentukan apakah akan membuat, mengubah, atau menonaktifkan voucher.", 422);
     const supplied = plan.settings === undefined ? {} : assistantObject(plan.settings);
-    const safeFields = new Set(["name", "code", "kind", "value", "discount_cap", "minimum_amount", "category", "product_slug", "variant_code", "starts_at", "ends_at", "total_limit", "account_limit", "allow_promotion", "active"]);
+    const safeFields = new Set(["name", "code", "kind", "value", "discount_cap", "minimum_amount", "category", "product_slug", "variant_code", "targets", "starts_at", "ends_at", "total_limit", "account_limit", "allow_promotion", "active"]);
     if (Object.keys(supplied).some(key => !safeFields.has(key))) throw new HttpException("Draf voucher berisi kolom yang tidak didukung.", 422);
     let id: string = randomUUID(), version = 1;
     let settings: ReturnType<typeof parseVoucherSettings>;
+    let previousSettings: typeof settings | undefined;
     if (action === "create") {
       const draft = { ...supplied, active: supplied.active === true && /\baktifkan|langsung aktif\b/i.test(prompt), allow_promotion: supplied.allow_promotion ?? false };
       settings = parseVoucherSettings(draft);
@@ -1614,18 +1610,27 @@ export class AdminController {
       const current = matches[0]!;
       if (typeof current.id !== "string" || !voucherUuid.test(current.id) || !Number.isSafeInteger(current.version)) throw new HttpException("Versi voucher belum tersedia untuk perubahan aman.", 503);
       id = current.id; version = Number(current.version);
-      settings = parseVoucherSettings({ ...current, ...supplied, active: action === "disable" ? false : supplied.active ?? current.active,
+      if (supplied.targets !== undefined) previousSettings = parseVoucherSettings(current);
+      settings = parseVoucherSettings({ ...current,
+        ...(supplied.targets === undefined ? {} : { product_slug: null, variant_code: null }),
+        ...supplied, active: action === "disable" ? false : supplied.active ?? current.active,
         allow_promotion: supplied.allow_promotion ?? current.allow_promotion });
     }
-    if (settings.active && settings.product_slug && settings.category) {
-      const source = await this.catalogReader.list(settings.category, true);
-      if (!source.items.some(item => item.productSlug === settings.product_slug && (!settings.variant_code || item.code === settings.variant_code)))
-        throw new HttpException("Produk atau varian target voucher tidak tersedia.", 409);
-    }
+    await this.validateVoucherCatalog(settings, true);
     const payload = { operation: action === "create" ? "create" : "update", id, version, settings };
+    const describeScope = (value: typeof settings) => {
+      if (value.targets.length) return value.targets.map(target =>
+        [target.category, target.product_slug, target.variant_code ?? "semua varian"].join(" / ")).join(", ");
+      return [value.category, value.product_slug, value.variant_code].filter(Boolean).join(" / ") || "Semua kategori";
+    };
+    const scopeChanges = supplied.targets === undefined ? undefined : [{
+      label: "Cakupan voucher",
+      before: previousSettings ? describeScope(previousSettings) : "Belum ada",
+      after: describeScope(settings),
+    }];
     return this.createAssistantActionDraft(access, "voucher_save", payload,
       `${action === "create" ? "Buat" : action === "disable" ? "Nonaktifkan" : "Ubah"} voucher ${settings.name}`,
-      `${settings.code || "Kode dibuat otomatis"} · ${settings.kind} · ${settings.active ? "aktif" : "nonaktif"} · hingga ${settings.ends_at}`);
+      `${settings.code || "Kode dibuat otomatis"} · ${settings.kind} · ${settings.active ? "aktif" : "nonaktif"} · hingga ${settings.ends_at}`, scopeChanges);
   }
 
   private async assistantCatalog(
@@ -2431,23 +2436,27 @@ export class AdminController {
   @Post("vouchers")
   async saveVoucher(@Body() input: unknown, @Req() req: Request, @Res({ passthrough: true }) res: Response) {
     const access = await this.voucherAdmin(req, res, true);
-    const voucher = parseVoucherSettings(input);
-    const { id, version } = input as { id?: string; version?: number };
+    const data = input as Record<string, unknown> | null;
+    const id = data?.id;
+    const version = data?.version;
     if (id !== undefined && (typeof id !== "string" || !voucherUuid.test(id) || !Number.isSafeInteger(version) || Number(version) < 1))
       throw new HttpException("Versi voucher tidak valid. Muat ulang daftar.", 400);
-    if (voucher.active && voucher.product_slug) {
-      const data = await this.catalogReader.list(String(voucher.category));
-      if (!data.items.some(item => item.productSlug === voucher.product_slug &&
-        (!voucher.variant_code || item.code === voucher.variant_code)))
-        throw new HttpException("Produk atau varian tidak tersedia di katalog aktif.", 409);
+    let settings = input;
+    if (id && data?.targets === undefined) {
+      const [current] = await this.voucherStore.request<{ targets: unknown[] }[]>(
+        `vouchers?id=eq.${id}&version=eq.${version}&select=targets&limit=1`);
+      if (!current) throw new HttpException("Voucher berubah sejak dibuka. Muat ulang sebelum menyimpan.", 409);
+      if (current.targets.length) settings = { ...data, targets: current.targets };
     }
+    const voucher = parseVoucherSettings(settings);
+    await this.validateVoucherCatalog(voucher);
     const key = id ?? randomUUID();
     await this.audit(access.id, id ? "voucher.update" : "voucher.create", key);
     const path = id ? `vouchers?id=eq.${id}&version=eq.${version}` : "vouchers";
     let rows: Record<string, unknown>[];
     try {
       rows = await this.voucherStore.request(path, id ? "PATCH" : "POST", {
-        ...voucher, ...(id ? { version: version! + 1 } : { id: key }), updated_at: new Date().toISOString(),
+        ...voucher, ...(id ? { version: Number(version) + 1 } : { id: key }), updated_at: new Date().toISOString(),
       });
     } catch (error) {
       if (error instanceof HttpException && error.getStatus() === 409)
@@ -2456,6 +2465,25 @@ export class AdminController {
     }
     if (!rows[0]) throw new HttpException("Voucher berubah sejak dibuka. Muat ulang sebelum menyimpan.", 409);
     return { voucher: rows[0] };
+  }
+
+  private async validateVoucherCatalog(voucher: ReturnType<typeof parseVoucherSettings>, raw = false) {
+    if (!voucher.active) return;
+    const targets = [...voucher.targets];
+    if (voucher.category && voucher.product_slug) {
+      targets.push({ category: voucher.category, product_slug: voucher.product_slug, variant_code: voucher.variant_code });
+    }
+    const categories = new Set(targets.map(target => target.category));
+    await Promise.all([...categories].map(async category => {
+      const { items } = await this.catalogReader.list(category, raw);
+      for (const target of targets.filter(target => target.category === category)) {
+        if (!items.some(item => item.productSlug === target.product_slug &&
+          (target.variant_code === null || item.code === target.variant_code))) {
+          const label = target.variant_code ? target.product_slug + " / " + target.variant_code : target.product_slug;
+          throw new HttpException("Target voucher tidak tersedia di katalog. Periksa " + label + ".", 409);
+        }
+      }
+    }));
   }
 
   @Get("vouchers/:id")

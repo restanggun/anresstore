@@ -8,7 +8,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const urls: MetadataRoute.Sitemap = [];
 
   if (host === new URL(domains.web).host) {
-    urls.push(...["/", "/about", "/bantuan"].map(path => ({ url: new URL(path, domains.web).href })));
+    urls.push(...["/", "/about", "/bantuan", "/reseller"].map(path => ({ url: new URL(path, domains.web).href })));
   }
 
   if (host === new URL(domains.app).host) {

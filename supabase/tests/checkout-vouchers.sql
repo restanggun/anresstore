@@ -18,6 +18,13 @@ declare
   result jsonb;
   args jsonb;
   context jsonb;
+  referral uuid;
+  reward_targets jsonb := '[
+    {"category":"game","product_slug":"mobile-legends","variant_code":"sku-1"},
+    {"category":"game","product_slug":"mobile-legends","variant_code":"sku-2"},
+    {"category":"game","product_slug":"free-fire","variant_code":null},
+    {"category":"apps","product_slug":"test-app","variant_code":null}
+  ]';
 begin
   insert into auth.users(id,email,email_confirmed_at) values
     (buyer,'voucher-buyer@example.test',now()),(stranger,'voucher-stranger@example.test',now());
@@ -66,7 +73,25 @@ begin
     raise exception 'Revoked account voucher still accepted';
   exception when sqlstate 'PT409' then null; end;
   perform public.voucher_set_account(campaign,'voucher-buyer@example.test',true,stranger);
-  offer := public.voucher_offer(jsonb_build_object('id',campaign),context);
+  update public.vouchers set category=null,product_slug=null,variant_code=null,targets=reward_targets where id=campaign;
+  foreach offer in array array[
+    context, context||'{"code":"sku-2"}', context||'{"product_slug":"free-fire","code":"different-sku"}',
+    context||'{"source":"apps","product_slug":"test-app","code":"app-sku"}'
+  ] loop
+    if public.voucher_offer(jsonb_build_object('id',campaign),offer)->>'amount' is distinct from '8800' then
+      raise exception 'Selected target did not receive discount';
+    end if;
+  end loop;
+  foreach offer in array array[
+    context||'{"code":"sku-3"}', context||'{"product_slug":"other-game"}',
+    context||'{"source":"prepaid","product_slug":"free-fire"}',
+    context||'{"product_slug":null}'
+  ] loop
+    begin
+      perform public.voucher_offer(jsonb_build_object('id',campaign),offer);
+      raise exception 'Unselected target received discount';
+    exception when sqlstate 'PT409' then null; end;
+  end loop;
 
   args := jsonb_build_object('id',payment_id,'payment_mode','live','source','game','provider_code','sku-1',
     'invoice_product_code','mobile-legends','product_name','Game variant','target','123','amount',8800,
@@ -76,6 +101,10 @@ begin
     perform public.reserve_voucher_payment(jsonb_build_object('id',campaign),args||'{"amount":1}',null,10000,false);
     raise exception 'Tampered checkout total accepted';
   exception when sqlstate 'PT409' then null; end;
+  begin
+    perform public.reserve_voucher_payment(jsonb_build_object('id',campaign),args||'{"provider_code":"sku-3"}',null,10000,false);
+    raise exception 'Unselected variant consumed quota at checkout';
+  exception when sqlstate 'PT409' then null; end;
   result := public.reserve_voucher_payment(jsonb_build_object('id',campaign),args,null,10000,false);
   if result->'payment'->>'amount'<>'8800' or (select state from public.voucher_usage where voucher_id=campaign limit 1)<>'reserved' then
     raise exception 'Payment or reservation not recorded';
@@ -84,8 +113,8 @@ begin
   if (result->>'claimed')::boolean then raise exception 'Retry claimed twice'; end if;
   begin
     perform public.reserve_voucher_payment(jsonb_build_object('id',campaign),
-      args||jsonb_build_object('id',followup,'checkout_hash',repeat('d',64)),null,10000,false);
-    raise exception 'Campaign quota overspent';
+      args||jsonb_build_object('id',followup,'checkout_hash',repeat('d',64),'provider_code','sku-2'),null,10000,false);
+    raise exception 'Campaign quota overspent across variants';
   exception when sqlstate 'PT409' then null; end;
   update public.payments set status='unknown',revision=revision+1 where id=payment_id;
   if (public.voucher_admin_usage(campaign)->>'reserved')::integer<>1 then raise exception 'Uncertain payment released quota'; end if;
@@ -146,13 +175,27 @@ begin
   update public.premium_orders set qr_expires_at=now()-interval '1 hour' where id=premium_order;
   perform public.voucher_release_premium(premium_campaign,premium_order,stranger);
   if (public.voucher_admin_usage(premium_campaign)->>'released')::integer<>1 then raise exception 'Premium cancellation did not release stock'; end if;
-  update public.vouchers set code=null,kind='gift',value=1,discount_cap=10000,account_limit=1,active=true,
-    product_slug='test-app',variant_code='managed.'||variant::text where id=premium_campaign;
+  update public.vouchers set code=null,kind='gift',value=1,discount_cap=10000,account_limit=1,active=true,category=null,
+    targets=jsonb_build_array(
+      jsonb_build_object('category','apps','product_slug','test-app','variant_code','managed.'||variant::text),
+      jsonb_build_object('category','game','product_slug','mobile-legends','variant_code','sku-1')
+    ) where id=premium_campaign;
   perform public.voucher_set_account(premium_campaign,'voucher-buyer@example.test',true,stranger);
   select to_jsonb(order_row) into result from public.reserve_premium_voucher(jsonb_build_object('id',premium_campaign),
     premium_gift_order,buyer,null,'voucher-buyer@example.test',null,variant,10000,0,rule_date,app_version,false) order_row;
   if result->>'amount'<>'0' or result->>'status'<>'paid' or result->>'voucher_gift'<>'true' then
     raise exception 'Premium gift required a QR payment';
+  end if;
+  update public.vouchers set code=null,account_limit=1 where id=campaign;
+  update public.campaign_settings set enabled=true,config=config||jsonb_build_object(
+    'referrerVoucherTemplate',campaign,'friendVoucherTemplate',campaign) where id=1;
+  insert into public.referral_attributions(referrer_user_id,referred_user_id,referral_code,status)
+    values(stranger,buyer,'AABBCCDDEEFF0011','qualified') returning id into referral;
+  perform public.review_referral(referral,true,stranger);
+  if (select count(*) from public.referral_attributions a join public.vouchers v
+      on v.id in (a.referrer_voucher_id,a.friend_voucher_id)
+      where a.id=referral and v.targets=reward_targets and v.total_limit=1)<>2 then
+    raise exception 'Referral rewards lost voucher targets';
   end if;
   set constraints all immediate;
   if has_table_privilege('anon','public.vouchers','select') or

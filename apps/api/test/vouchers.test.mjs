@@ -1,5 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { AdminController } from "../dist/admin/admin.controller.js";
 import { parsePayment } from "../dist/payments/payment-contract.js";
 import { parseVoucher, parseVoucherSettings, voucherBaseAmount } from "../dist/payments/vouchers.js";
 import { PaymentsController } from "../dist/payments/payments.controller.js";
@@ -28,12 +29,57 @@ test("admin settings validate ranges and produce random codes for public campaig
   assert.throws(() => parseVoucherSettings({ ...settings, value: 100 }), { status: 400 });
   assert.throws(() => parseVoucherSettings({ ...settings, ends_at: "2030-02-30T10:00+07:00" }), { status: 400 });
   assert.throws(() => parseVoucherSettings({ ...settings, kind: "gift", category: "social" }), { status: 400 });
+  const targets = [
+    { category: "game", product_slug: "mobile-legends", variant_code: "sku-1" },
+    { category: "game", product_slug: "mobile-legends", variant_code: "sku-2" },
+    { category: "apps", product_slug: "test-app", variant_code: null },
+  ];
+  assert.deepEqual(parseVoucherSettings({ ...settings, targets: [...targets, targets[0]] }).targets, targets);
+  assert.throws(() => parseVoucherSettings({ ...settings, targets, category: "game" }), { status: 400 });
+  assert.throws(() => parseVoucherSettings({ ...settings, targets, kind: "gift" }), { status: 400 });
+  assert.throws(() => parseVoucherSettings({ ...settings, targets: [{ ...targets[0], variant_code: 12 }] }), { status: 400 });
+  assert.deepEqual(parseVoucherSettings({ ...settings, targets: targets.slice(0, 2), kind: "gift" }).targets, targets.slice(0, 2));
 });
 
 test("social quote validates quantity and computes the original total from its server rate", async () => {
   const product = { code: "social-sku", price: 180000, unitPrice: 120000, minimum: 25, maximum: 1000 };
   assert.equal(await voucherBaseAmount({}, product, "social", { expectedQuantity: 25 }), 3000);
   await assert.rejects(voucherBaseAmount({}, product, "social", { expectedQuantity: 24 }), { status: 400 });
+});
+
+test("saving a voucher validates all selected categories and preserves targets from older editors", async () => {
+  const controller = new AdminController();
+  const targets = [
+    { category: "game", product_slug: "mobile-legends", variant_code: "sku-1" },
+    { category: "apps", product_slug: "test-app", variant_code: null },
+  ];
+  const seenCategories = [];
+  const writes = [];
+  controller.voucherAdmin = async () => ({ id: checkout.id });
+  controller.audit = async () => {};
+  controller.catalogReader.list = async category => {
+    seenCategories.push(category);
+    return { items: category === "game" ? [{ productSlug: "mobile-legends", code: "sku-1" }] : [{ productSlug: "test-app" }] };
+  };
+  controller.voucherStore.request = async (path, method, body) => {
+    if (!method) return [{ targets }];
+    writes.push({ path, method, body });
+    return [body];
+  };
+  const settings = {
+    id: checkout.id, version: 2, name: "Potongan", kind: "fixed", code: "ANRES-TEST", value: 1000,
+    starts_at: "2030-02-01T10:00+07:00", ends_at: "2030-02-03T10:00+07:00",
+    total_limit: 100, active: true, allow_promotion: false,
+  };
+  const saved = await controller.saveVoucher(settings, {}, {});
+  assert.deepEqual(saved.voucher.targets, targets);
+  assert.deepEqual(seenCategories.sort(), ["apps", "game"]);
+  assert.equal(writes[0].method, "PATCH");
+  assert.match(writes[0].path, /version=eq\.2$/);
+  await assert.rejects(controller.saveVoucher({
+    ...settings, targets: [targets[0], { ...targets[1], variant_code: "missing-sku" }],
+  }, {}, {}), { status: 409 });
+  assert.equal(writes.length, 1);
 });
 
 test("an account gift reserves the configured SKU and never contacts the gateway", async () => {

@@ -1,0 +1,178 @@
+.page {
+  padding-block: clamp(12px, 3vw, 36px) clamp(56px, 8vw, 104px);
+}
+
+.hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr);
+  align-items: center;
+  gap: clamp(24px, 5vw, 64px);
+  padding: clamp(22px, 5.5vw, 70px);
+  border-radius: clamp(24px, 3vw, 36px);
+  background: var(--primary);
+}
+
+.heroCopy h1 {
+  max-inline-size: 13ch;
+  margin: 0;
+  font-size: clamp(2rem, 5.7vw, 4.8rem);
+  line-height: 1.02;
+  letter-spacing: -.055em;
+}
+
+.heroCopy > p:not(.status) {
+  max-inline-size: 38ch;
+  margin-block: 20px 24px;
+  font-size: clamp(1rem, 1.5vw, 1.125rem);
+  line-height: 1.65;
+}
+
+.heroCopy .status {
+  margin-block: 0 14px;
+  font-size: .875rem;
+  font-weight: 750;
+}
+
+.heroCopy [data-slot="button"] {
+  min-block-size: 44px;
+  background: var(--surface);
+}
+
+.heroCopy [data-slot="button"]:hover {
+  background: var(--pink);
+}
+
+.priceCard {
+  min-inline-size: 0;
+  padding: clamp(18px, 3vw, 34px);
+  border-radius: 24px;
+  background: var(--surface);
+}
+
+.priceHeading,
+.integration {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.icon {
+  display: grid;
+  flex: 0 0 42px;
+  block-size: 42px;
+  place-items: center;
+  border-radius: 13px;
+  background: var(--pink-soft);
+  color: var(--pink-ink);
+}
+
+.priceHeading h2 { font-size: clamp(1.04rem, 2vw, 1.375rem); }
+.priceCard p { margin-block: 12px 0; font-size: .875rem; }
+
+.prices {
+  margin-block: 18px 0;
+  font-variant-numeric: tabular-nums;
+}
+
+.prices > div {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 4px 12px;
+  padding-block: 11px;
+  border-block-start: 1px solid var(--border);
+  font-size: .9375rem;
+}
+
+.prices dd { margin: 0; font-weight: 800; white-space: nowrap; }
+
+.prices .priceDifference {
+  margin-block-start: 6px;
+  padding: 10px 12px;
+  border: 0;
+  border-radius: 12px;
+  background: var(--pink-soft);
+  color: var(--pink-ink);
+  font-weight: 750;
+}
+
+.priceCard p,
+.section p { color: var(--muted); line-height: 1.65; }
+
+.priceCard,
+.section { scroll-margin-block-start: 150px; }
+
+.section {
+  display: grid;
+  grid-template-columns: minmax(0, .85fr) minmax(0, 1.45fr);
+  gap: clamp(20px, 5vw, 62px);
+  margin-block-start: clamp(40px, 6vw, 80px);
+  padding-block-start: clamp(22px, 3vw, 36px);
+  border-block-start: 1px solid var(--border);
+}
+
+.section h2,
+.help h2 { font-size: clamp(1.6rem, 3.25vw, 2.375rem); line-height: 1.15; }
+
+.section h3 { margin: 0; font-size: 1rem; }
+.section p { margin-block: 6px 0; }
+.sectionIntro p { max-inline-size: 49ch; margin-block-start: 12px; }
+
+.steps {
+  display: grid;
+  gap: 14px;
+  margin: 0;
+  padding-inline-start: 1.7rem;
+  list-style: decimal;
+}
+
+.steps li { padding-inline-start: .4rem; }
+.steps li::marker { color: var(--focus); font-weight: 800; }
+
+.integration {
+  align-items: flex-start;
+  align-self: start;
+  padding: clamp(16px, 3vw, 26px);
+  border-radius: 20px;
+  background: var(--primary-soft);
+}
+
+.levels {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+}
+
+.levels li {
+  padding: 16px;
+  border-radius: 16px;
+  background: var(--primary-soft);
+  font-size: .875rem;
+}
+
+.levels li:last-child { background: var(--pink-soft); }
+
+.help {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  margin-block-start: clamp(40px, 6vw, 80px);
+  padding: clamp(20px, 4vw, 42px);
+  border-radius: 24px;
+  background: var(--pink-soft);
+}
+
+.help [data-slot="button"] { min-block-size: 44px; }
+
+@media (max-width: 760px) {
+  .hero, .section { grid-template-columns: minmax(0, 1fr); }
+}
+
+@media (max-width: 480px) {
+  .levels { grid-template-columns: minmax(0, 1fr); }
+}

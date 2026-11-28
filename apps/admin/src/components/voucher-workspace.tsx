@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useRef, useState, type FormEvent, type PointerEvent } from "react";
+import { AdminDrawer } from "./admin-drawer";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Ticket, X } from "lucide-react";
 import { adminRequest, rupiah } from "./workspace-api";
@@ -8,13 +9,16 @@ import styles from "./voucher-workspace.module.css";
 
 type Category = "game" | "prepaid" | "apps" | "social" | "tasks";
 type Kind = "percent" | "fixed" | "gift";
+type VoucherTarget = { category: Category; product_slug: string; variant_code: string | null };
+type Scope = "all" | "category" | "targets";
 type Voucher = {
   id: string; version: number; name: string; code: string | null; kind: Kind; value: number;
   discount_cap: number | null; minimum_amount: number; category: Category | null; product_slug: string | null;
   variant_code: string | null; starts_at: string; ends_at: string; total_limit: number;
   account_limit: number | null; allow_promotion: boolean; active: boolean;
+  targets?: VoucherTarget[];
 };
-type Draft = Omit<Voucher,"id"|"version"> & { id?: string; version?: number };
+type Draft = Omit<Voucher,"id"|"version"|"targets"> & { id?: string; version?: number; targets: VoucherTarget[]; scope: Scope };
 type Details = { usage: { used: number; reserved: number; released: number };
   accounts: { email: string; active: boolean }[]; hasMore: boolean };
 type Redemption = { id:number; invoice_number:string; state:"used"|"reserved"|"released"; discount:number;
@@ -34,16 +38,82 @@ const wib = (time: string) => new Date(Date.parse(time) + 7 * 3600000).toISOStri
 const dateLabel = new Intl.DateTimeFormat("id-ID", { dateStyle:"medium", timeStyle:"short", timeZone:"Asia/Jakarta" });
 const isoDate = (value: string) => new Date(value + ":00+07:00").toISOString();
 
-function isBackdropPress(event: PointerEvent<HTMLDialogElement>) {
-  const dialog = event.currentTarget;
-  if ("closedBy" in dialog || event.target !== dialog) return false;
-  const { left, right, top, bottom } = dialog.getBoundingClientRect();
-  return event.clientX < left || event.clientX >= right || event.clientY < top || event.clientY >= bottom;
+function VoucherTargets({ targets, gift, onChange }: {
+  targets: VoucherTarget[]; gift: boolean; onChange: (targets: VoucherTarget[]) => void;
+}) {
+  const client = useQueryClient();
+  const [category, setCategory] = useState<Category | "">("");
+  const [product, setProduct] = useState("");
+  const catalog = useQuery({
+    queryKey: ["voucher-catalog", category],
+    enabled: category !== "",
+    queryFn: () => adminRequest("catalog/" + category) as Promise<Catalog>,
+  });
+  const variants = catalog.data?.items.filter(item => item.productSlug === product) ?? [];
+  const selected = targets.filter(target => target.category === category && target.product_slug === product);
+  const wholeProduct = selected.some(target => target.variant_code === null);
+  const availableCategories = categories.filter(([key]) => !gift || key !== "social" && key !== "tasks");
+  function toggle(variant: string | null, checked: boolean) {
+    if (!category || !product) return;
+    const remaining = targets.filter(target => target.category !== category || target.product_slug !== product ||
+      (variant !== null && target.variant_code !== variant));
+    onChange(checked ? [...remaining, { category, product_slug: product, variant_code: variant }] : remaining);
+  }
+  return (
+    <fieldset className={styles.targets}>
+      <legend>Produk dan varian yang berlaku</legend>
+      <div className={styles.targetFilters}>
+        <label>Kategori produk<select value={category} onChange={event => {
+          setCategory(event.target.value as Category | "");
+          setProduct("");
+        }}>
+          <option value="">Pilih kategori</option>
+          {availableCategories.map(([key, label]) => <option key={key} value={key}>{label}</option>)}
+        </select></label>
+        <label>Produk<select value={product} disabled={!catalog.data} onChange={event => setProduct(event.target.value)}>
+          <option value="">Pilih produk</option>
+          {catalog.data?.products.map(row => <option key={row.slug} value={row.slug}>{row.name}</option>)}
+        </select></label>
+      </div>
+      {category && catalog.isPending && <p role="status">Memuat produk…</p>}
+      {catalog.error && <p role="alert">{catalog.error.message}</p>}
+      {product && <fieldset className={styles.targetVariants}>
+        <legend>Varian produk</legend>
+        {!gift && <label className={styles.check}>
+          <input type="checkbox" checked={wholeProduct} onChange={event => toggle(null, event.target.checked)}/>
+          Semua varian produk ini
+        </label>}
+        {variants.map(row => {
+          const checked = selected.some(target => target.variant_code === row.code);
+          return <label key={row.code} className={styles.check}>
+            <input type="checkbox" checked={wholeProduct || checked} disabled={wholeProduct}
+              onChange={event => toggle(row.code, event.target.checked)}/>
+            <span>{row.name} <small>· {rupiah(row.price)}</small></span>
+          </label>;
+        })}
+      </fieldset>}
+      <p className={styles.targetCount}>{targets.length} target dipilih. Pilih produk lain untuk menambah target.</p>
+      {!!targets.length && <ul className={styles.selectedTargets}>
+        {targets.map((target, index) => {
+          const data = client.getQueryData<Catalog>(["voucher-catalog", target.category]);
+          const name = data?.products.find(row => row.slug === target.product_slug)?.name ?? target.product_slug;
+          const variant = target.variant_code === null ? "Semua varian"
+            : data?.items.find(row => row.productSlug === target.product_slug && row.code === target.variant_code)?.name ?? target.variant_code;
+          const label = categories.find(([key]) => key === target.category)?.[1] + " · " + name + " · " + variant;
+          return <li key={JSON.stringify(target)}>
+            <span>{label}</span>
+            <button type="button" className="outline-button" aria-label={"Hapus target " + label}
+              onClick={() => onChange(targets.filter((_, item) => item !== index))}>Hapus</button>
+          </li>;
+        })}
+      </ul>}
+    </fieldset>
+  );
 }
 
 function newVoucher(): Draft {
   const now = Date.now();
-  return { name:"", code:"", kind:"percent", value:10, discount_cap:null, minimum_amount:0, category:null,
+  return { name:"", code:"", kind:"percent", value:10, discount_cap:null, minimum_amount:0, category:null, targets:[], scope:"all",
     product_slug:null, variant_code:null, starts_at:wib(new Date(now).toISOString()), ends_at:wib(new Date(now + 7 * 86400000).toISOString()),
     total_limit:100, account_limit:1, allow_promotion:false, active:false };
 }
@@ -59,7 +129,6 @@ export function VoucherWorkspace() {
   const [error,setError] = useState("");
   const [notice,setNotice] = useState("");
   const dialog = useRef<HTMLDialogElement>(null);
-  const backdropPointer = useRef<number | null>(null);
   const editorOpen = draft !== null;
 
   useEffect(() => {
@@ -72,11 +141,13 @@ export function VoucherWorkspace() {
     queryFn:() => adminRequest("vouchers/" + draft!.id + "?page=" + accountPage) as Promise<Details> });
   const redemptions = useQuery({ queryKey:["voucher-redemptions",draft?.id,redemptionPage], enabled:!!draft?.id,
     queryFn:() => adminRequest("vouchers/" + draft!.id + "/redemptions?page=" + redemptionPage) as Promise<{rows:Redemption[];hasMore:boolean}> });
-  const catalog = useQuery({ queryKey:["voucher-catalog",draft?.category], enabled:!!draft?.category,
-    queryFn:() => adminRequest("catalog/" + draft!.category) as Promise<Catalog> });
-  const variants = catalog.data?.items.filter(item => item.productSlug === draft?.product_slug) ?? [];
-  function open(row: Draft) {
-    setDraft(row);
+  function open(row: Draft | Voucher) {
+    const targets = row.targets?.length ? row.targets : row.category && row.product_slug
+      ? [{ category: row.category, product_slug: row.product_slug, variant_code: row.variant_code }]
+      : [];
+    const scope = targets.length ? "targets" : row.category ? "category" : "all";
+    setDraft({ ...row, scope, targets, product_slug: null, variant_code: null,
+      category: scope === "category" ? row.category : null });
     setAccountPage(0);
     setRedemptionPage(0);
     setEmail("");
@@ -90,12 +161,19 @@ export function VoucherWorkspace() {
   async function save(event: FormEvent) {
     event.preventDefault();
     if (!draft || busy) return;
+    if (draft.scope === "targets" && !draft.targets.length) {
+      setError("Pilih minimal satu produk atau varian untuk voucher ini.");
+      return;
+    }
     setBusy(true);
     setError("");
     setNotice("");
     try {
+      const { scope, ...settings } = draft;
       const result = await adminRequest("vouchers", "POST", {
-        ...draft, starts_at: isoDate(draft.starts_at), ends_at: isoDate(draft.ends_at),
+        ...settings, category: scope === "category" ? settings.category : null,
+        targets: scope === "targets" ? settings.targets : [],
+        starts_at: isoDate(draft.starts_at), ends_at: isoDate(draft.ends_at),
       }) as { voucher: Voucher };
       open({ ...result.voucher, starts_at:wib(result.voucher.starts_at), ends_at:wib(result.voucher.ends_at) });
       await client.invalidateQueries({ queryKey:["vouchers"] });
@@ -160,22 +238,12 @@ export function VoucherWorkspace() {
       </div></div>}
     </section>}
 
-    <dialog
+    <AdminDrawer
       ref={dialog}
       className={`order-dialog ${styles.editor}`}
       aria-labelledby="voucher-editor-title"
-      closedby={busy ? "none" : "any"}
-      onCancel={event => { if (busy) event.preventDefault(); }}
-      onClose={() => { backdropPointer.current = null; setDraft(null); }}
-      onPointerDown={event => {
-        backdropPointer.current = !busy && isBackdropPress(event) ? event.pointerId : null;
-      }}
-      onPointerUp={event => {
-        const pressedOutside = backdropPointer.current === event.pointerId;
-        backdropPointer.current = null;
-        if (!busy && pressedOutside && isBackdropPress(event)) event.currentTarget.close();
-      }}
-      onPointerCancel={() => { backdropPointer.current = null; }}
+      dismissDisabled={busy}
+      onClose={() => setDraft(null)}
     >{draft && <>
       <header className="drawer-header">
         <div>
@@ -213,7 +281,10 @@ export function VoucherWorkspace() {
             <small>Kosongkan untuk membuat kode acak. Panjang 8–64 karakter.</small></label>}
           <label>Jenis voucher<select name="kind" value={draft.kind} onChange={e=>{
             const kind=e.target.value as Kind;
-            update({kind,value:kind==="fixed"?1000:10,discount_cap:null,...(kind==="gift"?{category:null,product_slug:null,variant_code:null,account_limit:1}:{})});
+            update({kind,value:kind==="fixed"?1000:10,discount_cap:null,...(kind==="gift"?{
+              scope:"targets", category:null, account_limit:1,
+              targets:draft.targets.filter(target=>target.variant_code!==null && target.category!=="social" && target.category!=="tasks"),
+            }:{})});
           }}>{Object.entries(kinds).map(([value,label])=><option key={value} value={value}>{label}</option>)}</select></label>
           {draft.kind !== "gift" && <label>{draft.kind==="percent"?"Diskon (%)":"Potongan (Rp)"}<input name="value" type="number" required min={1} max={draft.kind==="percent"?99:100000000}
             value={draft.value || ""} onChange={e=>update({value:Number(e.target.value)})}/></label>}
@@ -222,24 +293,19 @@ export function VoucherWorkspace() {
             onChange={e=>update({discount_cap:e.target.value?Number(e.target.value):null})}/></label>}
           <label>Minimum subtotal (Rp)<input name="minimum" type="number" min={0} max={100000000} value={draft.minimum_amount}
             onChange={e=>update({minimum_amount:Number(e.target.value)})}/></label>
-          <label>Kategori<select name="category" required={draft.kind==="gift"} value={draft.category??""}
-            onChange={e=>update({category:(e.target.value||null) as Category|null,product_slug:null,variant_code:null})}>
-            <option value="">{draft.kind==="gift"?"Pilih kategori":"Semua kategori"}</option>
-            {categories.filter(([key])=>draft.kind!=="gift" || !["social","tasks"].includes(key)).map(([key,label])=><option key={key} value={key}>{label}</option>)}
-          </select></label>
-          {draft.category && <label>Produk<select name="product" required={draft.kind==="gift"} value={draft.product_slug??""}
-            disabled={catalog.isPending || !!catalog.error} onChange={e=>update({product_slug:e.target.value||null,variant_code:null})}>
-            <option value="">{draft.kind==="gift"?"Pilih produk":"Semua produk"}</option>
-            {draft.product_slug && !catalog.data?.products.some(row=>row.slug===draft.product_slug) &&
-              <option value={draft.product_slug}>{draft.product_slug}</option>}
-            {catalog.data?.products.map(product=><option key={product.slug} value={product.slug}>{product.name}</option>)}
-          </select>{catalog.error && <small role="alert">{catalog.error.message}</small>}</label>}
-          {draft.product_slug && <label>Varian<select name="variant" required={draft.kind==="gift"} value={draft.variant_code??""}
-            disabled={catalog.isPending || !!catalog.error} onChange={e=>update({variant_code:e.target.value||null})}>
-            <option value="">{draft.kind==="gift"?"Pilih varian":"Semua varian"}</option>
-            {draft.variant_code && !variants.some(row=>row.code===draft.variant_code) && <option value={draft.variant_code}>{draft.variant_code}</option>}
-            {variants.map(row=><option key={row.code} value={row.code}>{row.name} · {rupiah(row.price)}</option>)}
+          {draft.kind !== "gift" && <label>Cakupan voucher<select name="scope" value={draft.scope}
+            onChange={e=>update({scope:e.target.value as Scope})}>
+            <option value="all">Semua kategori</option>
+            <option value="category">Semua produk di satu kategori</option>
+            <option value="targets">Pilih produk dan varian</option>
           </select></label>}
+          {draft.scope === "category" && <label>Kategori<select name="category" required value={draft.category??""}
+            onChange={e=>update({category:(e.target.value||null) as Category|null})}>
+            <option value="">Pilih kategori</option>
+            {categories.map(([key,label])=><option key={key} value={key}>{label}</option>)}
+          </select></label>}
+          {draft.scope === "targets" && <VoucherTargets key={draft.kind === "gift" ? "gift" : "discount"}
+            targets={draft.targets} gift={draft.kind === "gift"} onChange={targets=>update({targets})}/>}
           <label>Mulai (WIB)<input name="starts" type="datetime-local" required value={draft.starts_at} onChange={e=>update({starts_at:e.target.value})}/></label>
           <label>Berakhir (WIB)<input name="ends" type="datetime-local" required min={draft.starts_at} value={draft.ends_at} onChange={e=>update({ends_at:e.target.value})}/></label>
           <label>Kuota total (wajib)<input name="total" type="number" required min={1} max={1000000} value={draft.total_limit||""} onChange={e=>update({total_limit:Number(e.target.value)})}/></label>
@@ -293,6 +359,6 @@ export function VoucherWorkspace() {
         </div></div>}
       </section>}
       </div>
-    </>}</dialog>
+    </>}</AdminDrawer>
   </>;
 }

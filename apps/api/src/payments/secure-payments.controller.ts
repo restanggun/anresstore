@@ -8,7 +8,7 @@ import type { CatalogItem } from "../catalog/catalog-mapping";
 import { verifyTripayCallback } from "./tripay-signature";
 import { applyPaymentEvent, type PaymentEvent } from "./transaction-state";
 import { TripayClient, TripayRejectedError, tripayConfig, tripayCustomerEmail, tripayMode, type TripayTransaction } from "./tripay-client";
-import { parseVoucher, promotedProduct, quoteVoucher, variantPattern, voucherBaseAmount, voucherCategories } from "./vouchers";
+import { isVoucherCategory, parseVoucher, promotedProduct, quoteVoucher, variantPattern, voucherBaseAmount } from "./vouchers";
 import { writeSession } from "../auth/session";
 import { InvoiceAccountService } from "./invoice-account-service";
 import { invoiceCsv } from "./invoice-export";
@@ -172,7 +172,7 @@ export class PaymentsController implements OnModuleInit, OnModuleDestroy {
     await this.throttle(`voucher-ip:${paymentHash(this.ip(req))}`, 15);
     const body = input as { source?: unknown; code?: unknown; voucher?: unknown; expectedQuantity?: unknown;
       task?: { pages?: unknown; deadline_days?: unknown; revisions?: unknown; pricing_unit?: unknown } };
-    if (typeof body?.source !== "string" || !voucherCategories.includes(body.source) ||
+    if (!isVoucherCategory(body?.source) ||
       typeof body.code !== "string" || !variantPattern.test(body.code)) throw new HttpException("Pilihan produk tidak valid.", 400);
     const voucher = parseVoucher(body.voucher);
     const identity = await this.identities.resolve(req, res);

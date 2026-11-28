@@ -1,5 +1,6 @@
 "use client";
 
+import { AdminDrawer } from "./admin-drawer";
 import { useEffect, useId, useRef, useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { ArrowRight, Sparkles, X } from "lucide-react";
@@ -70,7 +71,7 @@ export function AssistantVariantPanel({
   }
 
   return (
-    <dialog ref={dialog} className={styles.drawer} aria-labelledby={titleId} onClose={onClose}>
+    <AdminDrawer ref={dialog} className={styles.drawer} aria-labelledby={titleId} onClose={onClose}>
       <header className={styles.panelHeader}>
         <span className={styles.icon}><Sparkles size={19} aria-hidden="true" /></span>
         <div><h2 id={titleId}>Bantu edit varian</h2><p>{aiEnabled ? "Asisten katalog" : "Pratinjau manual"}</p></div>
@@ -116,6 +117,6 @@ export function AssistantVariantPanel({
           </button>
         </footer>
       </form>
-    </dialog>
+    </AdminDrawer>
   );
 }

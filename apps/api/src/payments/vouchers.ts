@@ -3,7 +3,9 @@ import { randomBytes } from "node:crypto";
 import type { CatalogItem } from "../catalog/catalog-mapping";
 import { PaymentStore } from "./payment-store";
 
-export const voucherCategories = ["game", "prepaid", "apps", "social", "tasks"];
+const voucherCategories = ["game", "prepaid", "apps", "social", "tasks"] as const;
+type VoucherCategory = (typeof voucherCategories)[number];
+type VoucherTarget = { category: VoucherCategory; product_slug: string; variant_code: string | null };
 export const voucherUuid = /^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/;
 export const variantPattern = /^[A-Za-z0-9._-]{1,100}$/;
 const codePattern = /^[A-Z0-9][A-Z0-9_-]{7,63}$/;
@@ -73,6 +75,35 @@ function integerBetween(value: unknown, min: number, max: number): value is numb
   return Number.isSafeInteger(value) && Number(value) >= min && Number(value) <= max;
 }
 
+export function isVoucherCategory(value: unknown): value is VoucherCategory {
+  return voucherCategories.some(category => category === value);
+}
+
+function isProductSlug(value: unknown): value is string {
+  return typeof value === "string" && value.length <= 100 && /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(value);
+}
+
+function parseVoucherTargets(input: unknown, category: VoucherCategory | null): VoucherTarget[] {
+  if (input === undefined) return [];
+  if (!Array.isArray(input)) {
+    throw new HttpException("Daftar produk atau varian voucher tidak valid.", 400);
+  }
+  const targets = new Map<string, VoucherTarget>();
+  for (const row of input) {
+    const target = row as Record<string, unknown> | null;
+    const source = target?.category;
+    const product = target?.product_slug;
+    const variant = target?.variant_code;
+    if (!isVoucherCategory(source) || (category !== null && category !== source) || !isProductSlug(product) ||
+      (variant !== null && (typeof variant !== "string" || !variantPattern.test(variant)))) {
+      throw new HttpException("Produk atau varian target voucher tidak valid.", 400);
+    }
+    const value = { category: source, product_slug: product, variant_code: variant };
+    targets.set(JSON.stringify(value), value);
+  }
+  return [...targets.values()];
+}
+
 export function parseVoucherSettings(input: unknown) {
   if (!input || typeof input !== "object" || Array.isArray(input)) throw new HttpException("Pengaturan voucher tidak valid.", 400);
   const data = input as Record<string, unknown>;
@@ -86,9 +117,11 @@ export function parseVoucherSettings(input: unknown) {
   const code = data.code === "" ? "ANRES-" + randomBytes(12).toString("hex").toUpperCase()
     : data.code === null ? null : (parseVoucher({ code: data.code }) as { code: string }).code;
   const category = data.category ?? null, product_slug = data.product_slug ?? null, variant_code = data.variant_code ?? null;
-  if (category !== null && (typeof category !== "string" || !voucherCategories.includes(category))) invalid("Kategori tidak valid.");
-  if (product_slug !== null && (!category || typeof product_slug !== "string" || product_slug.length > 100 || !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(product_slug))) invalid("Produk tidak valid.");
+  if (category !== null && !isVoucherCategory(category)) invalid("Kategori tidak valid.");
+  if (product_slug !== null && (!category || !isProductSlug(product_slug))) invalid("Produk tidak valid.");
   if (variant_code !== null && (!product_slug || typeof variant_code !== "string" || !variantPattern.test(variant_code))) invalid("Varian tidak valid.");
+  const targets = parseVoucherTargets(data.targets, category);
+  if (targets.length && product_slug !== null) invalid("Simpan produk dan varian dalam satu daftar target.");
   const date = (value: unknown) => {
     if (typeof value !== "string" ||
       !/^\d{4}-\d{2}-\d{2}T(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d(?:\.\d{1,3})?)?(?:Z|[+-]\d{2}:\d{2})$/.test(value)) return NaN;
@@ -106,10 +139,13 @@ export function parseVoucherSettings(input: unknown) {
     (cap !== null && !integerBetween(cap, 1, 100000000)) || !integerBetween(minimum, 0, 100000000) ||
     !integerBetween(total, 1, 1000000) || (perAccount !== null && !integerBetween(perAccount, 1, Number(total))))
     invalid("Periksa nominal, kuota total, dan batas per akun.");
-  if (kind === "gift" && (!variant_code || !["game", "prepaid", "apps"].includes(String(category)) || cap === null || perAccount === null))
+  const giftTargets = targets.length
+    ? targets.every(target => target.variant_code && ["game", "prepaid", "apps"].includes(target.category))
+    : variant_code !== null && ["game", "prepaid", "apps"].includes(String(category));
+  if (kind === "gift" && (!giftTargets || cap === null || perAccount === null))
     invalid("Hadiah perlu varian game, PPOB, atau aplikasi premium, nilai produk maksimum, dan batas per akun.");
   if (typeof data.allow_promotion !== "boolean" || typeof data.active !== "boolean") invalid("Pengaturan status voucher tidak valid.");
-  return { name, code, kind, value, discount_cap: cap, minimum_amount: minimum, category, product_slug, variant_code,
+  return { name, code, kind, value, discount_cap: cap, minimum_amount: minimum, category, product_slug, variant_code, targets,
     starts_at: new Date(start).toISOString(), ends_at: new Date(end).toISOString(), total_limit: total,
     account_limit: perAccount, allow_promotion: data.allow_promotion, active: data.active };
 }

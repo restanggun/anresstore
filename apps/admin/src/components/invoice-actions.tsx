@@ -1,5 +1,6 @@
 "use client";
 
+import { AdminDrawer } from "./admin-drawer";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Copy, FileImage, Pencil, RotateCcw, Share2, Trash2, X } from "lucide-react";
@@ -91,8 +92,7 @@ export function CreateInvoiceDialog({ onClose, onCreated }: { onClose: () => voi
     } catch (reason) { setError((reason as Error).message); }
     finally { setBusy(false); }
   }
-  return <dialog ref={ref} className="order-dialog" aria-labelledby="create-invoice-title" onClose={onClose}
-    onCancel={event => { if (busy) event.preventDefault(); }}>
+  return <AdminDrawer ref={ref} className="order-dialog" aria-labelledby="create-invoice-title" onClose={onClose} dismissDisabled={busy}>
     <header className="drawer-header"><h2 id="create-invoice-title">Buat transaksi baru</h2>
       <button type="button" className="square-button" aria-label="Tutup pembuatan transaksi" disabled={busy} onClick={() => ref.current?.close()}><X size={20} /></button>
     </header>
@@ -101,7 +101,7 @@ export function CreateInvoiceDialog({ onClose, onCreated }: { onClose: () => voi
       {error && <p role="alert" className="workspace-error">{error}</p>}
       <FieldForm busy={busy} onSave={body => void save(body)} />
     </div>
-  </dialog>;
+  </AdminDrawer>;
 }
 
 function ProofForm({ busy, run }: { busy: boolean; run: RunAction }) {

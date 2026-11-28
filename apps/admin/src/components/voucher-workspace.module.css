@@ -13,6 +13,24 @@
 .editor small, .hint { font-weight: 400; }
 .hint { padding: 10px 12px; overflow-wrap: anywhere; border-radius:10px; background:#f3f8fb; color:#637987; font-size:12px; line-height:1.6; }
 .editor .check { flex-direction: row; align-items: center; gap: 9px; min-height: 44px; padding: 10px 12px; border: 1px solid var(--border); border-radius: 12px; background: #f9fbfc; }
+.editor .targets {
+  grid-column: 1 / -1;
+  display: grid;
+  min-width: 0;
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+}
+.targets legend { padding-inline: 4px; font-weight: 700; }
+.targetFilters { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(min(100%, 200px), 1fr)); }
+.editor .targetVariants { display: grid; min-width: 0; gap: 6px; margin: 0; padding: 0; border: 0; }
+.targetVariants .check { overflow-wrap: anywhere; }
+.targetVariants input { flex-shrink: 0; }
+.targetCount { margin: 0; color: var(--muted); font-size: 13px; }
+.selectedTargets { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; }
+.selectedTargets li { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 13px; overflow-wrap: anywhere; }
+.selectedTargets button { flex-shrink: 0; }
 .accounts { display: grid; gap: 12px; }
 .accounts h2, .accounts .hint, .accounts [role="status"] { margin: 0; }
 .assign { display: grid; gap: 12px; grid-template-columns: minmax(0, 1fr) auto; align-items: end; }
