@@ -1,3 +1,4 @@
+#support-inbox { scroll-margin-block-start: 136px; }
 .support-inbox.support-popup.support-create-popup {
   width: min(560px, calc(100vw - 32px));
   max-width: 560px;

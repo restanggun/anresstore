@@ -1,4 +1,5 @@
 "use client";
+import Link from "./domain-link";
 import { useEffect, useRef, useState } from "react";
 import { Button } from "@anres/ui";
 import { Input } from "@/components/ui/input";
@@ -97,6 +98,7 @@ export function PaymentCheckout({ source, code, target, serviceQuantity, targetZ
     {error && <p role="alert">{error}{pending.current && <> <a className="shop-text-button" href={invoicePath(pending.current)}>Periksa status permintaan</a></>}</p>}
     <Button type="submit" className="order-primary" disabled={busy || checkingVoucher === scope || emailLoading || !checkoutEmail.trim() || (!gift && (loading || !method)) || paymentPhoneRequired && !/^\+?[0-9]{8,15}$/.test(phone.trim())}>{busy ? "Menyiapkan pesanan..." : gift ? "Klaim produk Rp0" : "Lanjut ke pembayaran"}</Button>
     {!gift && <p className="checkout-payment-note">Gunakan Tripay untuk membayar. Status transaksi dan instruksi selanjutnya tersedia di invoice.</p>}
+    <Link className="shop-text-button" href="/bantuan">Butuh bantuan?</Link>
   </form>;
 }
 

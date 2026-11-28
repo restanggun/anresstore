@@ -33,6 +33,8 @@ try {
   await db.exec(await readFile('supabase/tests/product-cost-profit.sql','utf8'));
   await db.exec(await readFile('supabase/tests/admin-invoice-management.sql','utf8'));
   console.log('Admin invoice creation, edits, payment evidence, status, archiving and premium restoration passed');
+  await db.exec(await readFile('supabase/tests/invoice-support.sql','utf8'));
+  console.log('Invoice support ownership, guest continuation, new tickets and existing premium chat passed');
   await db.exec(await readFile('supabase/tests/admin-transaction-reporting.sql','utf8'));
   console.log('Admin reporting counts pending, paid, failed and refunded transactions across checkout, premium and QRIS history');
   await db.exec(await readFile('supabase/tests/admin-work-notifications.sql','utf8'));

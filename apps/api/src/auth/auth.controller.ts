@@ -5,6 +5,7 @@ import type { Request, Response } from "express";
 import { boundedFetch as fetch } from "../common/bounded-fetch";
 import { paymentCookies } from "../payments/payment-identity";
 import { PaymentStore } from "../payments/payment-store";
+import { supportInvoiceReference } from "../help/support-invoice-reference";
 
 import { Param, Query } from "@nestjs/common";
 
@@ -31,8 +32,46 @@ export class AuthController {
  @Post("resend-signup") async resendSignup(@Body() body:unknown,@Req() req:Request) { this.validateOrigin(req); const email=(body as {email?:unknown})?.email; if(typeof email !== "string" || !email.trim()) throw new BadRequestException("Email wajib diisi."); await this.request("resend",{type:"signup",email:email.trim()}); return {ok:true}; }
  @Post("recover") async recover(@Body() body:unknown,@Req() req:Request) { this.validateOrigin(req); this.limitCheck(req); const email=(body as {email?:unknown})?.email; if(typeof email !== "string" || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim()) || email.length>254) throw new BadRequestException("Email tidak valid."); await this.request("recover",{email:email.trim().toLowerCase()}); return {ok:true}; }
  private adminOrigin() { const origin=process.env.AUTH_ADMIN_ORIGIN || (process.env.NODE_ENV === "production" ? "" : "http://localhost:3001"); const allowed=(process.env.ADMIN_ALLOWED_ORIGINS || (process.env.NODE_ENV === "production" ? "" : "http://localhost:3001")).split(",").map(value=>value.trim()); try { const parsed=new URL(origin); if(parsed.origin !== origin || !["http:","https:"].includes(parsed.protocol) || (process.env.NODE_ENV === "production" && parsed.protocol !== "https:") || !allowed.includes(origin)) throw new Error(); return origin; } catch { throw new HttpException("Origin login admin belum dikonfigurasi.",503); } }
- @Get("google") google(@Res() res:Response,@Query("app") app?:string) { const {url,api}=this.config(); if(app === "admin") this.adminOrigin(); const challenge=this.pkce(res,app === "admin" ? "google_admin" : "google"); const params=new URLSearchParams({provider:"google",redirect_to:`${api}/v1/auth/callback`,code_challenge:challenge,code_challenge_method:"s256",prompt:"select_account"}); return res.redirect(`${url}/auth/v1/authorize?${params}`); }
- @Get("callback") async callback(@Req() req:Request,@Res() res:Response) { const {web}=this.config(); const c=this.cookies(req); const destination=c.anres_auth_kind === "google_admin" ? this.adminOrigin() : (c.anres_auth_kind === "recovery" ? (process.env.AUTH_AUTH_ORIGIN || web) : (process.env.AUTH_APP_ORIGIN || web)); try { const code=typeof req.query.code === "string" ? req.query.code : ""; if(!code || !c.anres_verifier) throw new Error("Link tidak berlaku atau dibuka di browser lain."); const data=await this.request("token?grant_type=pkce",{auth_code:code,code_verifier:c.anres_verifier}); this.session(req,res,data); res.clearCookie("anres_verifier",{path:"/"}); res.clearCookie("anres_auth_kind",{path:"/"}); if(c.anres_auth_kind === "recovery") res.cookie("anres_recovery","1",this.options(600000)); return res.redirect(`${destination}${c.anres_auth_kind === "recovery" ? "/auth/reset-password" : c.anres_auth_kind === "google_admin" ? "/" : "/dashboard"}`); } catch { return res.redirect(`${c.anres_auth_kind === "google_admin" ? destination : (process.env.AUTH_AUTH_ORIGIN || web)}${c.anres_auth_kind === "google_admin" ? "/?auth_error=callback" : "/login?auth_error=callback"}`); } }
+ @Get("google")
+ google(@Res() res: Response, @Query("app") app?: string, @Query("supportInvoice") supportInvoice?: string) {
+  const { url, api } = this.config();
+  const admin = app === "admin";
+  if (admin) this.adminOrigin();
+  const challenge = this.pkce(res, admin ? "google_admin" : "google");
+  const invoice = admin ? null : supportInvoiceReference(supportInvoice);
+  if (invoice) res.cookie("anres_support_invoice", invoice, this.options(600000));
+  else res.clearCookie("anres_support_invoice", { path: "/" });
+  const params = new URLSearchParams({ provider: "google", redirect_to: `${api}/v1/auth/callback`,
+    code_challenge: challenge, code_challenge_method: "s256", prompt: "select_account" });
+  return res.redirect(`${url}/auth/v1/authorize?${params}`);
+ }
+
+ @Get("callback")
+ async callback(@Req() req: Request, @Res() res: Response) {
+  const { web } = this.config();
+  const cookies = this.cookies(req);
+  const admin = cookies.anres_auth_kind === "google_admin";
+  const recovery = cookies.anres_auth_kind === "recovery";
+  const authOrigin = process.env.AUTH_AUTH_ORIGIN || web;
+  const destination = admin ? this.adminOrigin() : recovery ? authOrigin : process.env.AUTH_APP_ORIGIN || web;
+  const invoice = cookies.anres_auth_kind === "google" ? supportInvoiceReference(cookies.anres_support_invoice) : null;
+  res.clearCookie("anres_support_invoice", { path: "/" });
+  try {
+   const code = typeof req.query.code === "string" ? req.query.code : "";
+   if (!code || !cookies.anres_verifier) throw new Error("Link tidak berlaku atau dibuka di browser lain.");
+   const data = await this.request("token?grant_type=pkce", { auth_code: code, code_verifier: cookies.anres_verifier });
+   this.session(req, res, data);
+   res.clearCookie("anres_verifier", { path: "/" });
+   res.clearCookie("anres_auth_kind", { path: "/" });
+   if (recovery) res.cookie("anres_recovery", "1", this.options(600000));
+   if (invoice) return res.redirect(new URL(`/bantuan?invoice=${encodeURIComponent(invoice)}#support-inbox`, web).href);
+   return res.redirect(`${destination}${recovery ? "/auth/reset-password" : admin ? "/" : "/dashboard"}`);
+  } catch {
+   const params = new URLSearchParams({ auth_error: "callback" });
+   if (invoice) params.set("supportInvoice", invoice);
+   return res.redirect(`${admin ? destination : authOrigin}${admin ? "/" : "/login"}?${params}`);
+  }
+ }
  @Get("session") async getSession(@Req() req:Request,@Res({passthrough:true}) res:Response) { try { const {user}=await this.authenticated(req,res); return {user:{id:user.id, email:user.email, name:user.user_metadata?.full_name || ""}}; } catch { return {user:null}; } }
  private async profileData(req:Request,res:Response,fullName?:string) {
   const {user,token}=await this.authenticated(req,res); const {url,key}=this.config();

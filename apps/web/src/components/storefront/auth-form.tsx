@@ -1,5 +1,5 @@
 "use client";
-import { loginDestination } from "@/lib/domains";
+import { loginDestination, loginSupportInvoice, withSupportInvoice } from "@/lib/domains";
 import Link from "@/components/storefront/domain-link";
 import { apiUrl, authRequest } from "@/lib/auth-api";
 import { useEffect, useState, type FormEvent } from "react";
@@ -25,9 +25,11 @@ export function AuthForm({ mode }: { mode: Mode }) {
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [busy, setBusy] = useState(false);
+  const [supportInvoice, setSupportInvoice] = useState<string | null>(null);
   const reduce = useReducedMotion();
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
+    setSupportInvoice(loginSupportInvoice());
     if (params.has("auth_error")) setError("Autentikasi gagal atau tautan kedaluwarsa. Silakan coba lagi.");
     const referral = params.get("ref");
     if (referral && /^[a-f0-9]{16}$/i.test(referral)) void authRequest("referral-visit", { code: referral }).catch(() => undefined);
@@ -67,25 +69,29 @@ export function AuthForm({ mode }: { mode: Mode }) {
     if (stage === "register" && (String(form.get("name") ?? "").trim().length < 2 || password.length < 8 || password !== String(form.get("confirmation") ?? ""))) { setError("Periksa nama, password minimal 8 karakter, dan konfirmasi password."); return; }
     setBusy(true); setError(""); setNotice("");
     try {
-      if (stage === "register") { const data = await authRequest<{authenticated:boolean}>("register",{email,password,name:String(form.get("name")).trim()}); if (data.authenticated) { window.location.assign(loginDestination()); } else { sessionStorage.setItem("anres_confirm_email",email); window.location.assign("/auth/confirm-signup"); } }
+      if (stage === "register") { const data = await authRequest<{authenticated:boolean}>("register",{email,password,name:String(form.get("name")).trim()}); if (data.authenticated) { window.location.assign(loginDestination()); } else { sessionStorage.setItem("anres_confirm_email",email); window.location.assign(withSupportInvoice("/auth/confirm-signup", loginSupportInvoice())); } }
       else if (stage === "password") { await authRequest("login",{email,password}); window.location.assign(loginDestination()); }
     } catch (err) { setError(err instanceof Error ? err.message : "Terjadi kesalahan. Coba lagi."); } finally { setBusy(false); }
   }
   async function sendCode() { setBusy(true); setError(""); try { await authRequest("send-login-code",{email}); changeStage("otp"); setNotice("Kode login dikirim. Periksa email kamu."); } catch(err) { setError(err instanceof Error ? err.message : "Kode gagal dikirim."); } finally { setBusy(false); } }
   async function verifyCode(event:FormEvent<HTMLFormElement>) { event.preventDefault(); setBusy(true); setError(""); try { await authRequest("verify-login-code",{email,token:code}); window.location.assign(loginDestination()); } catch(err) { setError(err instanceof Error ? err.message : "Kode tidak valid."); } finally { setBusy(false); } }
-  async function recover() { setBusy(true); setError(""); try { await authRequest("recover",{email}); sessionStorage.setItem("anres_recovery_email",email); window.location.assign("/auth/reset-password"); } catch(err) { setError(err instanceof Error ? err.message : "Permintaan gagal."); } finally { setBusy(false); } }
-  function google() { window.location.assign(`${apiUrl}/auth/google${new URLSearchParams(window.location.search).get("app") === "admin" ? "?app=admin" : ""}`); }
+  async function recover() { setBusy(true); setError(""); try { await authRequest("recover",{email}); sessionStorage.setItem("anres_recovery_email",email); window.location.assign(withSupportInvoice("/auth/reset-password", loginSupportInvoice())); } catch(err) { setError(err instanceof Error ? err.message : "Permintaan gagal."); } finally { setBusy(false); } }
+  function google() {
+    const admin = new URLSearchParams(window.location.search).get("app") === "admin";
+    const target = admin ? "/auth/google?app=admin" : withSupportInvoice("/auth/google", loginSupportInvoice());
+    window.location.assign(apiUrl + target);
+  }
   const field = (id: string, label: string, type: string, placeholder: string, auto: string) =>
     <div className="form-field"><label htmlFor={id}>{label}</label><div className="auth-input-wrap"><Input id={id} name={id} type={type === "password" && show ? "text" : type} placeholder={placeholder} autoComplete={auto} required />{id === "password" && <button type="button" className="password-toggle" onClick={() => setShow(!show)} aria-label={show ? "Sembunyikan password" : "Lihat password"} aria-pressed={show}>{show ? <EyeOff size={19}/> : <Eye size={19}/>}</button>}</div></div>;
   return <main id="main" className="container auth-page">
     <section className="auth-aside"><Link href="/katalog" className="auth-back"><ArrowLeft size={17}/>Kembali ke katalog</Link><div><div className="auth-symbol"><LockKeyhole size={42} strokeWidth={1.5}/></div><h1><TextGenerateEffect as="span" words="Akun" className="auth-headline-line" duration={.3}/><TextGenerateEffect as="span" words="Anres Store." className="auth-headline-line" duration={.3} delay={.12}/></h1><p>Masuk untuk melihat riwayat pesanan dan mengakses tiket bantuan.</p></div><span className="auth-aside-note">Anres Store</span></section>
     <section className="auth-form-panel" aria-labelledby="auth-title">
-      <div className="auth-form-heading"><h2 id="auth-title">{heading[stage]}</h2><p>{stage === "email" ? mode === "recover" ? "Mulai dengan email akunmu." : "Masuk atau buat akun untuk melanjutkan." : stage === "register" ? "Sedikit lagi untuk membuat akun." : stage === "recover" ? "Instruksi pemulihan akan dikirim ke emailmu." : "Selamat datang kembali."}</p></div>
+      <div className="auth-form-heading"><h2 id="auth-title">{heading[stage]}</h2><p>{stage === "email" ? mode === "recover" ? "Mulai dengan email akunmu." : supportInvoice ? "Masuk untuk melanjutkan ke tiket CS pesananmu." : "Masuk atau buat akun untuk melanjutkan." : stage === "register" ? "Sedikit lagi untuk membuat akun." : stage === "recover" ? "Instruksi pemulihan akan dikirim ke emailmu." : "Selamat datang kembali."}</p></div>
       {stage !== "email" && <div className="auth-email-summary"><span><Mail size={16}/><strong>{email}</strong></span><button type="button" onClick={() => changeStage("email")}>Ubah</button></div>}
       <AnimatePresence mode="wait" initial={false}><motion.div key={stage} initial={reduce ? false : {opacity:0,y:8}} animate={{opacity:1,y:0}} exit={reduce ? {opacity:0} : {opacity:0,y:-6}} transition={{duration:reduce?0:.18}}>
         {stage === "email" && <><form noValidate onSubmit={continueEmail}><div className="form-field"><label htmlFor="auth-email">Email</label><Input id="auth-email" type="email" name="email" value={email} onChange={event => {setEmail(event.target.value);setError("");setNotice("");}} autoComplete="email" placeholder="nama@email.com" required aria-invalid={!!error} aria-describedby={error?"auth-error":undefined}/></div>{error && <p id="auth-error" className="field-error" role="alert">{error}</p>}<Button type="submit" className="auth-submit signup-action" disabled={busy}>{busy?"Memeriksa...":"Lanjutkan"}<ArrowRight size={17}/></Button></form>{mode !== "recover" && <><div className="auth-divider"><span/>atau<span/></div><button type="button" className="auth-google" onClick={google} disabled={busy}><GoogleMark/>Lanjutkan dengan Google</button></>}</>}
         {stage === "options" && <div className="auth-options">{providers.includes("email") && <button type="button" onClick={() => changeStage("password")}><span>Masuk dengan password</span><ChevronRight size={17}/></button>}<button type="button" onClick={sendCode} disabled={busy}><span>Masuk dengan kode email</span><ChevronRight size={17}/></button>{providers.includes("google") && <button type="button" onClick={google}><GoogleMark/><span>Masuk dengan Google</span><ChevronRight size={17}/></button>}{error && <p className="field-error" role="alert">{error}</p>}</div>}
-        {stage === "pending" && <><p className="auth-otp-note">Akun ini belum dikonfirmasi. Gunakan kode yang dikirim ke email atau minta kode baru.</p><Button type="button" className="auth-submit signup-action" onClick={() => { sessionStorage.setItem("anres_confirm_email",email); window.location.assign("/auth/confirm-signup"); }}>Konfirmasi email<ArrowRight size={17}/></Button></>}
+        {stage === "pending" && <><p className="auth-otp-note">Akun ini belum dikonfirmasi. Gunakan kode yang dikirim ke email atau minta kode baru.</p><Button type="button" className="auth-submit signup-action" onClick={() => { sessionStorage.setItem("anres_confirm_email",email); window.location.assign(withSupportInvoice("/auth/confirm-signup", loginSupportInvoice())); }}>Konfirmasi email<ArrowRight size={17}/></Button></>}
         {stage === "otp" && <form onSubmit={verifyCode}><p className="auth-otp-note">Masukkan kode yang dikirim ke emailmu.</p><div className="form-field"><label htmlFor="login-code">Kode login</label><Input id="login-code" inputMode="numeric" autoComplete="one-time-code" pattern="[0-9]{6}" minLength={6} maxLength={6} value={code} onChange={event => setCode(event.target.value.replace(/\D/g,""))} required /></div>{error && <p className="field-error" role="alert">{error}</p>}<Button type="submit" className="auth-submit signup-action" disabled={busy}>Masuk<ArrowRight size={17}/></Button><button type="button" className="auth-step-back" onClick={sendCode} disabled={busy}>Kirim ulang kode</button></form>}
         {(stage === "password" || stage === "register") && <form noValidate onSubmit={submitAuth} onInput={() => {setError("");setNotice("");}}>
           {stage === "register" && field("name","Nama","text","Nama kamu","name")}
@@ -100,7 +106,7 @@ export function AuthForm({ mode }: { mode: Mode }) {
       {notice && <div className="form-notice form-notice-success" role="status">{notice}</div>}
       <div className="auth-footer">
         {stage !== "email" && <button type="button" className="auth-step-back" onClick={() => changeStage("email")}><ArrowLeft size={15}/>Kembali</button>}
-        {mode !== "recover" && <p className="auth-help">{mode === "login" ? "Belum punya akun?" : "Sudah punya akun?"}{" "}<Link href={mode === "login" ? "/daftar" : "/login"}>{mode === "login" ? "Daftar" : "Masuk"}</Link></p>}
+        {mode !== "recover" && <p className="auth-help">{mode === "login" ? "Belum punya akun?" : "Sudah punya akun?"}{" "}<Link href={withSupportInvoice(mode === "login" ? "/daftar" : "/login", supportInvoice)}>{mode === "login" ? "Daftar" : "Masuk"}</Link></p>}
         <Link href="/bantuan" className="auth-help">Butuh bantuan tentang akun?</Link>
       </div>
     </section>

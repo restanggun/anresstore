@@ -21,7 +21,9 @@ test("customer login always opens the dashboard, including single-origin develop
   process.env.NEXT_PUBLIC_ADMIN_URL="https://admin.example";
   globalThis.window={location:{search:"?app=admin"}};
   assert.equal(loginDestination(),"https://admin.example");
-  globalThis.window.location.search="?next=https://evil.example";
+  globalThis.window.location.search="?supportInvoice=ANRS-261125-03BD0078B14C49";
+  assert.equal(loginDestination(),new URL("/bantuan?invoice=ANRS-261125-03BD0078B14C49#support-inbox",domains.web).href);
+  globalThis.window.location.search="?supportInvoice=https://evil.example&next=https://evil.example";
   assert.equal(loginDestination(),`${domains.app.replace(/\/$/,"")}/dashboard`);
  } finally {
   if(oldWindow===undefined)delete globalThis.window;else globalThis.window=oldWindow;

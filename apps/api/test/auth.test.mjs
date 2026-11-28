@@ -45,6 +45,15 @@ test("auth API menangani login, sesi, logout, origin, dan callback PKCE", async 
  const resetOk=await fetch(`${base}/reset-password`,{method:"POST",headers,body:JSON.stringify({email:"uji@example.com",token:"123456",password:"newpassword"})}); assert.equal(resetOk.status,201); assert.ok(calls.some(x=>x.url === "/auth/v1/verify" && x.body.type === "recovery")); assert.ok(calls.some(x=>x.url === "/auth/v1/user" && x.body && x.body.password === "newpassword" && x.authorization === "Bearer access"));
  const google=await fetch(`${base}/google`,{redirect:"manual"}); assert.equal(google.status,302); assert.ok(google.headers.get("location").includes("code_challenge=")); assert.equal(new URL(google.headers.get("location")).searchParams.get("prompt"),"select_account"); const pkce=google.headers.getSetCookie().map(x=>x.split(";")[0]).join("; ");
  const cb=await fetch(`${base}/callback?code=test`,{headers:{cookie:pkce},redirect:"manual"}); assert.equal(cb.status,302); assert.equal(cb.headers.get("location"),"http://localhost:3002/dashboard");
+ const supportInvoice = "ANRS-261125-03BD0078B14C49";
+ const supportGoogle = await fetch(`${base}/google?supportInvoice=${supportInvoice}`, { redirect: "manual" });
+ const supportCookies = supportGoogle.headers.getSetCookie().map(cookie => cookie.split(";")[0]).join("; ");
+ const supportCallback = await fetch(`${base}/callback?code=test`, { headers: { cookie: supportCookies }, redirect: "manual" });
+ const supportDestination = new URL(supportCallback.headers.get("location"));
+ assert.equal(supportDestination.origin, process.env.AUTH_WEB_ORIGIN || "http://localhost:3000");
+ assert.equal(supportDestination.pathname, "/bantuan");
+ assert.equal(supportDestination.searchParams.get("invoice"), supportInvoice);
+ assert.equal(supportDestination.hash, "#support-inbox");
  const failedCallback=await fetch(`${base}/callback`,{redirect:"manual"}); assert.equal(failedCallback.headers.get("location"),"http://localhost:3003/login?auth_error=callback"); assert.ok(calls.some(x=>x.url.includes("grant_type=pkce") && x.body.code_verifier));
  const adminGoogle=await fetch(`${base}/google?app=admin`,{redirect:"manual"}); assert.equal(adminGoogle.status,302); const adminPkce=adminGoogle.headers.getSetCookie().map(x=>x.split(";")[0]).join("; ");
  const adminCb=await fetch(`${base}/callback?code=test`,{headers:{cookie:adminPkce},redirect:"manual"}); assert.equal(adminCb.status,302); assert.equal(adminCb.headers.get("location"),"http://localhost:3001/");

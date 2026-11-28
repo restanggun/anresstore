@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { ArrowLeft, ArrowUpRight, Check, CircleCheck, Clock3, Copy, Printer, ReceiptText, RefreshCw, ShieldCheck, TriangleAlert } from "lucide-react";
 import { Button } from "@anres/ui";
 import Link from "./domain-link";
+import { invoiceSupportHref } from "@/lib/domains";
 import { forgetPaymentIntent, paymentRequest } from "@/lib/payment-api";
 import { invoicePath, tripayCheckoutUrl } from "@/lib/payment-navigation";
 import { InvoiceRecovery } from "./invoice-recovery";
@@ -67,6 +68,7 @@ export function PaymentInvoice({ id }: { id: string }) {
   const completed = status?.step === 4;
   const step = status?.step ?? 1;
   const checkoutUrl = payment ? tripayCheckoutUrl(payment) : null;
+  const paymentHelpShown = payment?.manualPayment && payment.status === "pending" && !payment.manualProofSubmitted;
   const canStartNewOrder = !!payment && !adminView && !payment.needsReview &&
     !["requested", "in_review"].includes(payment.refund?.refund_status ?? "") &&
     (["failed", "expired", "refunded"].includes(payment.status) ||
@@ -94,13 +96,13 @@ export function PaymentInvoice({ id }: { id: string }) {
           <div className="ticket-status" data-tone={status!.tone} role="status" aria-live="polite"><span className="ticket-status-icon" aria-hidden="true">{status!.needsHelp ? <TriangleAlert size={25}/> : completed ? <CircleCheck size={27}/> : <Clock3 size={26}/>}</span><div><h2>{status!.title}</h2><p>{status!.description}</p></div></div>
           <dl className="ticket-state-pair"><div><dt>Pembayaran</dt><dd>{status!.paymentLabel}</dd></div><div data-problem={payment.status === "paid" && status!.needsHelp}><dt>Pengiriman produk</dt><dd>{status!.deliveryLabel}</dd></div></dl>
           <section className="ticket-order"><h3>Rincian pesanan</h3><h4>{payment.product}</h4><dl className="ticket-detail-grid"><div><dt>{payment.targetZone ? "ID pemain" : "Tujuan / ID pelanggan"}</dt><dd>{payment.target || "-"}</dd></div>{payment.targetZone && <div><dt>Server / zone</dt><dd>{payment.targetZone}</dd></div>}<div><dt>Dibuat pada</dt><dd>{date(payment.createdAt)}</dd></div><div><dt>Metode pembayaran</dt><dd>{payment.method}</dd></div>{payment.reference && <div><dt>Referensi Tripay</dt><dd>{payment.reference}</dd></div>}</dl></section>
-          {status!.needsHelp && <section className="ticket-resolution" aria-label="Bantuan pesanan"><h3>{status!.reason ? "Alasan pengiriman gagal" : "Langkah berikutnya"}</h3>{status!.reason && <p>{status!.reason}</p>}<p>Sertakan nomor invoice saat menghubungi CS. Tim akan memeriksa pesanan sebelum menentukan penyelesaiannya.</p><Button asChild variant="outline"><Link href="/bantuan">Hubungi CS</Link></Button></section>}
+          {status!.needsHelp && <section className="ticket-resolution" aria-label="Bantuan pesanan"><h3>{status!.reason ? "Alasan pengiriman gagal" : "Langkah berikutnya"}</h3>{status!.reason && <p>{status!.reason}</p>}<p>Tim CS dapat memeriksa kendala menggunakan invoice ini.</p><Button asChild variant="outline"><Link href={invoiceSupportHref(payment.invoiceNumber ?? payment.id)}>Hubungi CS</Link></Button></section>}
           {payment.fulfillment?.status === "completed" && payment.fulfillment.note && <section className="ticket-fulfillment"><h3>Informasi produk</h3><p>{payment.fulfillment.note}</p></section>}
           {!adminView && payment.source === "tasks" && !payment.manualPayment && payment.status === "paid" && <TaskOrderPanel id={payment.id}/>}
           {!adminView && payment.review?.eligible && <InvoiceReviewForm key={payment.id} invoiceId={payment.id} submitted={payment.review.submitted}/>}
           {!adminView && (payment.refund || payment.amount > 0 && payment.status === "paid" && status!.needsHelp) && <RefundRequest payment={payment} onUpdated={()=>void refresh()}/>}
           {!adminView && payment.ownership === "guest" && <div className="invoice-guest-notice"><span>Invoice ini masih mengikuti browser pemesan. Simpan ke akun untuk akses dari perangkat lain.</span><InvoiceRecovery invoiceNumber={payment.invoiceNumber||payment.id} label="Simpan ke akun"/></div>}
-          <footer className="ticket-footer"><span>Status diperiksa otomatis{payment.lastVerifiedAt ? ` · ${date(payment.lastVerifiedAt)}` : ""}</span><Link href="/bantuan">Butuh bantuan?</Link></footer>
+          <footer className="ticket-footer"><span>Status diperiksa otomatis{payment.lastVerifiedAt ? ` · ${date(payment.lastVerifiedAt)}` : ""}</span>{adminView || status!.needsHelp || paymentHelpShown ? <Link href="/bantuan">Pusat bantuan</Link> : <Link href={invoiceSupportHref(payment.invoiceNumber ?? payment.id)}>Hubungi CS</Link>}</footer>
         </div>
         <aside className="ticket-stub" aria-label="Ringkasan pembayaran"><div><h3>Ringkasan pembayaran</h3><dl className="ticket-totals"><div><dt>Harga produk</dt><dd>{money(payment.voucher?.baseAmount ?? payment.amount)}</dd></div>{payment.voucher && <div><dt>Voucher {payment.voucher.name}</dt><dd>−{money(payment.voucher.discount)}</dd></div>}<div><dt>Biaya admin</dt><dd>{payment.manualPayment || payment.reference || payment.amount === 0 ? money(payment.fee) : "Menunggu Tripay"}</dd></div><div className="ticket-total"><dt>Total pembayaran</dt><dd>{payment.manualPayment || payment.reference || payment.amount === 0 ? money(payment.total) : "Belum tersedia"}</dd></div></dl>
           {payment.status === "pending" && payment.expiresAt && <div className="ticket-expiry"><Clock3 size={17} aria-hidden="true"/><p>Bayar sebelum<strong>{date(payment.expiresAt * 1000)}</strong></p></div>}
@@ -108,7 +110,7 @@ export function PaymentInvoice({ id }: { id: string }) {
             {payment.manualProofSubmitted ? <p role="status">Bukti transfer sedang diperiksa admin.</p> : <>
               {payment.manualQr && <img src={payment.manualQr} alt="Kode QRIS untuk membayar invoice ini" width={220} height={220} />}
               <p>{payment.manualQr ? "Pindai QRIS sesuai nominal dan kirim bukti transfer ke admin." : "Hubungi admin untuk instruksi pembayaran dan pengiriman bukti transfer."}</p>
-              <Button asChild variant="outline"><Link href="/bantuan">Hubungi admin</Link></Button>
+              <Button asChild variant="outline"><Link href={invoiceSupportHref(payment.invoiceNumber ?? payment.id)}>Hubungi CS</Link></Button>
             </>}
           </div>}
           {checkoutUrl && payment.payCode && <div className="ticket-pay-code"><span>Kode bayar / virtual account</span><strong>{payment.payCode}</strong></div>}

@@ -2,6 +2,8 @@ import { Body, Controller, Get, HttpException, Param, Post, Query, Req, Res } fr
 import type { Request, Response } from "express";
 import { PaymentIdentityService } from "../payments/payment-identity";
 import { adminDb } from "../admin/admin-store";
+import { PaymentStore } from "../payments/payment-store";
+import { supportInvoiceReference } from "./support-invoice-reference";
 
 export const uuid = (value: unknown): value is string => typeof value === "string" && /^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i.test(value);
 export function pageIndex(value: string) { const n = Number(value || 0); if (!Number.isSafeInteger(n) || n < 0 || n > 100000) throw new HttpException("Halaman tidak valid.",400); return n; }
@@ -12,9 +14,13 @@ export function messageInput(body: {id?:unknown;body?:unknown}) {
 @Controller("help/conversations")
 export class ConversationsController {
  private identity = new PaymentIdentityService();
+ private readonly store = new PaymentStore();
+ private validateWriteOrigin(req: Request) {
+  if(!(process.env.CORS_ORIGINS || "http://localhost:3000,http://localhost:3001").split(",").map(s=>s.trim()).includes(req.headers.origin || "")) throw new HttpException("Origin tidak diizinkan.",403);
+ }
  private async user(req:Request,res:Response,write=false) {
   res.setHeader("Cache-Control","no-store");
-  if(write && !(process.env.CORS_ORIGINS || "http://localhost:3000,http://localhost:3001").split(",").map(s=>s.trim()).includes(req.headers.origin || "")) throw new HttpException("Origin tidak diizinkan.",403);
+  if (write) this.validateWriteOrigin(req);
   const {userId}=await this.identity.resolve(req,res); if(!userId) throw new HttpException("Masuk untuk membuka percakapan CS.",401); return userId;
  }
  @Get() async list(@Query("page") page:string,@Req() req:Request,@Res({passthrough:true}) res:Response) {
@@ -41,6 +47,40 @@ export class ConversationsController {
   if(existing) { if(existing.user_id!==user) throw new HttpException("Nomor percakapan tidak tersedia.",409); return {id:input.id}; }
   await adminDb("rpc/create_support_ticket","","POST",{p_id:input.id,p_user:user,p_subject:input.subject.trim(),p_body:typeof input.body==="string"?input.body.trim():null}); return {id:input.id};
  }
+ private async invoiceContext(req: Request, res: Response, reference: unknown, write = false) {
+  if (write) this.validateWriteOrigin(req);
+  res.setHeader("Cache-Control", "no-store");
+  const identity = await this.identity.resolve(req, res);
+  if (!identity.userId) throw new HttpException("Masuk untuk melanjutkan ke tiket CS.", 401);
+  const invoice = supportInvoiceReference(reference);
+  if (!invoice) throw new HttpException("Nomor invoice tidak valid.", 400);
+  return { p_invoice: invoice, p_user: identity.userId, p_guest_hash: identity.guestHash,
+    p_verified_email: identity.emailVerified ? identity.email ?? null : null };
+ }
+
+ @Get("invoice/:reference")
+ async invoiceSupport(@Param("reference") reference: string, @Req() req: Request, @Res({ passthrough: true }) res: Response) {
+  const args = await this.invoiceContext(req, res, reference);
+  const [context] = await this.store.request<{ invoice_number: string; ticket_id: string | null }[]>(
+    "rpc/invoice_support_context", "POST", args);
+  if (!context) throw new HttpException("Invoice tidak ditemukan untuk akun ini.", 404);
+  return { invoiceNumber: context.invoice_number, ticketId: context.ticket_id };
+ }
+
+ @Post("invoice/:reference")
+ async createInvoiceTicket(@Param("reference") reference: string, @Body() input: { id?: unknown; subject?: unknown; body?: unknown },
+  @Req() req: Request, @Res({ passthrough: true }) res: Response) {
+  const args = await this.invoiceContext(req, res, reference, true);
+  if (!input || !uuid(input.id) || typeof input.subject !== "string" || input.subject.trim().length < 3 ||
+      input.subject.length > 160 || typeof input.body !== "string" || !input.body.trim() || input.body.length > 2800)
+    throw new HttpException("Isi subjek dan rincian kendala invoice.", 400);
+  const [room] = await this.store.request<{ id: string; reused: boolean }[]>("rpc/create_invoice_support_ticket", "POST", {
+    ...args, p_id: input.id, p_subject: input.subject.trim(), p_body: input.body.trim(),
+  });
+  if (!room) throw new HttpException("Invoice tidak ditemukan untuk akun ini.", 404);
+  return room;
+ }
+
  @Get(":id/messages") async messages(@Param("id") id:string,@Query("page") page:string,@Req() req:Request,@Res({passthrough:true}) res:Response) {
   const readAt=new Date().toISOString();
   const user=await this.user(req,res),index=pageIndex(page);
