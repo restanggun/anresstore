@@ -15,7 +15,8 @@ import { randomUUID } from "node:crypto";
 import { TripayClient } from "../payments/tripay-client";
 import { VipaymentClient } from "../payments/vipayment-client";
 import { PaymentStore } from "../payments/payment-store";
-import { parseVoucherSettings, voucherUuid } from "../payments/vouchers";
+import { ResellerProgram, resellerAmount } from "../payments/reseller-program";
+import { parseVoucherSettings, variantPattern, voucherUuid } from "../payments/vouchers";
 import nodemailer from "nodemailer";
 import {
   assistantAnswer, assistantCategories, assistantConfig, assistantInput, assistantObject,
@@ -2322,6 +2323,134 @@ export class AdminController {
     const invoiceIds=referrals.flatMap(row=>row.qualifying_invoice_id??[]);
     const invoices=invoiceIds.length?await adminDb<{id:string;invoice_number:string;product_name:string;amount:number;created_at:string}>("invoices","?id=in.("+invoiceIds.join(",")+")&select=id,invoice_number,product_name,amount,created_at&payment_mode=eq.live"):[];
     return {settings:settings??null,templates,referrals:referrals.map(row=>({...row,qualifyingInvoice:invoices.find(invoice=>invoice.id===row.qualifying_invoice_id)??null}))};
+  }
+
+  @Get("resellers")
+  async getResellers(@Query("page") page: string, @Req() req: Request, @Res({ passthrough: true }) res: Response) {
+    const access = await this.authorize(req, res);
+    if (!access.superAdmin) throw new HttpException("Program reseller memerlukan akses super admin.", 403);
+    const program = new ResellerProgram();
+    const [registrationOpen, members, [rewards], templates] = await Promise.all([
+      program.registrationOpen(),
+      adminDb("resellers", `?select=user_id,shop_name,whatsapp,status,revision,updated_at&order=updated_at.desc,user_id&limit=25&offset=${pageIndex(page)*25}`),
+      adminDb("reseller_settings", "?id=eq.1&select=perak_voucher_id,emas_voucher_id"),
+      adminDb("vouchers", "?select=id,name&code=is.null&account_limit=eq.1&kind=neq.gift&active=eq.true&order=name&limit=200"),
+    ]);
+    return { registrationOpen, members, rewards, templates };
+  }
+
+  @Patch("resellers/rewards")
+  async resellerRewards(@Body() input: { perak?: unknown; emas?: unknown }, @Req() req: Request, @Res({ passthrough: true }) res: Response) {
+    const access = await this.authorize(req, res, true);
+    if (!access.superAdmin) throw new HttpException("Program reseller memerlukan akses super admin.", 403);
+    const { perak, emas } = input ?? {};
+    if (!(perak === null || typeof perak === "string" && uuid(perak)) ||
+        !(emas === null || typeof emas === "string" && uuid(emas)) || (perak !== null && perak === emas))
+      throw new HttpException("Pilih voucher terpisah untuk setiap tier.", 400);
+    const ids = [perak, emas].filter(Boolean);
+    if (ids.length && (await adminDb("vouchers", `?id=in.(${ids.join(",")})&select=id&code=is.null&account_limit=eq.1&kind=neq.gift&active=eq.true`)).length !== ids.length)
+      throw new HttpException("Gunakan voucher akun aktif dengan batas satu penggunaan per akun.", 409);
+    await this.audit(access.id, "retail.tier.rewards", "reseller");
+    await adminDb("reseller_settings", "?id=eq.1", "PATCH", { perak_voucher_id: perak, emas_voucher_id: emas });
+    return { ok: true };
+  }
+
+  @Patch("resellers/settings")
+  async resellerSettings(@Body() input: { registrationOpen?: unknown }, @Req() req: Request, @Res({ passthrough: true }) res: Response) {
+    const access = await this.authorize(req, res, true);
+    if (!access.superAdmin) throw new HttpException("Program reseller memerlukan akses super admin.", 403);
+    if (typeof input?.registrationOpen !== "boolean") throw new HttpException("Status pendaftaran tidak valid.", 400);
+    await this.audit(access.id, input.registrationOpen ? "reseller.registration.open" : "reseller.registration.close", "reseller");
+    await adminDb("reseller_settings", "?id=eq.1", "PATCH", { registration_open: input.registrationOpen });
+    return { ok: true };
+  }
+
+  @Patch("resellers/members/:id")
+  async reviewReseller(@Param("id") id: string, @Body() input: { status?: unknown; revision?: unknown }, @Req() req: Request, @Res({ passthrough: true }) res: Response) {
+    const access = await this.authorize(req, res, true);
+    if (!access.superAdmin) throw new HttpException("Program reseller memerlukan akses super admin.", 403);
+    const status = input?.status;
+    if (!uuid(id) || !Number.isSafeInteger(input?.revision) || (status !== "approved" && status !== "rejected" && status !== "suspended"))
+      throw new HttpException("Keputusan reseller tidak valid.", 400);
+    const allowed = { approved: "in.(pending,suspended)", rejected: "eq.pending", suspended: "eq.approved" }[status];
+    await this.audit(access.id, `reseller.member.${status}`, id);
+    const [saved] = await adminDb("resellers", `?user_id=eq.${id}&revision=eq.${input.revision}&status=${allowed}`, "PATCH", {
+      status, revision: Number(input.revision)+1, updated_at: new Date().toISOString(),
+    });
+    if (!saved) throw new HttpException("Status telah berubah. Muat ulang daftar pengajuan.", 409);
+    return { ok: true };
+  }
+
+  @Get("resellers/prices")
+  async resellerPrices(@Query("category") category: string, @Req() req: Request, @Res({ passthrough: true }) res: Response) {
+    const access = await this.authorize(req, res);
+    if (!access.superAdmin) throw new HttpException("Program reseller memerlukan akses super admin.", 403);
+    if (category !== "game" && category !== "prepaid") throw new HttpException("Kategori tidak valid.", 400);
+    return { prices: await new ResellerProgram().prices(category) };
+  }
+
+  @Post("resellers/prices")
+  async setResellerPrice(@Body() input: { category?: unknown; code?: unknown; starter?: unknown; pro?: unknown; partner?: unknown; remove?: unknown }, @Req() req: Request, @Res({ passthrough: true }) res: Response) {
+    const access = await this.authorize(req, res, true);
+    if (!access.superAdmin) throw new HttpException("Program reseller memerlukan akses super admin.", 403);
+    const { category, code } = input ?? {};
+    if ((category !== "game" && category !== "prepaid") || typeof code !== "string" || !variantPattern.test(code))
+      throw new HttpException("Kategori atau kode SKU tidak valid.", 400);
+    const filter = `?category=eq.${category}&code=eq.${encodeURIComponent(code)}`;
+    if (input.remove === true) {
+      await this.audit(access.id, "reseller.price.remove", `${category}/${code}`);
+      await adminDb("reseller_prices", filter, "DELETE");
+      return { ok: true };
+    }
+    const { starter, pro, partner } = input;
+    if (typeof starter !== "number" || typeof pro !== "number" || typeof partner !== "number" ||
+      ![starter, pro, partner].every(Number.isSafeInteger) || starter < pro || pro < partner || partner < 1)
+      throw new HttpException("Gunakan nominal rupiah bulat dengan harga Starter ≥ Pro ≥ Partner.", 400);
+    const catalog = await this.catalogReader.list(category);
+    const item = catalog.items.find(product => product.code === code);
+    const prices = { category, code, starter, pro, partner };
+    if (!item || !resellerAmount(item, prices, "starter") || !resellerAmount(item, prices, "partner"))
+      throw new HttpException("Gunakan SKU aktif dengan harga di atas biaya supplier dan maksimal harga publik.", 409);
+    await this.audit(access.id, "reseller.price.save", `${category}/${code}`);
+    await adminDb("reseller_prices", "?on_conflict=category,code", "POST", prices);
+    return { ok: true };
+  }
+
+  @Get("resellers/commissions")
+  async resellerCommissions(@Query("page") page: string, @Req() req: Request, @Res({ passthrough: true }) res: Response) {
+    const access = await this.authorize(req, res);
+    if (!access.superAdmin) throw new HttpException("Komisi reseller memerlukan akses super admin.", 403);
+    const [percent, rows] = await Promise.all([
+      new ResellerProgram().hostedPercent(),
+      adminDb("reseller_checkout_status", `?payment_id=not.is.null&select=id,reseller_id,invoice_number,state,earned,payout_amount,payout_reference,adjustment_due&order=created_at.desc,id.desc&limit=25&offset=${pageIndex(page)*25}`),
+    ]);
+    return { percent, rows };
+  }
+
+  @Patch("resellers/commissions")
+  async resellerCommissionPercent(@Body() input: { percent?: unknown }, @Req() req: Request, @Res({ passthrough: true }) res: Response) {
+    const access = await this.authorize(req, res, true);
+    if (!access.superAdmin) throw new HttpException("Komisi reseller memerlukan akses super admin.", 403);
+    if (typeof input?.percent !== "number" || !Number.isInteger(input.percent) || input.percent < 0 || input.percent > 80)
+      throw new HttpException("Isi persentase dari 0 sampai 80.", 400);
+    await this.audit(access.id, "reseller.commission.settings", "reseller");
+    await adminDb("reseller_settings", "?id=eq.1", "PATCH", { hosted_commission_percent: input.percent });
+    return { ok: true };
+  }
+
+  @Post("resellers/commissions/:id/:action")
+  async recordResellerCommission(@Param("id") id: string, @Param("action") action: string, @Body() input: { amount?: unknown; reference?: unknown }, @Req() req: Request, @Res({ passthrough: true }) res: Response) {
+    const access = await this.authorize(req, res, true, true, true);
+    if (!access.superAdmin) throw new HttpException("Pencatatan pencairan memerlukan akses super admin.", 403);
+    const reference = typeof input?.reference === "string" ? input.reference.trim() : "";
+    if ((action !== "payout" && action !== "adjustment") || !uuid(id) || typeof input?.amount !== "number" || !Number.isSafeInteger(input.amount) || input.amount < 1 ||
+        input.amount > 100000000 || reference.length < 6 || reference.length > 100 || /[\u0000-\u001f\u007f]/u.test(reference))
+      throw new HttpException("Nominal atau referensi pencairan tidak valid.", 400);
+    await this.audit(access.id, `reseller.commission.${action}`, id);
+    await this.voucherStore.rpc(action === "payout" ? "record_reseller_payout" : "record_reseller_adjustment", {
+      p_link: id, p_amount: input.amount, p_reference: reference,
+    });
+    return { ok: true };
   }
 
   @Post("campaign")

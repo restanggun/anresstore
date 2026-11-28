@@ -9,7 +9,16 @@ export function loginDestination() {
   if (typeof window !== "undefined" && new URLSearchParams(window.location.search).get("app") === "admin" && admin) return admin;
   const invoice = loginSupportInvoice();
   if (invoice) return new URL(invoiceSupportHref(invoice), domains.web).href;
+  if (isResellerReturn()) return new URL("/dashboard/reseller", domains.app).href;
   return `${domains.app.replace(/\/$/, "")}/dashboard`;
+}
+
+export function isResellerReturn() {
+  return typeof window !== "undefined" && new URLSearchParams(window.location.search).get("returnTo") === "reseller";
+}
+
+export function withResellerReturn(path: string) {
+  return isResellerReturn() ? `${path}${path.includes("?") ? "&" : "?"}returnTo=reseller` : path;
 }
 
 export function supportInvoiceReference(value: unknown) {

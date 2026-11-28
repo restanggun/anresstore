@@ -12,6 +12,7 @@ test("canonical surfaces and query parameters", () => {
   assert.equal(domainRedirect("auth.anresstore.site", "/auth/reset-password", "", origins), null);
   assert.equal(domainRedirect("anresstore.site", "/dashboard", "", origins), "https://app.anresstore.site/dashboard");
   assert.equal(domainRedirect("app.anresstore.site", "/dashboard", "", origins), null);
+  assert.equal(domainRedirect("anresstore.site", "/checkout-reseller/example", "", origins), "https://app.anresstore.site/checkout-reseller/example");
 });
 
 test("customer login always opens the dashboard, including single-origin development",()=>{
@@ -23,6 +24,10 @@ test("customer login always opens the dashboard, including single-origin develop
   assert.equal(loginDestination(),"https://admin.example");
   globalThis.window.location.search="?supportInvoice=ANRS-261125-03BD0078B14C49";
   assert.equal(loginDestination(),new URL("/bantuan?invoice=ANRS-261125-03BD0078B14C49#support-inbox",domains.web).href);
+  globalThis.window.location.search="?returnTo=reseller";
+  assert.equal(loginDestination(),new URL("/dashboard/reseller",domains.app).href);
+  globalThis.window.location.search="?returnTo=https://evil.example";
+  assert.equal(loginDestination(),new URL("/dashboard",domains.app).href);
   globalThis.window.location.search="?supportInvoice=https://evil.example&next=https://evil.example";
   assert.equal(loginDestination(),`${domains.app.replace(/\/$/,"")}/dashboard`);
  } finally {

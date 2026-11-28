@@ -1,5 +1,5 @@
 "use client";
-import { loginDestination, loginSupportInvoice, withSupportInvoice } from "@/lib/domains";
+import { loginDestination, loginSupportInvoice, withResellerReturn, withSupportInvoice } from "@/lib/domains";
 import Link from "@/components/storefront/domain-link";
 import { apiUrl, authRequest } from "@/lib/auth-api";
 import { useEffect, useState, type FormEvent } from "react";
@@ -69,7 +69,7 @@ export function AuthForm({ mode }: { mode: Mode }) {
     if (stage === "register" && (String(form.get("name") ?? "").trim().length < 2 || password.length < 8 || password !== String(form.get("confirmation") ?? ""))) { setError("Periksa nama, password minimal 8 karakter, dan konfirmasi password."); return; }
     setBusy(true); setError(""); setNotice("");
     try {
-      if (stage === "register") { const data = await authRequest<{authenticated:boolean}>("register",{email,password,name:String(form.get("name")).trim()}); if (data.authenticated) { window.location.assign(loginDestination()); } else { sessionStorage.setItem("anres_confirm_email",email); window.location.assign(withSupportInvoice("/auth/confirm-signup", loginSupportInvoice())); } }
+      if (stage === "register") { const data = await authRequest<{authenticated:boolean}>("register",{email,password,name:String(form.get("name")).trim()}); if (data.authenticated) { window.location.assign(loginDestination()); } else { sessionStorage.setItem("anres_confirm_email",email); window.location.assign(withResellerReturn(withSupportInvoice("/auth/confirm-signup", loginSupportInvoice()))); } }
       else if (stage === "password") { await authRequest("login",{email,password}); window.location.assign(loginDestination()); }
     } catch (err) { setError(err instanceof Error ? err.message : "Terjadi kesalahan. Coba lagi."); } finally { setBusy(false); }
   }
@@ -78,7 +78,7 @@ export function AuthForm({ mode }: { mode: Mode }) {
   async function recover() { setBusy(true); setError(""); try { await authRequest("recover",{email}); sessionStorage.setItem("anres_recovery_email",email); window.location.assign(withSupportInvoice("/auth/reset-password", loginSupportInvoice())); } catch(err) { setError(err instanceof Error ? err.message : "Permintaan gagal."); } finally { setBusy(false); } }
   function google() {
     const admin = new URLSearchParams(window.location.search).get("app") === "admin";
-    const target = admin ? "/auth/google?app=admin" : withSupportInvoice("/auth/google", loginSupportInvoice());
+    const target = admin ? "/auth/google?app=admin" : withResellerReturn(withSupportInvoice("/auth/google", loginSupportInvoice()));
     window.location.assign(apiUrl + target);
   }
   const field = (id: string, label: string, type: string, placeholder: string, auto: string) =>
@@ -91,7 +91,7 @@ export function AuthForm({ mode }: { mode: Mode }) {
       <AnimatePresence mode="wait" initial={false}><motion.div key={stage} initial={reduce ? false : {opacity:0,y:8}} animate={{opacity:1,y:0}} exit={reduce ? {opacity:0} : {opacity:0,y:-6}} transition={{duration:reduce?0:.18}}>
         {stage === "email" && <><form noValidate onSubmit={continueEmail}><div className="form-field"><label htmlFor="auth-email">Email</label><Input id="auth-email" type="email" name="email" value={email} onChange={event => {setEmail(event.target.value);setError("");setNotice("");}} autoComplete="email" placeholder="nama@email.com" required aria-invalid={!!error} aria-describedby={error?"auth-error":undefined}/></div>{error && <p id="auth-error" className="field-error" role="alert">{error}</p>}<Button type="submit" className="auth-submit signup-action" disabled={busy}>{busy?"Memeriksa...":"Lanjutkan"}<ArrowRight size={17}/></Button></form>{mode !== "recover" && <><div className="auth-divider"><span/>atau<span/></div><button type="button" className="auth-google" onClick={google} disabled={busy}><GoogleMark/>Lanjutkan dengan Google</button></>}</>}
         {stage === "options" && <div className="auth-options">{providers.includes("email") && <button type="button" onClick={() => changeStage("password")}><span>Masuk dengan password</span><ChevronRight size={17}/></button>}<button type="button" onClick={sendCode} disabled={busy}><span>Masuk dengan kode email</span><ChevronRight size={17}/></button>{providers.includes("google") && <button type="button" onClick={google}><GoogleMark/><span>Masuk dengan Google</span><ChevronRight size={17}/></button>}{error && <p className="field-error" role="alert">{error}</p>}</div>}
-        {stage === "pending" && <><p className="auth-otp-note">Akun ini belum dikonfirmasi. Gunakan kode yang dikirim ke email atau minta kode baru.</p><Button type="button" className="auth-submit signup-action" onClick={() => { sessionStorage.setItem("anres_confirm_email",email); window.location.assign(withSupportInvoice("/auth/confirm-signup", loginSupportInvoice())); }}>Konfirmasi email<ArrowRight size={17}/></Button></>}
+        {stage === "pending" && <><p className="auth-otp-note">Akun ini belum dikonfirmasi. Gunakan kode yang dikirim ke email atau minta kode baru.</p><Button type="button" className="auth-submit signup-action" onClick={() => { sessionStorage.setItem("anres_confirm_email",email); window.location.assign(withResellerReturn(withSupportInvoice("/auth/confirm-signup", loginSupportInvoice()))); }}>Konfirmasi email<ArrowRight size={17}/></Button></>}
         {stage === "otp" && <form onSubmit={verifyCode}><p className="auth-otp-note">Masukkan kode yang dikirim ke emailmu.</p><div className="form-field"><label htmlFor="login-code">Kode login</label><Input id="login-code" inputMode="numeric" autoComplete="one-time-code" pattern="[0-9]{6}" minLength={6} maxLength={6} value={code} onChange={event => setCode(event.target.value.replace(/\D/g,""))} required /></div>{error && <p className="field-error" role="alert">{error}</p>}<Button type="submit" className="auth-submit signup-action" disabled={busy}>Masuk<ArrowRight size={17}/></Button><button type="button" className="auth-step-back" onClick={sendCode} disabled={busy}>Kirim ulang kode</button></form>}
         {(stage === "password" || stage === "register") && <form noValidate onSubmit={submitAuth} onInput={() => {setError("");setNotice("");}}>
           {stage === "register" && field("name","Nama","text","Nama kamu","name")}

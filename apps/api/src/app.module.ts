@@ -15,6 +15,7 @@ import { AiSessionsController } from "./help/ai-sessions.controller";
 import {SupportEmailWorker} from "./help/support-email-worker";
 import { TaskOrdersController } from "./payments/task-orders.controller";
 import { PremiumOrdersController } from "./payments/premium-orders.controller";
+import { ResellerController } from "./payments/reseller.controller";
 
-@Module({ controllers: [HealthController, AuthController, HelpController, ConversationsController, AiSessionsController, CatalogController, ProductReviewsController, CampaignController, StorefrontController, PaymentsController, TaskOrdersController, PremiumOrdersController, AdminController], providers: [FulfillmentWorker,SupportEmailWorker,AdminNotificationEmailWorker] })
+@Module({ controllers: [HealthController, AuthController, HelpController, ConversationsController, AiSessionsController, CatalogController, ProductReviewsController, CampaignController, StorefrontController, PaymentsController, TaskOrdersController, PremiumOrdersController, AdminController, ResellerController], providers: [FulfillmentWorker,SupportEmailWorker,AdminNotificationEmailWorker] })
 export class AppModule {}

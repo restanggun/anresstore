@@ -1,7 +1,7 @@
 export type Surface = "web" | "auth" | "app";
 export function routeSurface(path: string): Surface {
   if (/^\/(login|daftar|lupa-password|auth)(\/|$)/.test(path)) return "auth";
-  if (/^\/(dashboard|katalog|keranjang|invoice|pesanan|pembayaran|profil|misi)(\/|$)/.test(path)) return "app";
+  if (/^\/(dashboard|katalog|keranjang|invoice|pesanan|pembayaran|profil|misi|checkout-reseller)(\/|$)/.test(path)) return "app";
   return "web";
 }
 export function domainRedirect(host: string, path: string, search: string, origins: Record<Surface, string>) {

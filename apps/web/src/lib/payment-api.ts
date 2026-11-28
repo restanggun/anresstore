@@ -25,12 +25,13 @@ export function forgetPaymentIntent(id: string) {
 }
 
 /** Serializes session initialization and intent selection across tabs. The database is authoritative. */
-export async function submitPayment<T extends { id: string }>(body: Record<string, unknown>, onReserved: (id: string) => void): Promise<T> {
+export async function submitPayment<T extends { id: string }>(body: Record<string, unknown>, onReserved: (id: string) => void, endpoint: "transactions" | "reseller-transactions" | `reseller-checkout/${string}` = "transactions"): Promise<T> {
   if (!navigator.locks) throw new PaymentRequestError("Browser ini belum mendukung checkout aman antar tab. Gunakan browser terbaru.", 0);
   return navigator.locks.request("anres-payment-checkout", async () => {
     const session = await paymentRequest<{ mode: "guest" | "account"; scope: string }>("session", { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" });
     if (!/^[a-f0-9]{64}$/.test(session.scope)) throw new Error("Sesi checkout tidak valid.");
-    const bytes = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(JSON.stringify(body)));
+    const intent = endpoint === "transactions" ? body : { endpoint, body };
+    const bytes = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(JSON.stringify(intent)));
     const digest = Array.from(new Uint8Array(bytes), byte => byte.toString(16).padStart(2, "0")).join("");
     const key = `${prefix}${session.scope}:${digest}`;
     const saved = localStorage.getItem(key);
@@ -54,7 +55,7 @@ export async function submitPayment<T extends { id: string }>(body: Record<strin
     // A failed save stops checkout before any request to the gateway.
     localStorage.setItem(key, id);
     onReserved(id);
-    const payment = await paymentRequest<T>("transactions", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id, ...body }) });
+    const payment = await paymentRequest<T>(endpoint, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id, ...body }) });
     localStorage.setItem(key, payment.id);
     onReserved(payment.id);
     return payment;

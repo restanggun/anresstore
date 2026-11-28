@@ -25,7 +25,9 @@ export class PaymentStore {
     "voucher_offer" | "account_vouchers" | "reserve_voucher_payment" | "reserve_premium_voucher" |
     "voucher_set_account" | "voucher_admin_accounts" | "voucher_admin_usage" |
     "voucher_admin_redemptions" | "voucher_release_premium" | "campaign_user_snapshot" |
-    "capture_referral_attribution" | "activate_referral_attribution" | "review_referral", body: unknown) {
+    "capture_referral_attribution" | "activate_referral_attribution" | "review_referral" |
+    "reseller_progress" | "submit_reseller" | "reserve_reseller_payment" | "claim_retail_tier" |
+    "reserve_hosted_reseller_payment" | "record_reseller_payout" | "record_reseller_adjustment", body: unknown) {
     return this.request<T>(`rpc/${name}`, "POST", body);
   }
 

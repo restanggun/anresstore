@@ -14,6 +14,8 @@ import { InvoiceAccountService } from "./invoice-account-service";
 import { invoiceCsv } from "./invoice-export";
 import { PaymentStore } from "./payment-store";
 import { PaymentIdentityService, type PaymentIdentity } from "./payment-identity";
+import { ResellerProgram, resellerAmount } from "./reseller-program";
+import { resellerBearer } from "./reseller.controller";
 import { ownsPayment, parsePayment, paymentHash, paymentId, invoiceNumber, validatePaymentDetail, type PaymentRow } from "./payment-contract";
 
 @Controller("payments")
@@ -23,6 +25,7 @@ export class PaymentsController implements OnModuleInit, OnModuleDestroy {
   private readonly store = new PaymentStore();
   private readonly identities = new PaymentIdentityService();
   private readonly accounts = new InvoiceAccountService();
+  private readonly reseller = new ResellerProgram();
   private attempts = new Map<string, { count: number; until: number }>();
   private timer?: ReturnType<typeof setInterval>;
   private reconciling = false;
@@ -202,20 +205,48 @@ export class PaymentsController implements OnModuleInit, OnModuleDestroy {
   }
   @Post("transactions") @HttpCode(200)
   async create(@Body() input: unknown, @Req() req: Request, @Res({ passthrough: true }) res: Response) {
-    res.setHeader("Cache-Control", "no-store"); this.origin(req); this.coarseLimit(req, "create", 40);
+    return this.createPayment(input, req, res, false);
+  }
+
+  @Post("reseller-transactions") @HttpCode(200)
+  async createReseller(@Body() input: unknown, @Req() req: Request, @Res({ passthrough: true }) res: Response) {
+    return this.createPayment(input, req, res, true);
+  }
+
+  @Post("reseller-checkout/:link") @HttpCode(200)
+  async hostedReseller(@Param("link") link: string, @Body() input: unknown, @Req() req: Request, @Res({ passthrough: true }) res: Response) {
+    if (!paymentId.test(link)) throw new HttpException("Link checkout tidak ditemukan.", 404);
+    return this.createPayment(input, req, res, false, link);
+  }
+
+  private async createPayment(input: unknown, req: Request, res: Response, reseller: boolean, hosted?: string) {
+    res.setHeader("Cache-Control", "no-store");
+    const api = reseller && Boolean(req.headers.authorization);
+    if (!api) this.origin(req);
+    this.coarseLimit(req, "create", 40);
     await this.throttle(`create-ip:${paymentHash(this.ip(req))}`, 20);
     const body = parsePayment(input);
     const mode = body.method === "VOUCHER" ? tripayMode() : tripayConfig().mode;
     if (mode === "live" && body.source === "apps") throw new HttpException("Pembayaran aplikasi premium melalui QRIS manual belum tersedia. Jangan bayar melalui Tripay.", 503);
-    const identity = await this.identities.resolve(req, res);
+    const credential = api ? await resellerBearer(req, this.store) : null;
+    const identity: PaymentIdentity = credential
+      ? { userId: credential.member.user_id, guestHash: null, email: body.email, emailVerified: true }
+      : await this.identities.resolve(req, res);
+    if (reseller && (!identity.userId || !identity.emailVerified || body.voucher || mode !== "live" || !["game", "prepaid"].includes(body.source)))
+      throw new HttpException("Checkout reseller memerlukan akses terverifikasi, pembayaran live dan produk reseller.", 403);
+    if (hosted && (body.voucher || mode !== "live" || !["game", "prepaid"].includes(body.source)))
+      throw new HttpException("Link checkout memerlukan pembayaran live dan produk yang sesuai.", 403);
+    if (hosted && !identity.userId && !body.email)
+      throw new HttpException("Email penagihan wajib diisi untuk checkout tamu.", 400);
+    const resellerAccess = reseller ? credential ?? await this.reseller.access(identity.userId!) : null;
     if (body.voucher && identity.userId && !identity.emailVerified)
       throw new HttpException("Verifikasi email akun sebelum memakai voucher.", 403);
-    await this.accounts.attach(identity);
+    if (!reseller) await this.accounts.attach(identity);
     body.email = tripayCustomerEmail(identity.userId ? identity.email ?? "" : body.email);
     const owner = identity.userId ?? identity.guestHash;
     if (!owner) throw new HttpException("Sesi checkout belum siap. Muat ulang checkout.", 401);
     await this.throttle(`create-owner:${paymentHash(owner)}`, 10);
-    const requestHash = paymentHash(JSON.stringify(body));
+    const requestHash = paymentHash(JSON.stringify(reseller ? { reseller: api ? "api" : "dashboard", body } : hosted ? { hosted, body } : body));
     const [existing] = await this.db(`?id=eq.${body.id}`);
     if (existing) {
       this.authorize(existing, identity);
@@ -258,7 +289,21 @@ export class PaymentsController implements OnModuleInit, OnModuleDestroy {
     if (body.source === "tasks" && !/^managed\.[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/.test(body.code)) throw new HttpException("Paket tugas tidak valid.",400);
     if (body.source === "tasks" && (product.taskPricing?.unit ?? "page") !== (body.task?.pricing_unit ?? "page"))
       throw new HttpException("Satuan tarif telah berubah. Muat ulang katalog.",409);
-    const baseAmount = await voucherBaseAmount(this.store, product, body.source as CatalogItem["category"], body);
+    let hostedOffer: Awaited<ReturnType<ResellerProgram["hostedOffer"]>> | null = null;
+    if (hosted) {
+      const link = await this.reseller.checkoutLink(hosted);
+      if (identity.userId === link.reseller_id || fulfillmentMode !== "vipayment")
+        throw new HttpException("Link checkout ini tidak tersedia untuk akunmu.", 403);
+      hostedOffer = await this.reseller.hostedOffer(link, product);
+    }
+    let baseAmount: number;
+    if (resellerAccess) {
+      const amount = resellerAmount(product, await this.reseller.price(body.source, body.code), resellerAccess.progress.tier);
+      if (!amount || fulfillmentMode !== "vipayment") throw new HttpException("Produk ini belum tersedia dengan harga reseller.", 409);
+      baseAmount = amount;
+    } else {
+      baseAmount = await voucherBaseAmount(this.store, product, body.source as CatalogItem["category"], body);
+    }
     const offer = body.voucher ? await quoteVoucher(this.store, body.voucher, product, baseAmount, identity.userId, mode) : null;
     const quotedAmount = offer?.amount ?? baseAmount;
     if (quotedAmount !== body.expectedAmount) throw new HttpException("Harga telah berubah. Muat ulang katalog dan periksa harga sebelum melanjutkan.", 409);
@@ -279,11 +324,13 @@ export class PaymentsController implements OnModuleInit, OnModuleDestroy {
       fulfillment_mode: fulfillmentMode, provider_service_code: product.providerServiceCode || body.code, service_quantity: serviceQuantity,
       amount: quotedAmount, method: body.method, access_hash: paymentHash(randomBytes(32).toString("hex")), request_hash: requestHash,
       owner_user_id: identity.userId, guest_session_hash: identity.userId ? null : identity.guestHash,
-      checkout_hash: paymentHash(JSON.stringify([mode, body.source, body.code, body.target, body.targetZone ?? "", body.expectedQuantity ?? null, body.task ?? null])),
+      checkout_hash: paymentHash(JSON.stringify([mode, body.source, body.code, body.target, body.targetZone ?? "", body.expectedQuantity ?? null, body.task ?? null, ...(reseller ? ["reseller"] : hosted ? ["hosted", hosted] : [])])),
     };
     const reservation = await this.store.rpc<{ payment: PaymentRow; claimed: boolean }>(
-      body.voucher ? "reserve_voucher_payment" : body.source === "tasks" ? "reserve_task_payment" : "reserve_payment",
-      body.voucher ? { p_payment: paymentSnapshot, p_task: body.task ?? null, p_voucher: body.voucher,
+      hostedOffer ? "reserve_hosted_reseller_payment" : reseller ? "reserve_reseller_payment" : body.voucher ? "reserve_voucher_payment" : body.source === "tasks" ? "reserve_task_payment" : "reserve_payment",
+      hostedOffer ? { p_payment: paymentSnapshot, p_link: hosted, p_percent: hostedOffer.percent, p_commission: hostedOffer.commission }
+        : reseller ? { p_payment: paymentSnapshot, p_channel: api ? "api" : "dashboard", p_key_hash: credential?.hash ?? null }
+        : body.voucher ? { p_payment: paymentSnapshot, p_task: body.task ?? null, p_voucher: body.voucher,
         p_base_amount: baseAmount, p_promoted: promotedProduct(product) }
         : body.source === "tasks" ? { p_payment: paymentSnapshot, p_task: body.task } : { p_payment: paymentSnapshot });
     if (!reservation?.payment || typeof reservation.claimed !== "boolean") throw new HttpException("Reservasi pembayaran belum dapat dipastikan.", 503);

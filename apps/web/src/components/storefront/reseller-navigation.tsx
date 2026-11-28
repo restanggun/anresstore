@@ -7,9 +7,12 @@ const links = [
   ["Cara bergabung", "/reseller#cara-bergabung"],
   ["Perbandingan harga", "/reseller#perbandingan-harga"],
   ["Level reseller", "/reseller#level-reseller"],
+  ["Daftar / Dashboard reseller", "/dashboard/reseller"],
 ] as const;
 
-export function ResellerNavigation({ current, onSelect }: { current: boolean; onSelect?: () => void }) {
+export function ResellerNavigation({ pathname, onSelect }: { pathname: string; onSelect?: () => void }) {
+  const landing = pathname === "/reseller";
+  const current = landing || pathname === "/dashboard/reseller";
   const [open, setOpen] = useState(false);
   const listId = useId();
   const groupRef = useRef<HTMLDivElement>(null);
@@ -45,8 +48,8 @@ export function ResellerNavigation({ current, onSelect }: { current: boolean; on
         {links.map(([label, href]) => (
           <li key={href}>
             <Link
-              href={current && href.includes("#") ? href.slice(href.indexOf("#")) : href}
-              aria-current={current && href === "/reseller" ? "page" : undefined}
+              href={landing && href.includes("#") ? href.slice(href.indexOf("#")) : href}
+              aria-current={pathname === href ? "page" : undefined}
               onNavigate={() => {
                 setOpen(false);
                 onSelect?.();

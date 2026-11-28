@@ -33,11 +33,11 @@ export class AuthController {
  @Post("recover") async recover(@Body() body:unknown,@Req() req:Request) { this.validateOrigin(req); this.limitCheck(req); const email=(body as {email?:unknown})?.email; if(typeof email !== "string" || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim()) || email.length>254) throw new BadRequestException("Email tidak valid."); await this.request("recover",{email:email.trim().toLowerCase()}); return {ok:true}; }
  private adminOrigin() { const origin=process.env.AUTH_ADMIN_ORIGIN || (process.env.NODE_ENV === "production" ? "" : "http://localhost:3001"); const allowed=(process.env.ADMIN_ALLOWED_ORIGINS || (process.env.NODE_ENV === "production" ? "" : "http://localhost:3001")).split(",").map(value=>value.trim()); try { const parsed=new URL(origin); if(parsed.origin !== origin || !["http:","https:"].includes(parsed.protocol) || (process.env.NODE_ENV === "production" && parsed.protocol !== "https:") || !allowed.includes(origin)) throw new Error(); return origin; } catch { throw new HttpException("Origin login admin belum dikonfigurasi.",503); } }
  @Get("google")
- google(@Res() res: Response, @Query("app") app?: string, @Query("supportInvoice") supportInvoice?: string) {
+ google(@Res() res: Response, @Query("app") app?: string, @Query("supportInvoice") supportInvoice?: string, @Query("returnTo") returnTo?: string) {
   const { url, api } = this.config();
   const admin = app === "admin";
   if (admin) this.adminOrigin();
-  const challenge = this.pkce(res, admin ? "google_admin" : "google");
+  const challenge = this.pkce(res, admin ? "google_admin" : returnTo === "reseller" ? "google_reseller" : "google");
   const invoice = admin ? null : supportInvoiceReference(supportInvoice);
   if (invoice) res.cookie("anres_support_invoice", invoice, this.options(600000));
   else res.clearCookie("anres_support_invoice", { path: "/" });
@@ -51,10 +51,11 @@ export class AuthController {
   const { web } = this.config();
   const cookies = this.cookies(req);
   const admin = cookies.anres_auth_kind === "google_admin";
+  const reseller = cookies.anres_auth_kind === "google_reseller";
   const recovery = cookies.anres_auth_kind === "recovery";
   const authOrigin = process.env.AUTH_AUTH_ORIGIN || web;
   const destination = admin ? this.adminOrigin() : recovery ? authOrigin : process.env.AUTH_APP_ORIGIN || web;
-  const invoice = cookies.anres_auth_kind === "google" ? supportInvoiceReference(cookies.anres_support_invoice) : null;
+  const invoice = cookies.anres_auth_kind === "google" || reseller ? supportInvoiceReference(cookies.anres_support_invoice) : null;
   res.clearCookie("anres_support_invoice", { path: "/" });
   try {
    const code = typeof req.query.code === "string" ? req.query.code : "";
@@ -65,10 +66,11 @@ export class AuthController {
    res.clearCookie("anres_auth_kind", { path: "/" });
    if (recovery) res.cookie("anres_recovery", "1", this.options(600000));
    if (invoice) return res.redirect(new URL(`/bantuan?invoice=${encodeURIComponent(invoice)}#support-inbox`, web).href);
-   return res.redirect(`${destination}${recovery ? "/auth/reset-password" : admin ? "/" : "/dashboard"}`);
+   return res.redirect(`${destination}${recovery ? "/auth/reset-password" : admin ? "/" : reseller ? "/dashboard/reseller" : "/dashboard"}`);
   } catch {
    const params = new URLSearchParams({ auth_error: "callback" });
    if (invoice) params.set("supportInvoice", invoice);
+   if (reseller) params.set("returnTo", "reseller");
    return res.redirect(`${admin ? destination : authOrigin}${admin ? "/" : "/login"}?${params}`);
   }
  }

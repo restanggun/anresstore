@@ -42,6 +42,8 @@ try {
   await db.exec(await readFile('supabase/tests/task-pricing.sql','utf8'));
   await db.exec(await readFile('supabase/tests/checkout-vouchers.sql','utf8'));
   console.log('Voucher targeting, quota reservation, release, account isolation, gift fulfillment and premium pricing passed');
+  await db.exec(await readFile('supabase/tests/reseller-program.sql','utf8'));
+  console.log('Reseller enrollment, activation, retail rewards, hosted checkout, commission, refunds and permissions passed');
   console.log('Catalog revisions reject stale checkout and preserve reserved invoice snapshots');
   await db.exec(await readFile('supabase/tests/fulfillment-limits.sql','utf8'));
   console.log('Fulfillment pause, per-order/hour/day budgets, count limits and durable reservations passed');

@@ -21,6 +21,7 @@ const VoucherWorkspace = dynamic(() => import("../components/voucher-workspace")
 const ReviewWorkspace = dynamic(() => import("../components/review-workspace").then(module => module.ReviewWorkspace), { loading: WorkspaceLoading });
 const LandingWorkspace = dynamic(() => import("../components/landing-workspace").then(module => module.LandingWorkspace), { loading: WorkspaceLoading });
 const CampaignWorkspace = dynamic(() => import("../components/campaign-workspace").then(module => module.CampaignWorkspace), { loading: WorkspaceLoading });
+const ResellerWorkspace = dynamic(() => import("../components/reseller-workspace").then(module => module.ResellerWorkspace), { loading: WorkspaceLoading });
 const TransactionAnalytics = dynamic(() => import("../components/transaction-analytics").then(module => module.TransactionAnalytics), { loading: WorkspaceLoading });
 const ServiceWorkspace = dynamic(() => import("../components/service-workspace").then(module => module.ServiceWorkspace), { loading: WorkspaceLoading });
 const TaskWorkspace = dynamic(() => import("../components/task-workspace").then(module => module.TaskWorkspace), { loading: WorkspaceLoading });
@@ -51,12 +52,13 @@ const sections:Section[]=[
  {id:"assistant-registry",label:"Skill & Agent",icon:"assistant",group:"Pengaturan",description:"",metrics:[],chart:"",chartDescription:"",list:"",listDescription:""},
  {id:"landing",label:"Landing & grand opening",icon:"star",group:"Pengaturan",description:"Atur pengumuman dan CTA halaman utama.",metrics:[],chart:"",chartDescription:"",list:"",listDescription:""},
  {id:"campaign",label:"Misi & referral",icon:"ticket",group:"Pengaturan",description:"Atur misi grand opening dan verifikasi hadiah referral.",metrics:[],chart:"",chartDescription:"",list:"",listDescription:""},
+ {id:"reseller",label:"Reseller",icon:"users",group:"Operasional",description:"Tinjau pengajuan dan kelola harga reseller.",metrics:[],chart:"",chartDescription:"",list:"",listDescription:""},
 ];
 export default function AdminHome(){ return <AdminGate><AdminDashboard /></AdminGate>; }
 function AdminDashboard(){
  const [active,setActive]=useState("overview"),[menuOpen,setMenuOpen]=useState(false);
  const {data:assistantAccess}=useQuery({queryKey:["admin-assistant"],queryFn:({signal})=>adminRequest("assistant","GET",undefined,signal) as Promise<AssistantStatus>,retry:false,staleTime:30000});
- const availableSections=sections.filter(item=>(item.id!=="assistant-registry"||assistantAccess?.canManage)&&(item.id!=="landing"&&item.id!=="campaign"||assistantAccess?.canManageLanding));
+ const availableSections=sections.filter(item=>(item.id!=="assistant-registry"||assistantAccess?.canManage)&&(!["landing","campaign","reseller"].includes(item.id)||assistantAccess?.canManageLanding));
  const {health,samples,refresh,fetching}=useApiHealth(); const reducedMotion=useReducedMotion();
  const [transactionStatus,setTransactionStatus]=useState<string>();
  const workNotifications = useWorkNotifications();
@@ -137,6 +139,7 @@ function AdminDashboard(){
  {active === "reviews" && <ReviewWorkspace/>}
  {active === "landing" && <LandingWorkspace/>}
  {active === "campaign" && <CampaignWorkspace/>}
+ {active === "reseller" && <ResellerWorkspace/>}
  {["customers","conversations","support"].includes(active) && <><div className="workspace-heading"><div><h1>{current.label}</h1><p>{current.description}</p></div></div><ServiceWorkspace kind={active==="support"?"conversations":active as "customers"|"conversations"}/></>}
  {["access"].includes(active) && <><div className="workspace-heading"><div><h1>{current.label}</h1><p>{current.description}</p></div></div><Operations section={active}/></>}
  {active === "system" && <SystemMonitor samples={samples} refresh={refresh} fetching={fetching}/>}

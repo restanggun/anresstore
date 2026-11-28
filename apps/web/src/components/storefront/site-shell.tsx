@@ -76,13 +76,13 @@ export function SiteShell({ children }: { children: React.ReactNode }) {
       <Link href={account ? "/dashboard" : "/"} className="brand" aria-label={account ? "Anres Store dashboard" : "Anres Store beranda"} onClick={close}><Brand /></Link>
       <nav className="desktop-nav" aria-label="Navigasi utama">
         {currentNavigation.map(([label,href]) => <Link key={href} href={href} aria-current={pathname === href ? "page" : undefined}>{pathname === href && <motion.span className="nav-indicator" layoutId="active-navigation" transition={{type:"spring", stiffness:400,damping:35}} />}<span>{label}</span></Link>)}
-        <ResellerNavigation key={pathname} current={pathname === "/reseller"} />
+        <ResellerNavigation key={pathname} pathname={pathname} />
       </nav>
       <div className="nav-actions"><CartPopup/><NotificationBell/><div className="nav-account">{account ? <>{admin && adminUrl && <a href={adminUrl} className="login-link">Dashboard admin</a>}<Link href="/profil" className="login-link account-name" title={profileTitle} aria-current={profileCurrent}>{profileLabel}</Link><button className="signup-link" onClick={logout}>Keluar</button></> : <><Link href="/login" className="login-link" aria-current={pathname === "/login" ? "page" : undefined}>Login</Link><Link href="/daftar" className="signup-link" aria-current={pathname === "/daftar" ? "page" : undefined}>Daftar</Link></>}</div>
       <button id="menu-toggle" className="menu-toggle" aria-label={menuOpen ? "Tutup menu" : "Buka menu"} aria-expanded={menuOpen} aria-controls="mobile-navigation" onClick={() => { setMenuPath(pathname); setOpen(!menuOpen); }}>{menuOpen ? <X size={22} /> : <Menu size={22} />}</button></div>
       <AnimatePresence initial={false}>{menuOpen && <motion.nav id="mobile-navigation" className="mobile-nav" aria-label="Navigasi mobile" initial={{opacity:0,y:reduce?0:-8}} animate={{opacity:1,y:0}} exit={{opacity:0,y:reduce?0:-5}} transition={{duration:reduce?0:.16}}>
         {currentNavigation.map(([label,href]) => <Link key={href} href={href} onClick={close} aria-current={pathname === href ? "page" : undefined}>{label}<ChevronRight size={17} aria-hidden="true" /></Link>)}
-        <ResellerNavigation key={pathname} current={pathname === "/reseller"} onSelect={close} />
+        <ResellerNavigation key={pathname} pathname={pathname} onSelect={close} />
         <div className="mobile-account">{account ? <>{admin && adminUrl && <a href={adminUrl} className="login-link">Dashboard admin</a>}<Link href="/profil" className="login-link account-name" onClick={close} aria-current={profileCurrent}>{profileLabel}</Link><button className="signup-link" onClick={logout}>Keluar</button></> : <><Link href="/login" className="login-link" onClick={close} aria-current={pathname === "/login" ? "page" : undefined}>Login</Link><Link href="/daftar" className="signup-link" onClick={close} aria-current={pathname === "/daftar" ? "page" : undefined}>Daftar</Link></>}</div>
       </motion.nav>}</AnimatePresence>
     </div></header></div>

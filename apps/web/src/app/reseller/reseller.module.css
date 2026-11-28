@@ -20,18 +20,14 @@
   letter-spacing: -.055em;
 }
 
-.heroCopy > p:not(.status) {
+.heroCopy > p {
   max-inline-size: 38ch;
   margin-block: 20px 24px;
   font-size: clamp(1rem, 1.5vw, 1.125rem);
   line-height: 1.65;
 }
 
-.heroCopy .status {
-  margin-block: 0 14px;
-  font-size: .875rem;
-  font-weight: 750;
-}
+.registration { margin-block-start: 16px; }
 
 .heroCopy [data-slot="button"] {
   min-block-size: 44px;
